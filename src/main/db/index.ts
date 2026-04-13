@@ -1,7 +1,10 @@
-import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, readdirSync } from 'fs'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+const Database = require('better-sqlite3') as typeof import('better-sqlite3')
 
 let db: Database.Database
 

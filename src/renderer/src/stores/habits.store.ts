@@ -14,6 +14,7 @@ export interface Habit {
   cue: string | null
   category: string
   frequency: string
+  custom_days: string | null
   color: string
   icon: string
   created_at: number
@@ -74,6 +75,7 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
       id: generateId(),
       created_at: Date.now(),
       archived_at: null,
+      custom_days: data.custom_days ?? null,
       ...data
     })
 

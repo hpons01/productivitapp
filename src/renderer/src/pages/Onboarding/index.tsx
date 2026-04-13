@@ -24,7 +24,7 @@ const SCIENCE_FACTS = [
 ]
 
 export function OnboardingPage() {
-  const { setSetting } = useSettingsStore()
+  const { setSetting, loadSettings } = useSettingsStore()
   const { create: createHabit } = useHabitsStore()
   const navigate = useNavigate()
 
@@ -33,31 +33,41 @@ export function OnboardingPage() {
   const [selectedHabits, setSelectedHabits] = useState<number[]>([])
   const [commitment, setCommitment] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const steps = ['Welcome', 'Science', 'Habits', 'Commitment']
 
   const handleFinish = async () => {
     setLoading(true)
-    await setSetting('user_name', name || 'Hero')
-    await setSetting('commitment_statement', commitment || 'I commit to growing 1% every day.')
+    setError('')
+    try {
+      await setSetting('user_name', name || 'Hero')
+      await setSetting('commitment_statement', commitment || 'I commit to growing 1% every day.')
 
-    // Create selected habits
-    for (const idx of selectedHabits) {
-      const h = PRESET_HABITS[idx]
-      await createHabit({
-        name: h.name,
-        description: null,
-        cue: h.cue,
-        category: h.category,
-        frequency: 'daily',
-        color: h.color,
-        icon: h.icon
-      })
+      // Create selected habits
+      for (const idx of selectedHabits) {
+        const h = PRESET_HABITS[idx]
+        await createHabit({
+          name: h.name,
+          description: null,
+          cue: h.cue,
+          category: h.category,
+          frequency: 'daily',
+          custom_days: null,
+          color: h.color,
+          icon: h.icon
+        })
+      }
+
+      await setSetting('onboarding_completed', 'true')
+      await loadSettings()
+      navigate('/')
+    } catch (e) {
+      console.error('Failed to finish onboarding', e)
+      setError('Setup failed. Please try again.')
+    } finally {
+      setLoading(false)
     }
-
-    await setSetting('onboarding_completed', 'true')
-    setLoading(false)
-    navigate('/')
   }
 
   return (
@@ -192,6 +202,7 @@ export function OnboardingPage() {
                   {loading ? 'Setting up...' : 'Start My Journey ⚔️'}
                 </Button>
               </div>
+              {error && <p className="text-sm text-red-400 text-center">{error}</p>}
             </motion.div>
           )}
         </AnimatePresence>

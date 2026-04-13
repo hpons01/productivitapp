@@ -6,6 +6,8 @@ directories:
 files:
   - out/**/*
   - '!**/.DS_Store'
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
 extraResources:
   - from: resources/
     to: .
