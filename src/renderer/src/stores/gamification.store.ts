@@ -2,12 +2,13 @@ import { create } from 'zustand'
 import { levelFromXP, levelProgress, xpToNextLevel } from '../lib/science/xp'
 import { shouldReward, rollLoot, LootItem, isStreakMilestone } from '../lib/science/rewards'
 import { checkAchievements, AchievementStats } from '../lib/science/achievements'
+import { CharacterClassOption } from '../lib/constants/classes'
 
 const api = () => window.api
 
 export interface PendingReward {
   id: string
-  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen'
+  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed'
   data: Record<string, unknown>
 }
 
@@ -16,6 +17,18 @@ interface GamificationState {
   level: number
   hydrated: boolean
   characterClass: string
+  selectedClassId: string
+  selectedClassDescription: string
+  classBonusSource: string | null
+  classBonusMultiplier: number
+  classMasteryXp: number
+  classEvolutionTitle: string
+  classEvolutionIndex: number
+  classEvolutionNextTitle: string | null
+  classEvolutionNextXp: number | null
+  classEvolutionProgressPct: number
+  playstyleClass: string
+  classOptions: CharacterClassOption[]
   focusPower: number
   discipline: number
   vitality: number
@@ -27,6 +40,8 @@ interface GamificationState {
   initialize: () => Promise<void>
   addXP: (source: string, amount: number, showPopup?: boolean) => Promise<void>
   checkAndUnlockBadges: (stats: AchievementStats) => Promise<void>
+  setCharacterClass: (classId: string) => Promise<void>
+  loadCharacterClassConfig: () => Promise<void>
   triggerLootBox: (context?: string) => void
   dismissReward: (id: string) => void
   refreshFromDB: () => Promise<void>
@@ -37,6 +52,18 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   level: 1,
   hydrated: false,
   characterClass: 'Apprentice',
+  selectedClassId: 'apprentice',
+  selectedClassDescription: 'Learning every discipline. No class bonus yet.',
+  classBonusSource: null,
+  classBonusMultiplier: 1,
+  classMasteryXp: 0,
+  classEvolutionTitle: 'Seeker',
+  classEvolutionIndex: 0,
+  classEvolutionNextTitle: 'Journeyman',
+  classEvolutionNextXp: 300,
+  classEvolutionProgressPct: 0,
+  playstyleClass: 'Apprentice',
+  classOptions: [],
   focusPower: 0,
   discipline: 0,
   vitality: 0,
@@ -45,8 +72,20 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   pendingRewards: [],
 
   initialize: async () => {
-    await get().refreshFromDB()
+    await Promise.all([get().refreshFromDB(), get().loadCharacterClassConfig()])
     set({ hydrated: true })
+  },
+
+  loadCharacterClassConfig: async () => {
+    try {
+      const config = await api().analytics.classConfig()
+      set({
+        selectedClassId: config.selectedClassId,
+        classOptions: config.classes || []
+      })
+    } catch (e) {
+      console.error('Failed to load class config', e)
+    }
   },
 
   refreshFromDB: async () => {
@@ -60,6 +99,17 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
         totalXP: stats.totalXP,
         level: newLevel,
         characterClass: stats.characterClass,
+        selectedClassId: stats.selectedClassId,
+        selectedClassDescription: stats.selectedClassDescription,
+        classBonusSource: stats.classBonusSource,
+        classBonusMultiplier: stats.classBonusMultiplier,
+        classMasteryXp: stats.classMasteryXp,
+        classEvolutionTitle: stats.classEvolutionTitle,
+        classEvolutionIndex: stats.classEvolutionIndex,
+        classEvolutionNextTitle: stats.classEvolutionNextTitle,
+        classEvolutionNextXp: stats.classEvolutionNextXp,
+        classEvolutionProgressPct: stats.classEvolutionProgressPct,
+        playstyleClass: stats.playstyleClass,
         focusPower: stats.focusPower,
         discipline: stats.discipline,
         vitality: stats.vitality,
@@ -85,9 +135,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   },
 
   addXP: async (source: string, amount: number, showPopup = true) => {
-    const oldLevel = get().level
-
-    await api().analytics.addXp(source, `${source}_${Date.now()}`, amount)
+    const result = await api().analytics.addXp(source, `${source}_${Date.now()}`, amount)
     await get().refreshFromDB()
 
     if (showPopup) {
@@ -95,7 +143,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       set((s) => ({
         pendingRewards: [
           ...s.pendingRewards,
-          { id, type: 'xp_popup', data: { amount, source } }
+          { id, type: 'xp_popup', data: { amount: result.finalAmount || amount, source } }
         ]
       }))
 
@@ -120,11 +168,38 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
           ]
         }))
 
-        // Award badge XP
-        await api().analytics.addXp('badge', code, result.badge.xp_value)
+        // XP is already awarded in the unlock handler on the main process.
         await get().refreshFromDB()
       }
     }
+  },
+
+  setCharacterClass: async (classId: string) => {
+    const previousId = get().selectedClassId
+    if (previousId === classId) return
+
+    await api().analytics.setCharacterClass(classId)
+    await Promise.all([get().refreshFromDB(), get().loadCharacterClassConfig()])
+
+    const selectedClass = get().classOptions.find((c) => c.id === classId)
+    const toastId = `class_${Date.now()}`
+    set((s) => ({
+      pendingRewards: [
+        ...s.pendingRewards,
+        {
+          id: toastId,
+          type: 'class_changed',
+          data: {
+            classId,
+            className: selectedClass?.name || 'Unknown Class',
+            classIcon: selectedClass?.icon || '🛡️',
+            evolutionTitle: s.classEvolutionTitle || 'Initiate'
+          }
+        }
+      ]
+    }))
+
+    setTimeout(() => get().dismissReward(toastId), 2600)
   },
 
   triggerLootBox: (context = 'default') => {

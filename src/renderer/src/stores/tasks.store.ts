@@ -65,9 +65,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       tasks: s.tasks.filter((t) => t.id !== id)
     }))
 
-    const result = await api().tasks.complete(id)
-    const { addXP } = useGamificationStore.getState()
-    await addXP('task', result.xpAwarded)
+    await api().tasks.complete(id)
+    const { refreshFromDB } = useGamificationStore.getState()
+    await refreshFromDB()
 
     // Check two-minute badge
     if (task.estimated_mins && task.estimated_mins <= 2) {

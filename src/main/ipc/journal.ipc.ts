@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db'
 import { saveJournalEntry, getTodayEntry, listEntries } from '../db/queries/journal.queries'
-import { addXP } from '../db/queries/gamification.queries'
+import { awardXP } from '../db/queries/gamification.queries'
 
 export function registerJournalIpc(): void {
   ipcMain.handle('journal:save', (_event, data) => {
@@ -14,10 +14,15 @@ export function registerJournalIpc(): void {
       evening: 20,
       visualization: 15
     }
-    const xpAmount = xpMap[data.type] || 10
-    addXP(db, 'journal', entry.id, xpAmount)
+    const baseXP = xpMap[data.type] || 10
+    const xpAward = awardXP(db, 'journal', entry.id, baseXP)
 
-    return { ...entry, xpAwarded: xpAmount }
+    return {
+      ...entry,
+      xpAwarded: xpAward.finalAmount,
+      baseXP: xpAward.baseAmount,
+      multiplier: xpAward.multiplier
+    }
   })
 
   ipcMain.handle('journal:today', (_event, type: string) => {

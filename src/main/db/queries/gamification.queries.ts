@@ -1,5 +1,79 @@
 import Database from 'better-sqlite3'
 import { startOfDay, endOfDay, startOfWeek, subDays } from 'date-fns'
+import {
+  CHARACTER_CLASSES,
+  CHARACTER_CLASSES_BY_ID,
+  CharacterClassId,
+  CharacterClassDefinition,
+  isCharacterClassId
+} from '../../domain/classes'
+import { getSetting, setSetting } from './settings.queries'
+
+const SELECTED_CLASS_KEY = 'selected_character_class'
+
+export interface XpAwardResult {
+  source: string
+  sourceId: string
+  baseAmount: number
+  multiplier: number
+  finalAmount: number
+  classIdApplied: CharacterClassId | null
+}
+
+export interface CharacterClassConfig {
+  selectedClassId: CharacterClassId
+  classes: CharacterClassDefinition[]
+}
+
+export function getSelectedCharacterClassId(db: Database.Database): CharacterClassId {
+  const raw = getSetting(db, SELECTED_CLASS_KEY)
+  if (raw && isCharacterClassId(raw)) return raw
+  setSetting(db, SELECTED_CLASS_KEY, 'apprentice')
+  return 'apprentice'
+}
+
+export function setSelectedCharacterClassId(db: Database.Database, classId: string): CharacterClassId {
+  if (!isCharacterClassId(classId)) {
+    throw new Error(`Invalid class id: ${classId}`)
+  }
+  setSetting(db, SELECTED_CLASS_KEY, classId)
+  return classId
+}
+
+export function getCharacterClassConfig(db: Database.Database): CharacterClassConfig {
+  return {
+    selectedClassId: getSelectedCharacterClassId(db),
+    classes: CHARACTER_CLASSES
+  }
+}
+
+export function awardXP(
+  db: Database.Database,
+  source: string,
+  sourceId: string,
+  baseAmount: number
+): XpAwardResult {
+  const id = `xp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const selectedClassId = getSelectedCharacterClassId(db)
+  const classDef = CHARACTER_CLASSES_BY_ID[selectedClassId]
+  const multiplier = classDef.boostedSource === source ? classDef.multiplier : 1
+  const finalAmount = Math.max(0, Math.round(baseAmount * multiplier))
+  const classIdApplied = multiplier > 1 ? selectedClassId : null
+
+  db.prepare(`
+    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, logged_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, source, sourceId, finalAmount, baseAmount, multiplier, classIdApplied, Date.now())
+
+  return {
+    source,
+    sourceId,
+    baseAmount,
+    multiplier,
+    finalAmount,
+    classIdApplied
+  }
+}
 
 export function addXP(
   db: Database.Database,
@@ -7,11 +81,7 @@ export function addXP(
   sourceId: string,
   amount: number
 ): void {
-  const id = `xp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  db.prepare(`
-    INSERT INTO xp_log (id, source, source_id, amount, logged_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, source, sourceId, amount, Date.now())
+  awardXP(db, source, sourceId, amount)
 }
 
 export function getTotalXP(db: Database.Database): number {
@@ -38,7 +108,7 @@ export function unlockBadge(db: Database.Database, code: string): { unlocked: bo
   db.prepare('UPDATE badges SET unlocked_at = ? WHERE code = ?').run(Date.now(), code)
 
   // Award XP for the badge
-  addXP(db, 'badge', badge.id, badge.xp_value)
+  awardXP(db, 'badge', badge.id, badge.xp_value)
 
   return { unlocked: true, badge: { code: badge.code, name: badge.name, icon: badge.icon, rarity: badge.rarity, xp_value: badge.xp_value } }
 }

@@ -16,12 +16,16 @@ export function GamificationOverlay() {
 
   // XP popups can stack
   const xpPopups = pendingRewards.filter((r) => r.type === 'xp_popup')
+  const classToasts = pendingRewards.filter((r) => r.type === 'class_changed')
 
   return (
     <>
       {/* XP floating popups */}
       {xpPopups.map((r) => (
         <XPPopup key={r.id} reward={r} />
+      ))}
+      {classToasts.map((r) => (
+        <ClassChangedToast key={r.id} reward={r} />
       ))}
 
       {/* Full-screen events */}
@@ -35,6 +39,33 @@ export function GamificationOverlay() {
         )}
       </AnimatePresence>
     </>
+  )
+}
+
+function ClassChangedToast({ reward }: { reward: PendingReward }) {
+  const className = reward.data.className as string
+  const classIcon = reward.data.classIcon as string
+  const evolutionTitle = reward.data.evolutionTitle as string
+
+  return (
+    <motion.div
+      className="fixed top-16 right-8 z-50 pointer-events-none"
+      initial={{ opacity: 0, y: -16, x: 20, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.96 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+    >
+      <div className="bg-primary-500/20 border border-primary-400/50 rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[230px] shadow-2xl">
+        <div className="text-[10px] uppercase tracking-wider text-primary-200 font-semibold">Class Equipped</div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xl">{classIcon}</span>
+          <div>
+            <div className="text-sm font-bold text-white">{className}</div>
+            <div className="text-[11px] text-primary-200">Evolution: {evolutionTitle}</div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   )
 }
 

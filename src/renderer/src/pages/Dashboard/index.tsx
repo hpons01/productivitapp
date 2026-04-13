@@ -9,6 +9,7 @@ import { useGamificationStore } from '../../stores/gamification.store'
 import { useHabitsStore } from '../../stores/habits.store'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
 import { useJournalStore } from '../../stores/journal.store'
+import { useSettingsStore } from '../../stores/settings.store'
 import { levelFromXP, xpForLevel } from '../../lib/science/xp'
 import { cn } from '../../lib/utils'
 import { format } from 'date-fns'
@@ -34,6 +35,7 @@ export function DashboardPage() {
   const habits = useHabitsStore()
   const pomodoro = usePomodoroStore()
   const journal = useJournalStore()
+  const { getSetting } = useSettingsStore()
   const [dashStats, setDashStats] = useState<Record<string, number>>({})
   const [weeklyBoss, setWeeklyBoss] = useState<{ name: string; max_hp: number; current_hp: number; defeated: number } | null>(null)
   const [dailyQuests, setDailyQuests] = useState<Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number }>>([])
@@ -57,6 +59,7 @@ export function DashboardPage() {
   const xpCurrent = xpForLevel(xpProgress)
   const xpNext = xpForLevel(xpProgress + 1)
   const progressPct = Math.min(100, ((gami.totalXP - xpCurrent) / (xpNext - xpCurrent)) * 100)
+  const playerName = getSetting('user_name', 'Hero')
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="max-w-6xl mx-auto space-y-6">
@@ -64,7 +67,7 @@ export function DashboardPage() {
       <motion.div variants={item}>
         <h1 className="text-2xl font-bold text-white">
           {new Date().getHours() < 12 ? '🌅 Good morning' : new Date().getHours() < 17 ? '☀️ Good afternoon' : '🌙 Good evening'}
-          , Hero
+          , {playerName}
         </h1>
         <p className="text-surface-400 text-sm mt-1">{format(new Date(), 'EEEE, MMMM d')}</p>
       </motion.div>
@@ -80,8 +83,8 @@ export function DashboardPage() {
                   {CLASS_ICONS[gami.characterClass] || '🌱'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-lg font-bold text-white">{gami.characterClass}</div>
-                  <div className="text-xs text-surface-400 mt-0.5">Level {gami.level} Hero</div>
+                  <div className="text-lg font-bold text-white">{playerName}</div>
+                  <div className="text-xs text-surface-400 mt-0.5">Level {gami.level} {gami.characterClass}</div>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-amber-400 font-bold">XP {gami.totalXP.toLocaleString()}</span>
@@ -324,7 +327,7 @@ export function DashboardPage() {
                       <span className="text-surface-400">Boss HP</span>
                       <span className="text-red-400 font-bold">{weeklyBoss.current_hp}/{weeklyBoss.max_hp}</span>
                     </div>
-                    <Progress value={weeklyBoss.max_hp - weeklyBoss.current_hp} max={weeklyBoss.max_hp} variant="hp" size="md" />
+                    <Progress value={weeklyBoss.current_hp} max={weeklyBoss.max_hp} variant="hp" size="md" />
                   </div>
                 </div>
               ) : (

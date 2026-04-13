@@ -1,5 +1,27 @@
 import Database from 'better-sqlite3'
 import { startOfDay, endOfDay, startOfYear, eachDayOfInterval, format, subDays } from 'date-fns'
+import { CHARACTER_CLASSES, CHARACTER_CLASSES_BY_ID, getEvolutionForXp } from '../../domain/classes'
+import { getSelectedCharacterClassId } from './gamification.queries'
+
+export interface ClassProgressEntry {
+  classId: string
+  masteryXp: number
+  currentEvolutionTitle: string
+  currentEvolutionIndex: number
+  nextEvolutionTitle: string | null
+  nextEvolutionXp: number | null
+  progressPct: number
+}
+
+export interface RecentBonusGain {
+  source: string
+  amount: number
+  baseAmount: number
+  bonusAmount: number
+  multiplier: number
+  classIdApplied: string
+  loggedAt: number
+}
 
 export interface DashboardStats {
   totalXP: number
@@ -20,6 +42,18 @@ export interface DashboardStats {
   vitality: number
   wisdom: number
   characterClass: string
+  selectedClassId: string
+  selectedClassIcon: string
+  selectedClassDescription: string
+  classBonusSource: string | null
+  classBonusMultiplier: number
+  classMasteryXp: number
+  classEvolutionTitle: string
+  classEvolutionIndex: number
+  classEvolutionNextTitle: string | null
+  classEvolutionNextXp: number | null
+  classEvolutionProgressPct: number
+  playstyleClass: string
   dailyQuests: Array<{id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number}>
   weeklyBoss: { name: string; max_hp: number; current_hp: number; defeated: number } | null
 }
@@ -99,14 +133,24 @@ export function getDashboardStats(db: Database.Database): DashboardStats {
   // Determine class
   const stats = { focusPower, discipline, vitality, wisdom }
   const maxStat = Math.max(...Object.values(stats))
-  let characterClass = 'Apprentice'
+  let playstyleClass = 'Apprentice'
   if (level >= 5) {
-    if (focusPower === maxStat) characterClass = 'Time Mage'
-    else if (discipline === maxStat) characterClass = 'Iron Warrior'
-    else if (vitality === maxStat) characterClass = 'Zen Master'
-    else if (wisdom === maxStat) characterClass = 'Arcane Scholar'
-    else characterClass = 'Grand Tactician'
+    if (focusPower === maxStat) playstyleClass = 'Time Mage'
+    else if (discipline === maxStat) playstyleClass = 'Iron Warrior'
+    else if (vitality === maxStat) playstyleClass = 'Zen Master'
+    else if (wisdom === maxStat) playstyleClass = 'Arcane Scholar'
+    else playstyleClass = 'Grand Tactician'
   }
+
+  const selectedClassId = getSelectedCharacterClassId(db)
+  const selectedClass = CHARACTER_CLASSES_BY_ID[selectedClassId]
+  const selectedClassMasteryResult = db.prepare(`
+    SELECT COALESCE(SUM(base_amount), 0) as total
+    FROM xp_log
+    WHERE class_id_applied = ?
+  `).get(selectedClassId) as { total: number }
+  const classMasteryXp = selectedClassMasteryResult.total || 0
+  const selectedEvolution = getEvolutionForXp(selectedClass, classMasteryXp)
 
   // Streaks
   const habits = db.prepare('SELECT id FROM habits WHERE archived_at IS NULL').all() as Array<{ id: string }>
@@ -154,10 +198,73 @@ export function getDashboardStats(db: Database.Database): DashboardStats {
     discipline,
     vitality,
     wisdom,
-    characterClass,
+    characterClass: selectedClass.name,
+    selectedClassId,
+    selectedClassIcon: selectedClass.icon,
+    selectedClassDescription: selectedClass.description,
+    classBonusSource: selectedClass.boostedSource,
+    classBonusMultiplier: selectedClass.multiplier,
+    classMasteryXp,
+    classEvolutionTitle: selectedEvolution.currentTitle,
+    classEvolutionIndex: selectedEvolution.currentIndex,
+    classEvolutionNextTitle: selectedEvolution.nextTitle,
+    classEvolutionNextXp: selectedEvolution.nextMinXp,
+    classEvolutionProgressPct: selectedEvolution.progressPct,
+    playstyleClass,
     dailyQuests,
     weeklyBoss: bossResult || null
   }
+}
+
+export function getClassProgressData(db: Database.Database): {
+  classes: ClassProgressEntry[]
+  recentBonusGains: RecentBonusGain[]
+} {
+  const masteryRows = db.prepare(`
+    SELECT class_id_applied as classId, COALESCE(SUM(base_amount), 0) as masteryXp
+    FROM xp_log
+    WHERE class_id_applied IS NOT NULL
+    GROUP BY class_id_applied
+  `).all() as Array<{ classId: string; masteryXp: number }>
+
+  const masteryMap = new Map<string, number>()
+  for (const row of masteryRows) {
+    masteryMap.set(row.classId, row.masteryXp || 0)
+  }
+
+  const classes: ClassProgressEntry[] = CHARACTER_CLASSES.map((classDef) => {
+    const masteryXp = masteryMap.get(classDef.id) || 0
+    const evo = getEvolutionForXp(classDef, masteryXp)
+    return {
+      classId: classDef.id,
+      masteryXp,
+      currentEvolutionTitle: evo.currentTitle,
+      currentEvolutionIndex: evo.currentIndex,
+      nextEvolutionTitle: evo.nextTitle,
+      nextEvolutionXp: evo.nextMinXp,
+      progressPct: evo.progressPct
+    }
+  })
+
+  const recentBonusRows = db.prepare(`
+    SELECT source, amount, COALESCE(base_amount, amount) as base_amount, COALESCE(multiplier, 1) as multiplier, class_id_applied, logged_at
+    FROM xp_log
+    WHERE COALESCE(multiplier, 1) > 1 AND class_id_applied IS NOT NULL
+    ORDER BY logged_at DESC
+    LIMIT 8
+  `).all() as Array<{ source: string; amount: number; base_amount: number; multiplier: number; class_id_applied: string; logged_at: number }>
+
+  const recentBonusGains: RecentBonusGain[] = recentBonusRows.map((row) => ({
+    source: row.source,
+    amount: row.amount,
+    baseAmount: row.base_amount,
+    bonusAmount: Math.max(0, row.amount - row.base_amount),
+    multiplier: row.multiplier,
+    classIdApplied: row.class_id_applied,
+    loggedAt: row.logged_at
+  }))
+
+  return { classes, recentBonusGains }
 }
 
 function getHabitStreakFast(db: Database.Database, habitId: string): number {

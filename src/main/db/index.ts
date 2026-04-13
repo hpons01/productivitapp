@@ -17,6 +17,7 @@ export function initDatabase(): void {
   db.pragma('foreign_keys = ON')
 
   runMigrations()
+  ensureClassXpColumns()
   ensureDefaultSettings()
   seedBadges()
 }
@@ -93,13 +94,34 @@ function runInlineMigrations(): void {
 function ensureDefaultSettings(): void {
   const defaults: Record<string, string> = {
     onboarding_completed: 'false',
-    theme: 'dark'
+    theme: 'dark',
+    selected_character_class: 'apprentice'
   }
 
   const stmt = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)')
   for (const [key, value] of Object.entries(defaults)) {
     stmt.run(key, value)
   }
+}
+
+function ensureClassXpColumns(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(xp_log)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('base_amount')) {
+    db.exec('ALTER TABLE xp_log ADD COLUMN base_amount INTEGER')
+  }
+
+  if (!columns.has('multiplier')) {
+    db.exec('ALTER TABLE xp_log ADD COLUMN multiplier REAL')
+  }
+
+  if (!columns.has('class_id_applied')) {
+    db.exec('ALTER TABLE xp_log ADD COLUMN class_id_applied TEXT')
+  }
+
+  db.exec('UPDATE xp_log SET base_amount = amount WHERE base_amount IS NULL')
+  db.exec('UPDATE xp_log SET multiplier = 1 WHERE multiplier IS NULL')
 }
 
 const INITIAL_SCHEMA = `

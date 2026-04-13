@@ -7,7 +7,7 @@ import {
   listSessions,
   getTodayStats
 } from '../db/queries/pomodoro.queries'
-import { addXP, damageBoss } from '../db/queries/gamification.queries'
+import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { sendNotification } from '../notifications'
 
 export function registerPomodoroIpc(): void {
@@ -21,9 +21,9 @@ export function registerPomodoroIpc(): void {
     const { id, interruptions = 0 } = data
 
     // XP: base 30 + bonus for zero interruptions
-    const xpAmount = interruptions === 0 ? 40 : 30
-    const session = completeSession(db, id, Date.now(), interruptions, xpAmount)
-    addXP(db, 'pomodoro', id, xpAmount)
+    const baseXP = interruptions === 0 ? 40 : 30
+    const xpAward = awardXP(db, 'pomodoro', id, baseXP)
+    const session = completeSession(db, id, Date.now(), interruptions, xpAward.finalAmount)
 
     // Damage boss
     try {
@@ -33,7 +33,12 @@ export function registerPomodoroIpc(): void {
     // Send break notification
     sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a well-deserved break.')
 
-    return { ...session, xpAwarded: xpAmount }
+    return {
+      ...session,
+      xpAwarded: xpAward.finalAmount,
+      baseXP: xpAward.baseAmount,
+      multiplier: xpAward.multiplier
+    }
   })
 
   ipcMain.handle('pomodoro:abandon', (_event, id: string) => {

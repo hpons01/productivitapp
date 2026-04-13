@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db'
 import { listTasks, createTask, updateTask, completeTask, deleteTask } from '../db/queries/tasks.queries'
-import { addXP, damageBoss } from '../db/queries/gamification.queries'
+import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 
 export function registerTasksIpc(): void {
   ipcMain.handle('tasks:list', () => {
@@ -25,15 +25,20 @@ export function registerTasksIpc(): void {
     const task = completeTask(db, id)
 
     // XP: 10 for normal, 5 for 2-min tasks (quick = less effort)
-    const xpAmount = task.estimated_mins && task.estimated_mins <= 2 ? 5 : 10
-    addXP(db, 'task', id, xpAmount)
+    const baseXP = task.estimated_mins && task.estimated_mins <= 2 ? 5 : 10
+    const xpAward = awardXP(db, 'task', id, baseXP)
 
     // Damage boss
     try {
       damageBoss(db, 15)
     } catch {}
 
-    return { ...task, xpAwarded: xpAmount }
+    return {
+      ...task,
+      xpAwarded: xpAward.finalAmount,
+      baseXP: xpAward.baseAmount,
+      multiplier: xpAward.multiplier
+    }
   })
 
   ipcMain.handle('tasks:delete', (_event, id: string) => {

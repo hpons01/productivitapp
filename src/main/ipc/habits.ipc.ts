@@ -11,7 +11,7 @@ import {
   getCompletions,
   getTodayCompletedCount
 } from '../db/queries/habits.queries'
-import { addXP, damageBoss, updateStreakRecoveryQuest } from '../db/queries/gamification.queries'
+import { awardXP, damageBoss, updateStreakRecoveryQuest } from '../db/queries/gamification.queries'
 
 export function registerHabitsIpc(): void {
   ipcMain.handle('habits:list', () => {
@@ -22,7 +22,7 @@ export function registerHabitsIpc(): void {
   ipcMain.handle('habits:create', (_event, data) => {
     const db = getDb()
     const habit = createHabit(db, data)
-    addXP(db, 'habit_created', habit.id, 5)
+    awardXP(db, 'habit_created', habit.id, 5)
     return habit
   })
 
@@ -45,8 +45,8 @@ export function registerHabitsIpc(): void {
     // Get streak for XP multiplier
     const streak = getHabitStreak(db, data.habit_id)
     const streakBonus = Math.min(50, streak * 2)
-    const xpAmount = 15 + streakBonus
-    addXP(db, 'habit', data.habit_id, xpAmount)
+    const baseXP = 15 + streakBonus
+    const xpAward = awardXP(db, 'habit', data.habit_id, baseXP)
 
     // Damage the weekly boss
     damageBoss(db, 25)
@@ -55,7 +55,13 @@ export function registerHabitsIpc(): void {
     const completedToday = getTodayCompletedCount(db)
     updateStreakRecoveryQuest(db, completedToday)
 
-    return { ...completion, xpAwarded: xpAmount, streak }
+    return {
+      ...completion,
+      xpAwarded: xpAward.finalAmount,
+      baseXP: xpAward.baseAmount,
+      multiplier: xpAward.multiplier,
+      streak
+    }
   })
 
   ipcMain.handle('habits:uncomplete', (_event, data) => {
