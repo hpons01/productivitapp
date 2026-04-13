@@ -17,6 +17,7 @@ export function GamificationOverlay() {
   // XP popups can stack
   const xpPopups = pendingRewards.filter((r) => r.type === 'xp_popup')
   const classToasts = pendingRewards.filter((r) => r.type === 'class_changed')
+  const evolutionToasts = pendingRewards.filter((r) => r.type === 'evolution_unlocked')
 
   return (
     <>
@@ -26,6 +27,9 @@ export function GamificationOverlay() {
       ))}
       {classToasts.map((r) => (
         <ClassChangedToast key={r.id} reward={r} />
+      ))}
+      {evolutionToasts.map((r) => (
+        <EvolutionUnlockedToast key={r.id} reward={r} />
       ))}
 
       {/* Full-screen events */}
@@ -39,6 +43,26 @@ export function GamificationOverlay() {
         )}
       </AnimatePresence>
     </>
+  )
+}
+
+function EvolutionUnlockedToast({ reward }: { reward: PendingReward }) {
+  const className = reward.data.className as string
+  const evolutionTitle = reward.data.evolutionTitle as string
+
+  return (
+    <motion.div
+      className="fixed top-32 right-8 z-50 pointer-events-none"
+      initial={{ opacity: 0, y: -14, x: 20, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.96 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+    >
+      <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[250px] shadow-2xl">
+        <div className="text-[10px] uppercase tracking-wider text-emerald-200 font-semibold">Evolution Unlocked</div>
+        <div className="text-sm font-bold text-white mt-1">{className} → {evolutionTitle}</div>
+      </div>
+    </motion.div>
   )
 }
 

@@ -8,7 +8,7 @@ const api = () => window.api
 
 export interface PendingReward {
   id: string
-  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed'
+  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked'
   data: Record<string, unknown>
 }
 
@@ -93,6 +93,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       const stats = await api().analytics.dashboard()
       const newLevel = levelFromXP(stats.totalXP)
       const oldLevel = get().level
+      const oldEvolutionIndex = get().classEvolutionIndex
       const { hydrated } = get()
 
       set({
@@ -128,6 +129,25 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
             { id, type: 'level_up', data: { newLevel, oldLevel, characterClass: stats.characterClass } }
           ]
         }))
+      }
+
+      if (hydrated && stats.classEvolutionIndex > oldEvolutionIndex) {
+        const id = `evolution_${Date.now()}`
+        set((s) => ({
+          pendingRewards: [
+            ...s.pendingRewards,
+            {
+              id,
+              type: 'evolution_unlocked',
+              data: {
+                className: stats.characterClass,
+                evolutionTitle: stats.classEvolutionTitle
+              }
+            }
+          ]
+        }))
+
+        setTimeout(() => get().dismissReward(id), 3000)
       }
     } catch (e) {
       console.error('Failed to refresh gamification stats', e)
@@ -203,9 +223,9 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
   },
 
   triggerLootBox: (context = 'default') => {
-    if (!shouldReward(context)) return
+    if (!shouldReward(context, get().classEvolutionIndex)) return
 
-    const loot = rollLoot()
+    const loot = rollLoot(undefined, get().classEvolutionIndex)
     const id = `loot_${Date.now()}`
 
     set((s) => ({

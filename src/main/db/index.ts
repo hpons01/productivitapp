@@ -120,6 +120,10 @@ function ensureClassXpColumns(): void {
     db.exec('ALTER TABLE xp_log ADD COLUMN class_id_applied TEXT')
   }
 
+  if (!columns.has('evolution_tier')) {
+    db.exec('ALTER TABLE xp_log ADD COLUMN evolution_tier INTEGER')
+  }
+
   db.exec('UPDATE xp_log SET base_amount = amount WHERE base_amount IS NULL')
   db.exec('UPDATE xp_log SET multiplier = 1 WHERE multiplier IS NULL')
 }

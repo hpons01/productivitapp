@@ -166,3 +166,7 @@ export function getEvolutionForXp(
     progressPct
   }
 }
+
+export function getEvolutionTier(classDef: CharacterClassDefinition, masteryXp: number): number {
+  return getEvolutionForXp(classDef, masteryXp).currentIndex
+}
