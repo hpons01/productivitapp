@@ -43,16 +43,17 @@ export function listHabits(db: Database.Database): Habit[] {
 }
 
 export function createHabit(db: Database.Database, data: CreateHabitInput): Habit {
+  const { custom_days, ...rest } = data
+  const resolvedCustomDays = custom_days ?? null
   const payload = {
     description: null,
     cue: null,
     category: 'general',
     frequency: 'daily',
-    custom_days: null,
     color: '#7c3aed',
     icon: '✨',
-    ...data,
-    custom_days: data.custom_days ?? null
+    ...rest,
+    custom_days: resolvedCustomDays
   }
 
   db.prepare(`
