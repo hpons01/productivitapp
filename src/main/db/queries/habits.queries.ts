@@ -23,18 +23,44 @@ export interface HabitCompletion {
   xp_awarded: number
 }
 
+type CreateHabitInput = {
+  id: string
+  name: string
+  created_at: number
+  description?: string | null
+  cue?: string | null
+  category?: string
+  frequency?: string
+  custom_days?: string | null
+  color?: string
+  icon?: string
+}
+
 export function listHabits(db: Database.Database): Habit[] {
   return db
     .prepare('SELECT * FROM habits WHERE archived_at IS NULL ORDER BY created_at ASC')
     .all() as Habit[]
 }
 
-export function createHabit(db: Database.Database, data: Omit<Habit, 'archived_at'>): Habit {
+export function createHabit(db: Database.Database, data: CreateHabitInput): Habit {
+  const { custom_days, ...rest } = data
+  const resolvedCustomDays = custom_days ?? null
+  const payload = {
+    description: null,
+    cue: null,
+    category: 'general',
+    frequency: 'daily',
+    color: '#7c3aed',
+    icon: '✨',
+    ...rest,
+    custom_days: resolvedCustomDays
+  }
+
   db.prepare(`
     INSERT INTO habits (id, name, description, cue, category, frequency, custom_days, color, icon, created_at)
     VALUES (@id, @name, @description, @cue, @category, @frequency, @custom_days, @color, @icon, @created_at)
-  `).run(data)
-  return db.prepare('SELECT * FROM habits WHERE id = ?').get(data.id) as Habit
+  `).run(payload)
+  return db.prepare('SELECT * FROM habits WHERE id = ?').get(payload.id) as Habit
 }
 
 export function updateHabit(

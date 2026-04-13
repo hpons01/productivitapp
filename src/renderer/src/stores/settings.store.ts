@@ -18,7 +18,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ loading: true })
     try {
       const all = await api().settings.getAll()
-      set({ settings: all || {}, loading: false })
+      // Merge with current state so concurrent setSetting calls aren't overwritten
+      set((s) => ({ settings: { ...all, ...s.settings }, loading: false }))
     } catch {
       set({ loading: false })
     }
