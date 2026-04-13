@@ -9,6 +9,7 @@ import { JournalPage } from './pages/Journal'
 import { EnergyPage } from './pages/Energy'
 import { AnalyticsPage } from './pages/Analytics'
 import { SettingsPage } from './pages/Settings'
+import { InventoryPage } from './pages/Inventory'
 import { OnboardingPage } from './pages/Onboarding'
 import { GamificationOverlay } from './components/feedback/GamificationOverlay'
 import { useSettingsStore } from './stores/settings.store'
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="journal" element={<JournalPage />} />
           <Route path="energy" element={<EnergyPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="inventory" element={<InventoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

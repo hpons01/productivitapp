@@ -71,8 +71,7 @@ function LevelUpScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
   }
 
   useEffect(() => {
-    const audio = playSound('levelup')
-    return () => audio?.pause()
+    playSound('levelup')
   }, [])
 
   return (
@@ -124,6 +123,8 @@ function BadgeUnlockScreen({ reward, onDismiss }: { reward: PendingReward; onDis
   const badge = reward.data.badge as { name: string; icon: string; rarity: string; xp_value: number }
   const colors = TIER_COLORS[badge.rarity as LootTier] || TIER_COLORS.common
 
+  useEffect(() => { playSound('badge') }, [])
+
   return (
     <Backdrop onClick={onDismiss}>
       <motion.div
@@ -158,6 +159,8 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
   const loot = reward.data.loot as LootItem
   const colors = TIER_COLORS[loot.tier]
   const opened = useRef(false)
+
+  useEffect(() => { playSound('badge') }, [])
 
   return (
     <Backdrop onClick={onDismiss}>
@@ -259,7 +262,41 @@ function Particles() {
   )
 }
 
-function playSound(type: 'levelup' | 'badge'): HTMLAudioElement | null {
-  // Sound effects would be loaded from assets — placeholder for now
-  return null
+function playSound(type: 'levelup' | 'badge'): void {
+  // Gate on user preference
+  if (localStorage.getItem('soundEnabled') === 'false') return
+
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+
+    if (type === 'levelup') {
+      // Rising arpeggio: C4 → E4 → G4 → C5
+      const notes = [261.63, 329.63, 392.0, 523.25]
+      notes.forEach((freq, i) => {
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.15)
+      })
+      gain.gain.setValueAtTime(0.25, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.8)
+    } else {
+      // Short chime for badge/loot
+      osc.frequency.setValueAtTime(880, ctx.currentTime)
+      osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1)
+      gain.gain.setValueAtTime(0.18, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.35)
+    }
+
+    // Release AudioContext after sound ends
+    osc.onended = () => ctx.close()
+  } catch {
+    // AudioContext may be blocked in certain environments; fail silently
+  }
 }

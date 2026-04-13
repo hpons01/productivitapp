@@ -65,6 +65,12 @@ const api = {
     getAll: () => ipcRenderer.invoke('settings:getAll')
   },
 
+  // Loot inventory
+  loot: {
+    list: () => ipcRenderer.invoke('loot:list'),
+    activate: (id: string) => ipcRenderer.invoke('loot:activate', id)
+  },
+
   // Tray events (renderer listens)
   onTrayStartPomodoro: (callback: () => void) => {
     ipcRenderer.on('tray:start-pomodoro', () => callback())
