@@ -132,4 +132,20 @@
   .no-drag {
     -webkit-app-region: no-drag;
   }
+
+  .window-control-btn {
+    @apply inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors;
+    color: var(--app-muted);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .window-control-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .window-control-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+  }
 }

@@ -53,7 +53,7 @@ export const ENERGY_ZONES: EnergyZone[] = [
   {
     level: 1,
     label: 'Depleted',
-    emoji: '🪫',
+    emoji: '🔋',
     color: 'text-gray-400',
     recommendation: 'Rest is productive right now. Recover to perform better later.',
     bestFor: ['Short break', '10-min walk', 'Hydration', 'Breathing exercise'],

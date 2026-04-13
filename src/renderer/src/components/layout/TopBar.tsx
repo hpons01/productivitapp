@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
+import { Minus, Square, X } from 'lucide-react'
 import { useGamificationStore } from '../../stores/gamification.store'
 import { cn } from '../../lib/utils'
 
@@ -14,12 +15,27 @@ const CLASS_ICONS: Record<string, string> = {
 
 export function TopBar() {
   const [time, setTime] = useState(new Date())
-  const { level, totalXP, xpToNextLevel, characterClass } = useGamificationStore()
+  const [isMaximized, setIsMaximized] = useState(false)
+  const isWindows = navigator.userAgent.includes('Windows')
+  const { level, totalXP, characterClass } = useGamificationStore()
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (!isWindows) return
+
+    const syncMaximizeState = async () => {
+      const value = await window.api.window.isMaximized()
+      setIsMaximized(Boolean(value))
+    }
+
+    void syncMaximizeState()
+    window.addEventListener('resize', syncMaximizeState)
+    return () => window.removeEventListener('resize', syncMaximizeState)
+  }, [isWindows])
 
   const xpForCurrentLevel = Math.pow(level, 2) * 10
   const xpForNextLevel = Math.pow(level + 1, 2) * 10
@@ -60,8 +76,41 @@ export function TopBar() {
       </div>
 
       {/* Right: time */}
-      <div className="text-sm font-mono text-white no-drag">
-        {format(time, 'HH:mm:ss')}
+      <div className="flex items-center gap-3 no-drag">
+        <div className="text-sm font-mono text-white">
+          {format(time, 'HH:mm:ss')}
+        </div>
+        {isWindows && (
+          <div className="flex items-center gap-1">
+            <button
+              className="window-control-btn"
+              onClick={() => void window.api.window.minimize()}
+              aria-label="Minimize window"
+              title="Minimize"
+            >
+              <Minus size={14} />
+            </button>
+            <button
+              className="window-control-btn"
+              onClick={async () => {
+                const result = (await window.api.window.toggleMaximize()) as { isMaximized?: boolean }
+                setIsMaximized(Boolean(result?.isMaximized))
+              }}
+              aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
+              title={isMaximized ? 'Restore' : 'Maximize'}
+            >
+              <Square size={12} />
+            </button>
+            <button
+              className="window-control-btn window-control-close"
+              onClick={() => void window.api.window.close()}
+              aria-label="Close window"
+              title="Close"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

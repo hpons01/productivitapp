@@ -16,7 +16,7 @@ function createWindow(): BrowserWindow {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    frame: true,
+    frame: process.platform === 'win32' ? false : true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     backgroundColor: '#0f0f1a',
     autoHideMenuBar: true,

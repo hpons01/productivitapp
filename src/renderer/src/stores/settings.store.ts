@@ -5,6 +5,7 @@ const api = () => window.api
 interface SettingsState {
   settings: Record<string, string>
   loading: boolean
+  initialized: boolean
   loadSettings: () => Promise<void>
   getSetting: (key: string, defaultValue?: string) => string
   setSetting: (key: string, value: string) => Promise<void>
@@ -13,15 +14,16 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: {},
   loading: false,
+  initialized: false,
 
   loadSettings: async () => {
     set({ loading: true })
     try {
       const all = await api().settings.getAll()
       // Merge with current state so concurrent setSetting calls aren't overwritten
-      set((s) => ({ settings: { ...all, ...s.settings }, loading: false }))
+      set((s) => ({ settings: { ...all, ...s.settings }, loading: false, initialized: true }))
     } catch {
-      set({ loading: false })
+      set({ loading: false, initialized: true })
     }
   },
 

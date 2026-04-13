@@ -76,6 +76,14 @@ const api = {
     exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format)
   },
 
+  // Window controls
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
+    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+    close: () => ipcRenderer.invoke('window:close')
+  },
+
   // Tray events (renderer listens)
   onTrayStartPomodoro: (callback: () => void) => {
     ipcRenderer.on('tray:start-pomodoro', () => callback())

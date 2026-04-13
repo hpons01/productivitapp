@@ -17,6 +17,7 @@ export function initDatabase(): void {
   db.pragma('foreign_keys = ON')
 
   runMigrations()
+  ensureDefaultSettings()
   seedBadges()
 }
 
@@ -86,6 +87,18 @@ function runInlineMigrations(): void {
         Date.now()
       )
     }
+  }
+}
+
+function ensureDefaultSettings(): void {
+  const defaults: Record<string, string> = {
+    onboarding_completed: 'false',
+    theme: 'dark'
+  }
+
+  const stmt = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)')
+  for (const [key, value] of Object.entries(defaults)) {
+    stmt.run(key, value)
   }
 }
 

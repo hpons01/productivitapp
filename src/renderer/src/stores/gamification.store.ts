@@ -14,6 +14,7 @@ export interface PendingReward {
 interface GamificationState {
   totalXP: number
   level: number
+  hydrated: boolean
   characterClass: string
   focusPower: number
   discipline: number
@@ -34,6 +35,7 @@ interface GamificationState {
 export const useGamificationStore = create<GamificationState>((set, get) => ({
   totalXP: 0,
   level: 1,
+  hydrated: false,
   characterClass: 'Apprentice',
   focusPower: 0,
   discipline: 0,
@@ -44,6 +46,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
 
   initialize: async () => {
     await get().refreshFromDB()
+    set({ hydrated: true })
   },
 
   refreshFromDB: async () => {
@@ -51,6 +54,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       const stats = await api().analytics.dashboard()
       const newLevel = levelFromXP(stats.totalXP)
       const oldLevel = get().level
+      const { hydrated } = get()
 
       set({
         totalXP: stats.totalXP,
@@ -66,7 +70,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       })
 
       // Level up notification
-      if (newLevel > oldLevel && oldLevel > 0) {
+      if (hydrated && newLevel > oldLevel && oldLevel > 0) {
         const id = `levelup_${Date.now()}`
         set((s) => ({
           pendingRewards: [
