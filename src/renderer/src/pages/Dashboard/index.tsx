@@ -36,7 +36,7 @@ export function DashboardPage() {
   const journal = useJournalStore()
   const [dashStats, setDashStats] = useState<Record<string, number>>({})
   const [weeklyBoss, setWeeklyBoss] = useState<{ name: string; max_hp: number; current_hp: number; defeated: number } | null>(null)
-  const [dailyQuests, setDailyQuests] = useState<Array<{ id: string; description: string; target: number; progress: number; completed: number; xp_reward: number }>>([])
+  const [dailyQuests, setDailyQuests] = useState<Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number }>>([])
 
   useEffect(() => {
     Promise.all([habits.load(), journal.loadToday(), pomodoro.loadTodayStats()])
@@ -49,7 +49,7 @@ export function DashboardPage() {
         tasksCompletedToday: stats.tasksCompletedToday as number
       })
       setWeeklyBoss(stats.weeklyBoss as { name: string; max_hp: number; current_hp: number; defeated: number } | null)
-      setDailyQuests(stats.dailyQuests as Array<{ id: string; description: string; target: number; progress: number; completed: number; xp_reward: number }> || [])
+      setDailyQuests(stats.dailyQuests as Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number }> || [])
     })
   }, [])
 
@@ -261,21 +261,37 @@ export function DashboardPage() {
                 <p className="text-surface-400 text-sm text-center py-4">Quests loading...</p>
               ) : (
                 <div className="space-y-3">
-                  {dailyQuests.map((q) => (
-                    <div key={q.id} className={cn(
-                      'p-3 rounded-xl border',
-                      q.completed ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-surface-800/40 border-surface-600/30'
-                    )}>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className={cn('text-sm font-medium', q.completed ? 'text-emerald-300 line-through opacity-60' : 'text-white')}>
-                          {q.description}
-                        </span>
-                        <span className="text-xs text-amber-400 font-bold shrink-0">+{q.xp_reward} XP</span>
+                  {dailyQuests.map((q) => {
+                    const isRecovery = q.quest_type === 'streak_recovery'
+                    return (
+                      <div
+                        key={q.id}
+                        className={cn(
+                          'p-3 rounded-xl border',
+                          q.completed
+                            ? 'bg-emerald-500/10 border-emerald-500/20'
+                            : isRecovery
+                              ? 'bg-amber-500/10 border-amber-500/40'
+                              : 'bg-surface-800/40 border-surface-600/30'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className={cn(
+                            'text-sm font-medium',
+                            q.completed ? 'text-emerald-300 line-through opacity-60' : isRecovery ? 'text-amber-300' : 'text-white'
+                          )}>
+                            {isRecovery && !q.completed && <span className="mr-1">🔥</span>}
+                            {q.description}
+                          </span>
+                          <span className={cn('text-xs font-bold shrink-0', isRecovery ? 'text-amber-300' : 'text-amber-400')}>
+                            +{q.xp_reward} XP
+                          </span>
+                        </div>
+                        <Progress value={q.progress} max={q.target} size="sm" />
+                        <div className="text-[10px] text-surface-400 mt-1">{q.progress}/{q.target}</div>
                       </div>
-                      <Progress value={q.progress} max={q.target} size="sm" />
-                      <div className="text-[10px] text-surface-400 mt-1">{q.progress}/{q.target}</div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </CardContent>

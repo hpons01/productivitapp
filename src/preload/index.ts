@@ -71,6 +71,11 @@ const api = {
     activate: (id: string) => ipcRenderer.invoke('loot:activate', id)
   },
 
+  // Data export
+  export: {
+    exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format)
+  },
+
   // Tray events (renderer listens)
   onTrayStartPomodoro: (callback: () => void) => {
     ipcRenderer.on('tray:start-pomodoro', () => callback())

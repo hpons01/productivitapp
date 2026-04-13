@@ -8,9 +8,10 @@ import {
   completeHabit,
   uncompleteHabit,
   getHabitStreak,
-  getCompletions
+  getCompletions,
+  getTodayCompletedCount
 } from '../db/queries/habits.queries'
-import { addXP, damageBoss } from '../db/queries/gamification.queries'
+import { addXP, damageBoss, updateStreakRecoveryQuest } from '../db/queries/gamification.queries'
 
 export function registerHabitsIpc(): void {
   ipcMain.handle('habits:list', () => {
@@ -49,6 +50,10 @@ export function registerHabitsIpc(): void {
 
     // Damage the weekly boss
     damageBoss(db, 25)
+
+    // Update streak recovery quest progress if one exists today
+    const completedToday = getTodayCompletedCount(db)
+    updateStreakRecoveryQuest(db, completedToday)
 
     return { ...completion, xpAwarded: xpAmount, streak }
   })
