@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Flame, Trophy } from 'lucide-react'
+import { Plus, Flame, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Modal } from '../../components/ui/modal'
@@ -16,10 +16,12 @@ const COLORS = ['#7c3aed', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#ec4899'
 
 function HabitForm({
   onSave,
-  initial
+  initial,
+  submitLabel = 'Save Habit'
 }: {
   onSave: (data: Partial<Habit>) => void
   initial?: Partial<Habit>
+  submitLabel?: string
 }) {
   const [name, setName] = useState(initial?.name || '')
   const [cue, setCue] = useState(initial?.cue || '')
@@ -103,9 +105,80 @@ function HabitForm({
         disabled={!name.trim()}
         className="w-full"
       >
-        Save Habit
+        {submitLabel}
       </Button>
     </div>
+  )
+}
+
+function HabitMenu({ habit, onEdit, onDelete }: { habit: Habit; onEdit: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-white hover:bg-surface-700 transition-all"
+        aria-label="Habit actions"
+      >
+        <MoreVertical size={16} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.1 }}
+            className="absolute right-0 top-9 z-20 min-w-[120px] bg-surface-800 border border-surface-600 rounded-xl shadow-xl overflow-hidden"
+          >
+            <button
+              onClick={() => { setOpen(false); onEdit() }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-surface-200 hover:bg-surface-700 hover:text-white transition-colors"
+            >
+              <Pencil size={13} /> Edit
+            </button>
+            <button
+              onClick={() => { setOpen(false); onDelete() }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function DeleteConfirmModal({ habit, onConfirm, onCancel }: { habit: Habit; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <Modal open onClose={onCancel} title="Delete Habit">
+      <div className="space-y-4">
+        <p className="text-surface-300 text-sm">
+          Are you sure you want to delete <span className="text-white font-semibold">{habit.icon} {habit.name}</span>?
+        </p>
+        <p className="text-surface-500 text-xs">
+          This will remove the habit and its completion history. Your streak of <strong className="text-amber-400">{habit.streak} days</strong> will be lost.
+        </p>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={onCancel} className="flex-1">Cancel</Button>
+          <Button variant="danger" onClick={onConfirm} className="flex-1">
+            <Trash2 size={14} /> Delete
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -113,6 +186,8 @@ export function HabitsPage() {
   const { habits, loading, load, create, update, remove, complete, uncomplete } = useHabitsStore()
   const { pendingRewards } = useGamificationStore()
   const [showForm, setShowForm] = useState(false)
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
+  const [deletingHabit, setDeletingHabit] = useState<Habit | null>(null)
   const [xpPopups, setXpPopups] = useState<Array<{ id: string; amount: number; x: number; y: number }>>([])
 
   useEffect(() => { load() }, [])
@@ -125,6 +200,18 @@ export function HabitsPage() {
       setXpPopups((p) => [...p, { id: popId, amount: result.xpAwarded, x: rect.left + rect.width / 2, y: rect.top }])
       setTimeout(() => setXpPopups((p) => p.filter((x) => x.id !== popId)), 1500)
     }
+  }
+
+  const handleEdit = async (data: Partial<Habit>) => {
+    if (!editingHabit) return
+    await update(editingHabit.id, data)
+    setEditingHabit(null)
+  }
+
+  const handleDelete = async () => {
+    if (!deletingHabit) return
+    await remove(deletingHabit.id)
+    setDeletingHabit(null)
   }
 
   const completedCount = habits.filter((h) => h.completedToday).length
@@ -242,6 +329,13 @@ export function HabitsPage() {
                         <Flame size={20} className="text-surface-600" />
                       )}
                     </div>
+
+                    {/* Actions menu */}
+                    <HabitMenu
+                      habit={habit}
+                      onEdit={() => setEditingHabit(habit)}
+                      onDelete={() => setDeletingHabit(habit)}
+                    />
                   </CardContent>
                 </Card>
               </motion.div>
@@ -281,6 +375,26 @@ export function HabitsPage() {
           }}
         />
       </Modal>
+
+      {/* Edit Habit Modal */}
+      {editingHabit && (
+        <Modal open onClose={() => setEditingHabit(null)} title={`Edit — ${editingHabit.name}`}>
+          <HabitForm
+            initial={editingHabit}
+            submitLabel="Save Changes"
+            onSave={handleEdit}
+          />
+        </Modal>
+      )}
+
+      {/* Delete Confirmation */}
+      {deletingHabit && (
+        <DeleteConfirmModal
+          habit={deletingHabit}
+          onConfirm={handleDelete}
+          onCancel={() => setDeletingHabit(null)}
+        />
+      )}
     </div>
   )
 }

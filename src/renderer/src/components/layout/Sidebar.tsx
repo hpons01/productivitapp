@@ -9,7 +9,8 @@ import {
   BarChart3,
   BookOpen,
   Settings,
-  Trophy
+  Trophy,
+  Package
 } from 'lucide-react'
 import { useGamificationStore } from '../../stores/gamification.store'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
@@ -22,7 +23,8 @@ const navItems = [
   { to: '/pomodoro', icon: Timer, label: 'Focus' },
   { to: '/tasks', icon: ListTodo, label: 'Tasks' },
   { to: '/energy', icon: Zap, label: 'Energy' },
-  { to: '/analytics', icon: Trophy, label: 'Progress' }
+  { to: '/analytics', icon: Trophy, label: 'Progress' },
+  { to: '/inventory', icon: Package, label: 'Loot' }
 ]
 
 export function Sidebar() {

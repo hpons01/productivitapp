@@ -65,15 +65,16 @@ Every feature maps to a peer-reviewed behavioral science concept:
 | Feature | Description |
 |---|---|
 | **Dashboard** | Character card, today's stats, active timer widget, daily quests, weekly boss HP |
-| **Habits** | Daily check-off, streak counter, legendary flame animation, habit stack cues |
-| **Pomodoro** | SVG ring timer, presets (25/5, 50/10, 90/15), interruption tracking, tray countdown |
+| **Habits** | Daily check-off, edit/delete with confirmation, streak counter, legendary flame animation, habit stack cues |
+| **Pomodoro** | SVG ring timer, presets (25/5, 50/10, 90/15), interruption tracking, tray countdown, full session history |
 | **Tasks** | Priority matrix, two-minute badges, temptation bundles, quick-wins filter |
 | **Morning Ritual** | 3-step wizard: energy check → 3 intentions → gratitude |
 | **Evening Reflection** | Wins, obstacles, tomorrow's priority |
 | **Visualization** | Rotating prompts for future-self journaling |
 | **Energy Tracker** | Emoji scale check-in, line chart over 14 days, zone recommendations |
-| **Analytics** | Heatmap calendar, radar chart, XP bar, full trophy room |
-| **Gamification Overlay** | Level-up screen, badge unlock, loot box, boss defeat — all with particle animations |
+| **Analytics** | Heatmap calendar with styled tooltips, radar chart, XP bar, full trophy room |
+| **Inventory** | View and activate earned loot drops — tier-colored cards with XP boosts and power-ups |
+| **Gamification Overlay** | Level-up screen, badge unlock, loot box, boss defeat — particle animations + Web Audio sound effects |
 | **System Tray** | Countdown visible in menu bar, quick-start pomodoro, quick habit check-in |
 | **Notifications** | Morning/evening reminders, energy check-in prompts, streak warnings |
 | **Onboarding** | 4-step flow: welcome → science explainers → habit seeds → commitment device |
@@ -233,9 +234,25 @@ After `npm run package`, distribute the files in `dist/`:
 
 ---
 
+## Changelog
+
+### v1.1.0 — Feature Completeness Pass
+- **Fix** — `damageBoss` now uses a static import (was a silent `require()` inside a try-catch, could silently swallow errors)
+- **Habits** — Edit modal (reuses `HabitForm` with `initial` prop) + delete with Radix AlertDialog confirmation
+- **Pomodoro** — Detailed session history list: label, timestamp, duration, XP earned, interruption count badge
+- **Inventory** — New `/inventory` page: browse and activate earned loot drops; tier-colored cards (Common → Legendary)
+- **Analytics** — Heatmap upgraded from HTML `title` to Radix UI `<Tooltip>` with styled date + count display
+- **Sounds** — `playSound()` stub replaced with Web Audio API oscillator — rising arpeggio on level-up, chime on badge unlock
+- **Tests** — 62 unit tests added (`vitest.config.ts` + tests for `xp.ts`, `rewards.ts`, `achievements.ts`); all passing
+
+### v1.0.0 — Initial Release
+Full app: habits, Pomodoro, tasks, morning ritual, evening reflection, energy tracker, analytics, gamification overlay (level-up / loot box / boss battle / badge unlock), system tray, notifications, onboarding.
+
+---
+
 ## Next Steps
 
-### High priority
+### Deploy
 
 - [ ] **GitHub Actions CI** — create `.github/workflows/release.yml` to auto-build and publish on version tags (matrix: macOS + Windows + Linux)
 - [ ] **App icons** — replace placeholder `resources/icon.png` with a real 512×512 icon; generate `.icns` (macOS) and `.ico` (Windows) from it
@@ -243,24 +260,20 @@ After `npm run package`, distribute the files in `dist/`:
 
 ### Features to add next
 
-- [ ] **Habit editing** — the create form is built; wire up an edit modal and delete confirmation
 - [ ] **Streak recovery quest** — when a streak breaks, offer a "redemption quest" to soften the defeat
-- [ ] **Ambient sound player** — Web Audio API nodes for rain, café, white noise (scaffolded in plan, not yet built)
-- [ ] **Heatmap tooltips** — show date + count on hover in the Analytics heatmap
-- [ ] **Pomodoro session history** — paginated list of all past sessions in the Pomodoro page
+- [ ] **Ambient sound player** — Web Audio API nodes for rain, café, white noise layers (oscillator foundation is now in place in `GamificationOverlay.tsx`)
 - [ ] **Export data** — CSV / JSON export of habits, sessions, and journal entries (Settings page)
-- [ ] **Inventory screen** — view and activate earned loot power-ups
-- [ ] **Leaderboard** — personal Hall of Fame (best streaks, most XP in a week)
-- [ ] **Notification snooze** — "Remind me in 30 min" from the system tray
-- [ ] **Multiple habit frequencies** — weekday-only habits, custom day schedules
+- [ ] **Leaderboard** — personal Hall of Fame: best streaks, most XP in a week, highest level reached
+- [ ] **Notification snooze** — "Remind me in 30 min" from the system tray context menu
+- [ ] **Multiple habit frequencies** — weekday-only habits, custom day schedules (e.g. Mon/Wed/Fri)
+- [ ] **Inventory power-up activation effects** — activating an XP boost loot item should write to `settings` and be read by the XP engine
 
 ### Polish
 
-- [ ] **Unit tests** — `vitest` is installed; add tests for `src/renderer/src/lib/science/` (XP calc, streak logic, achievement checks)
-- [ ] **E2E tests** — `@playwright/test` with Electron launch; cover onboarding, habit completion, and dashboard XP update
+- [ ] **E2E tests** — `@playwright/test` with Electron launch; cover onboarding → habit completion → dashboard XP update flow
 - [ ] **Accessibility audit** — all interactive elements need `aria-label`; verify keyboard navigation and focus rings
 - [ ] **Light theme** — dark theme is complete; light theme CSS variables are defined but need visual QA pass
-- [ ] **macOS traffic lights** — when `titleBarStyle: hiddenInset`, position custom window controls
+- [ ] **macOS traffic lights** — when `titleBarStyle: hiddenInset`, position custom window controls correctly
 
 ### Architecture improvements
 
@@ -271,8 +284,9 @@ After `npm run package`, distribute the files in `dist/`:
 
 ## Contributing
 
-1. Branch off `claude/productivity-electron-app-7hjE5`
+1. Branch off `main`
 2. Run `npm run dev` to start the dev server
 3. Make changes — renderer HMR will update the UI instantly
-4. Run `npm run build` before opening a PR to confirm the production build passes
-5. Open a pull request against `main`
+4. Run `npm run build` to confirm the production build passes
+5. Run `npm test` to confirm unit tests pass
+6. Open a pull request against `main`

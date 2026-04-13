@@ -10,7 +10,7 @@ import {
   getHabitStreak,
   getCompletions
 } from '../db/queries/habits.queries'
-import { addXP } from '../db/queries/gamification.queries'
+import { addXP, damageBoss } from '../db/queries/gamification.queries'
 
 export function registerHabitsIpc(): void {
   ipcMain.handle('habits:list', () => {
@@ -48,10 +48,7 @@ export function registerHabitsIpc(): void {
     addXP(db, 'habit', data.habit_id, xpAmount)
 
     // Damage the weekly boss
-    try {
-      const { damageBoss } = require('../db/queries/gamification.queries')
-      damageBoss(db, 25)
-    } catch {}
+    damageBoss(db, 25)
 
     return { ...completion, xpAwarded: xpAmount, streak }
   })

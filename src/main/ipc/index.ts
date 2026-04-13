@@ -5,6 +5,7 @@ import { registerJournalIpc } from './journal.ipc'
 import { registerEnergyIpc } from './energy.ipc'
 import { registerAnalyticsIpc } from './analytics.ipc'
 import { registerSettingsIpc } from './settings.ipc'
+import { registerLootIpc } from './loot.ipc'
 
 export function registerAllIpcHandlers(): void {
   registerHabitsIpc()
@@ -14,4 +15,5 @@ export function registerAllIpcHandlers(): void {
   registerEnergyIpc()
   registerAnalyticsIpc()
   registerSettingsIpc()
+  registerLootIpc()
 }

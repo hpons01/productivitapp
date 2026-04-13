@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts'
+import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Progress } from '../../components/ui/progress'
 import { Badge } from '../../components/ui/badge'
@@ -8,6 +9,7 @@ import { useGamificationStore } from '../../stores/gamification.store'
 import { levelFromXP, xpForLevel } from '../../lib/science/xp'
 import { TIER_COLORS } from '../../lib/science/rewards'
 import { cn } from '../../lib/utils'
+import { format, parseISO } from 'date-fns'
 
 const api = () => window.api
 
@@ -128,22 +130,39 @@ export function AnalyticsPage() {
           {loading ? (
             <div className="h-20 flex items-center justify-center text-surface-400 text-sm">Loading heatmap...</div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="flex gap-1">
-                {weeks.map((week, wi) => (
-                  <div key={wi} className="flex flex-col gap-1">
-                    {week.map((day) => (
-                      <div
-                        key={day.date}
-                        className="w-3 h-3 rounded-sm transition-colors"
-                        style={{ backgroundColor: heatColor(day.count) }}
-                        title={`${day.date}: ${day.count} habits`}
-                      />
-                    ))}
-                  </div>
-                ))}
+            <TooltipPrimitive.Provider delayDuration={200}>
+              <div className="overflow-x-auto">
+                <div className="flex gap-1">
+                  {weeks.map((week, wi) => (
+                    <div key={wi} className="flex flex-col gap-1">
+                      {week.map((day) => (
+                        <TooltipPrimitive.Root key={day.date}>
+                          <TooltipPrimitive.Trigger asChild>
+                            <div
+                              className="w-3 h-3 rounded-sm transition-colors cursor-default"
+                              style={{ backgroundColor: heatColor(day.count) }}
+                            />
+                          </TooltipPrimitive.Trigger>
+                          <TooltipPrimitive.Portal>
+                            <TooltipPrimitive.Content
+                              side="top"
+                              sideOffset={4}
+                              className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-white shadow-xl select-none animate-in fade-in-0 zoom-in-95"
+                            >
+                              <span className="font-semibold">{format(parseISO(day.date), 'MMM d, yyyy')}</span>
+                              <span className="text-surface-300 ml-1.5">
+                                {day.count === 0 ? 'No habits' : `${day.count} habit${day.count !== 1 ? 's' : ''}`}
+                              </span>
+                              <TooltipPrimitive.Arrow className="fill-surface-700" />
+                            </TooltipPrimitive.Content>
+                          </TooltipPrimitive.Portal>
+                        </TooltipPrimitive.Root>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </TooltipPrimitive.Provider>
           )}
         </CardContent>
       </Card>
