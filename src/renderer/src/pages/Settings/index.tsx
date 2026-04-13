@@ -95,6 +95,28 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Data & Privacy */}
+      <Card>
+        <CardHeader><CardTitle>Data &amp; Privacy</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-surface-400 text-sm">Export a complete backup of all your productivity data.</p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => window.api.export.exportData('json')}
+            >
+              Export JSON (complete)
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => window.api.export.exportData('csv')}
+            >
+              Export CSV (habits &amp; tasks)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Reset */}
       <Card>
         <CardHeader><CardTitle className="text-red-400">Danger Zone</CardTitle></CardHeader>

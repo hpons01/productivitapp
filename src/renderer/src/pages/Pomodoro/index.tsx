@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
 import { cn, formatDuration } from '../../lib/utils'
 import { format } from 'date-fns'
+import { AmbientSoundPlayer } from '../../components/ambient/AmbientSoundPlayer'
 
 const PRESETS = [
   { label: '25 / 5', work: 25, break: 5 },
@@ -233,6 +234,14 @@ export function PomodoroPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Focus Sounds */}
+      <Card>
+        <CardHeader><CardTitle className="text-sm">Focus Sounds</CardTitle></CardHeader>
+        <CardContent>
+          <AmbientSoundPlayer />
+        </CardContent>
+      </Card>
 
       {/* Today's sessions emoji tiles */}
       {todayPomodoros > 0 && (

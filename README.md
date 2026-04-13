@@ -191,7 +191,9 @@ productivitapp/
 │           ├── components/
 │           │   ├── layout/      # Sidebar, TopBar, AppLayout
 │           │   ├── ui/          # Button, Card, Input, Modal, Badge...
-│           │   └── feedback/    # GamificationOverlay (level-up, loot, badges)
+│           │   ├── feedback/    # GamificationOverlay (level-up, loot, badges)
+│           │   └── ambient/     # AmbientSoundPlayer (rain, café, white noise)
+│           ├── hooks/           # useAmbientSound
 │           ├── pages/           # One folder per feature
 │           ├── stores/          # Zustand stores (one per feature)
 │           └── lib/
@@ -236,6 +238,11 @@ After `npm run package`, distribute the files in `dist/`:
 
 ## Changelog
 
+### v1.2.0 — Streak Recovery, Ambient Sounds & Data Export
+- **Streak Recovery Quest** — when any daily habit breaks a 3+ day streak, a special amber-styled recovery quest (100 XP) is injected into the Dashboard's Daily Quests section; progress tracks automatically as habits are completed throughout the day
+- **Ambient Sound Layers** — new Focus Sounds panel on the Pomodoro page; three modes synthesized entirely via Web Audio API (Rain: bandpass-filtered white noise with spray layer; Café: low crowd rumble + mid chatter + shimmer; White Noise: flat spectrum); includes 1.5s fade-in / 1s fade-out, real-time volume slider, and localStorage persistence across sessions
+- **Data Export** — Settings → Data & Privacy: Export JSON (all tables: habits, completions, tasks, journal, Pomodoros, energy, XP log) or Export CSV (habits + completions + tasks + journal + Pomodoro sessions); uses Electron's native save dialog; handles cancel gracefully
+
 ### v1.1.0 — Feature Completeness Pass
 - **Fix** — `damageBoss` now uses a static import (was a silent `require()` inside a try-catch, could silently swallow errors)
 - **Habits** — Edit modal (reuses `HabitForm` with `initial` prop) + delete with Radix AlertDialog confirmation
@@ -260,9 +267,10 @@ Full app: habits, Pomodoro, tasks, morning ritual, evening reflection, energy tr
 
 ### Features to add next
 
-- [ ] **Streak recovery quest** — when a streak breaks, offer a "redemption quest" to soften the defeat
-- [ ] **Ambient sound player** — Web Audio API nodes for rain, café, white noise layers (oscillator foundation is now in place in `GamificationOverlay.tsx`)
-- [ ] **Export data** — CSV / JSON export of habits, sessions, and journal entries (Settings page)
+- [x] **Streak recovery quest** — when a streak breaks, offer a "redemption quest" to soften the defeat *(v1.2.0)*
+- [x] **Ambient sound player** — Web Audio API nodes for rain, café, white noise layers *(v1.2.0)*
+- [x] **Export data** — CSV / JSON export of habits, sessions, and journal entries *(v1.2.0)*
+- [ ] **Daily quest enhancements** — quest variety expansion (weekly challenges, chained multi-step quests), a dedicated Quest Log page tracking completion history and XP earned per quest, and push notifications when a new quest set unlocks each morning
 - [ ] **Leaderboard** — personal Hall of Fame: best streaks, most XP in a week, highest level reached
 - [ ] **Notification snooze** — "Remind me in 30 min" from the system tray context menu
 - [ ] **Multiple habit frequencies** — weekday-only habits, custom day schedules (e.g. Mon/Wed/Fri)
