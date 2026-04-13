@@ -1,0 +1,52 @@
+appId: com.productivitapp.app
+productName: ProductivitApp
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**/*
+  - '!**/.DS_Store'
+extraResources:
+  - from: resources/
+    to: .
+    filter:
+      - '!icon.icns'
+      - '!icon.ico'
+      - '!icon.png'
+mac:
+  category: public.app-category.productivity
+  icon: resources/icon.icns
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+linux:
+  icon: resources/icon.png
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  category: Office
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+dmg:
+  contents:
+    - x: 410
+      y: 150
+      type: link
+      path: /Applications
+    - x: 130
+      y: 150
+      type: file
+publish:
+  provider: github
+  releaseType: release
