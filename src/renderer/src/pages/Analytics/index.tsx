@@ -3,7 +3,10 @@ import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } fro
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Progress } from '../../components/ui/progress'
+import { Textarea } from '../../components/ui/input'
+import { Button } from '../../components/ui/button'
 import { useGamificationStore } from '../../stores/gamification.store'
+import { useSettingsStore } from '../../stores/settings.store'
 import { levelFromXP, xpForLevel } from '../../lib/science/xp'
 import { TIER_COLORS } from '../../lib/science/rewards'
 import { SOURCE_LABELS } from '../../lib/constants/classes'
@@ -36,12 +39,17 @@ type RecentBonus = {
 
 export function AnalyticsPage() {
   const gami = useGamificationStore()
+  const { getSetting, setSetting } = useSettingsStore()
   const [badges, setBadges] = useState<Array<{ code: string; name: string; description: string; icon: string; rarity: string; xp_value: number; unlocked_at: number | null }>>([])
   const [heatmap, setHeatmap] = useState<Array<{ date: string; count: number }>>([])
   const [loading, setLoading] = useState(true)
   const [switchingClass, setSwitchingClass] = useState<string | null>(null)
   const [classProgress, setClassProgress] = useState<Record<string, ClassProgress>>({})
   const [recentBonus, setRecentBonus] = useState<RecentBonus[]>([])
+  const [savingCommitment, setSavingCommitment] = useState(false)
+
+  const defaultCommitment = 'I commit to growing 1% every day.'
+  const [commitmentDraft, setCommitmentDraft] = useState(getSetting('commitment_statement', defaultCommitment))
 
   async function loadClassProgress() {
     const payload = await api().analytics.classProgress()
@@ -65,6 +73,10 @@ export function AnalyticsPage() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    setCommitmentDraft(getSetting('commitment_statement', defaultCommitment))
+  }, [getSetting('commitment_statement', defaultCommitment)])
 
   const radarData = [
     { subject: 'Focus', value: gami.focusPower },
@@ -128,12 +140,44 @@ export function AnalyticsPage() {
     }
   }
 
+  async function onSaveCommitment() {
+    const nextValue = commitmentDraft.trim() || defaultCommitment
+    setSavingCommitment(true)
+    try {
+      await setSetting('commitment_statement', nextValue)
+      setCommitmentDraft(nextValue)
+    } finally {
+      setSavingCommitment(false)
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Progress Command Center</h1>
-        <p className="text-surface-400 text-sm mt-1">Track your build, tune your class, and level with intention.</p>
+        <h1 className="text-2xl font-bold text-white">Profile Command Center</h1>
+        <p className="text-surface-400 text-sm mt-1">Own your identity, tune your class, and level with intention.</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Commitment Statement</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            label="Your commit phrase"
+            value={commitmentDraft}
+            onChange={(e) => setCommitmentDraft(e.target.value)}
+            placeholder={defaultCommitment}
+            maxLength={220}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-surface-400">This shows on your Dashboard as your daily anchor.</p>
+            <Button onClick={() => void onSaveCommitment()} loading={savingCommitment}>
+              Save Phrase
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2 bg-gradient-to-br from-primary-900/30 to-surface-700">

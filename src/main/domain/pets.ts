@@ -210,3 +210,13 @@ export const PET_DEFINITIONS_BY_ID: Record<string, PetDefinition> = ALL_PET_DEFI
 export function getPetsByRarity(rarity: PetRarity): PetDefinition[] {
   return ALL_PET_DEFINITIONS.filter((d) => d.rarity === rarity)
 }
+
+/** Rolls pet rarity when opening an egg. */
+export function rollPetRarity(): PetRarity {
+  const roll = Math.random()
+  if (roll < 0.60) return 'common'
+  if (roll < 0.88) return 'uncommon'
+  if (roll < 0.98) return 'rare'
+  if (roll < 0.995) return 'epic'
+  return 'legendary'
+}

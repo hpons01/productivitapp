@@ -15,12 +15,30 @@ export interface JournalEntry {
   created_at: number
 }
 
-export function saveJournalEntry(db: Database.Database, data: JournalEntry): JournalEntry {
+type JournalEntryInput =
+  Pick<JournalEntry, 'id' | 'type' | 'date' | 'created_at'> &
+  Partial<Omit<JournalEntry, 'id' | 'type' | 'date' | 'created_at'>>
+
+export function saveJournalEntry(db: Database.Database, data: JournalEntryInput): JournalEntry {
+  const payload: JournalEntry = {
+    id: data.id,
+    type: data.type,
+    date: data.date,
+    intentions: data.intentions ?? null,
+    wins: data.wins ?? null,
+    gratitude: data.gratitude ?? null,
+    energy_level: data.energy_level ?? null,
+    mood_emoji: data.mood_emoji ?? null,
+    reflection: data.reflection ?? null,
+    tomorrow_prep: data.tomorrow_prep ?? null,
+    created_at: data.created_at
+  }
+
   db.prepare(`
     INSERT OR REPLACE INTO journal_entries
     (id, type, date, intentions, wins, gratitude, energy_level, mood_emoji, reflection, tomorrow_prep, created_at)
     VALUES (@id, @type, @date, @intentions, @wins, @gratitude, @energy_level, @mood_emoji, @reflection, @tomorrow_prep, @created_at)
-  `).run(data)
+  `).run(payload)
   return db.prepare('SELECT * FROM journal_entries WHERE id = ?').get(data.id) as JournalEntry
 }
 

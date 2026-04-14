@@ -11,7 +11,7 @@ import {
 import { getSetting, setSetting } from './settings.queries'
 import { sendNotification } from '../../notifications'
 import { getEquippedPet, awardPetXP, awardEgg } from './pets.queries'
-import { getPetMultiplier, ALL_PET_DEFINITIONS, type PetRarity } from '../../domain/pets'
+import { getPetMultiplier, ALL_PET_DEFINITIONS } from '../../domain/pets'
 
 const SELECTED_CLASS_KEY = 'selected_character_class'
 
@@ -349,7 +349,7 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
       description: string
       target: number
       xp: number
-      eggTier?: PetRarity
+      eggReward?: boolean
     }
 
     const questPool: QuestTemplate[] = [
@@ -361,10 +361,10 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
       { type: 'morning_ritual', description: 'Complete your morning ritual', target: 1, xp: 40 },
       { type: 'evening_ritual', description: 'Complete your evening reflection', target: 1, xp: 40 },
       { type: 'two_min_tasks', description: 'Complete 3 two-minute tasks', target: 3, xp: 45 },
-      // Egg-reward quests (always award their egg tier on completion)
-      { type: 'egg_hatch_prep', description: 'Complete 5 Pomodoros today', target: 5, xp: 100, eggTier: 'uncommon' },
-      { type: 'deep_focus_day', description: 'Complete 4 Pomodoros with no interruptions', target: 4, xp: 90, eggTier: 'uncommon' },
-      { type: 'egg_seeker', description: 'Check all habits, complete 2 Pomodoros, and journal today', target: 1, xp: 120, eggTier: 'rare' }
+      // Egg-reward quests (always award a mystery egg on completion)
+      { type: 'egg_hatch_prep', description: 'Complete 5 Pomodoros today', target: 5, xp: 100, eggReward: true },
+      { type: 'deep_focus_day', description: 'Complete 4 Pomodoros with no interruptions', target: 4, xp: 90, eggReward: true },
+      { type: 'egg_seeker', description: 'Check all habits, complete 2 Pomodoros, and journal today', target: 1, xp: 120, eggReward: true }
     ]
 
     const shuffled = questPool.sort(() => Math.random() - 0.5).slice(0, 3 - normalQuests.length)
@@ -372,20 +372,14 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
     for (const q of shuffled) {
       const id = `quest_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
 
-      // Standard quests get a 25% chance of a bonus egg at seed time
-      let eggTier: PetRarity | null = q.eggTier ?? null
-      if (!eggTier && Math.random() < 0.25) {
-        const roll = Math.random()
-        if (roll < 0.60) eggTier = 'common'
-        else if (roll < 0.88) eggTier = 'uncommon'
-        else if (roll < 0.98) eggTier = 'rare'
-        else eggTier = 'epic'
-      }
+      // Keep quest-level egg chance, but eggs are always mystery until opened.
+      const hasEggReward = q.eggReward || Math.random() < 0.25
+      const eggRewardTier = hasEggReward ? 'mystery' : null
 
       db.prepare(`
         INSERT INTO daily_quests (id, date, quest_type, description, target, progress, completed, xp_reward, egg_reward_tier)
         VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
-      `).run(id, Date.now(), q.type, q.description, q.target, q.xp, eggTier)
+      `).run(id, Date.now(), q.type, q.description, q.target, q.xp, eggRewardTier)
     }
   }
 
@@ -426,6 +420,6 @@ export function updateQuestProgress(db: Database.Database, questId: string, prog
 
   // Award egg if this quest has an egg reward and just completed
   if (completed === 1 && quest.egg_reward_tier) {
-    awardEgg(db, questId, quest.egg_reward_tier as PetRarity)
+    awardEgg(db, questId)
   }
 }

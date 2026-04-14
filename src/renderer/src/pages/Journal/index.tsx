@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/button'
 import { Textarea, Input } from '../../components/ui/input'
 import { useJournalStore } from '../../stores/journal.store'
 import { cn } from '../../lib/utils'
-import { ENERGY_LEVEL_EMOJIS } from '../../lib/constants/energy-emojis'
+import { ENERGY_OPTIONS } from '../../lib/constants/energy-emojis'
 
 const VISUALIZATION_PROMPTS = [
   'Describe your ideal productive day in vivid detail. Where are you? What have you accomplished?',
@@ -16,13 +16,32 @@ const VISUALIZATION_PROMPTS = [
   'Describe the feeling of completing your most important goal. What does that version of you look like?'
 ]
 
+type IntentionInput = {
+  action: string
+  time: string
+  location: string
+}
+
 function MorningRitual() {
   const { todayMorning, saveMorning } = useJournalStore()
   const [step, setStep] = useState(0)
-  const [intentions, setIntentions] = useState(['', '', ''])
+  const [intentions, setIntentions] = useState<IntentionInput[]>([
+    { action: '', time: '', location: '' },
+    { action: '', time: '', location: '' },
+    { action: '', time: '', location: '' }
+  ])
   const [energyLevel, setEnergyLevel] = useState(3)
+  const [mood, setMood] = useState(3)
   const [gratitude, setGratitude] = useState(['', '', ''])
   const [saved, setSaved] = useState(false)
+
+  const moodOptions = [
+    { value: 1, emoji: '😤' },
+    { value: 2, emoji: '😕' },
+    { value: 3, emoji: '😐' },
+    { value: 4, emoji: '😊' },
+    { value: 5, emoji: '🤩' }
+  ]
 
   useEffect(() => {
     if (todayMorning) setSaved(true)
@@ -81,24 +100,45 @@ function MorningRitual() {
 
       {step === 0 && (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-          <p className="text-surface-300 text-sm">How are you feeling right now?</p>
-          <div className="flex gap-4 justify-center py-2">
-            {ENERGY_LEVEL_EMOJIS.map((emoji, idx) => {
-              const val = idx + 1
-              return (
-              <button
-                key={val}
-                onClick={() => setEnergyLevel(val)}
-                className={cn(
-                  'text-3xl p-2 rounded-xl transition-all',
-                  energyLevel === val ? 'bg-primary-600/30 scale-125' : 'hover:bg-surface-700'
-                )}
-              >
-                {emoji}
-              </button>
-              )
-            })}
+          <div>
+            <p className="text-xs text-surface-400 mb-3 font-medium uppercase tracking-wide">Energy Level</p>
+            <div className="flex gap-3 justify-center flex-wrap">
+              {ENERGY_OPTIONS.map(({ value, emoji, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setEnergyLevel(value)}
+                  className={cn(
+                    'flex flex-col items-center gap-1 p-3 rounded-xl transition-all min-w-[72px]',
+                    energyLevel === value
+                      ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-105'
+                      : 'bg-surface-800 hover:bg-surface-700'
+                  )}
+                >
+                  <span className="text-2xl">{emoji}</span>
+                  <span className="text-[10px] text-surface-300">{label}</span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          <div>
+            <p className="text-xs text-surface-400 mb-3 font-medium uppercase tracking-wide">Mood</p>
+            <div className="flex gap-3 justify-center">
+              {moodOptions.map(({ value, emoji }) => (
+                <button
+                  key={value}
+                  onClick={() => setMood(value)}
+                  className={cn(
+                    'text-2xl p-2 rounded-xl transition-all',
+                    mood === value ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-110' : 'hover:bg-surface-700'
+                  )}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Button className="w-full" onClick={() => setStep(1)}>Next →</Button>
         </motion.div>
       )}
@@ -106,15 +146,40 @@ function MorningRitual() {
       {step === 1 && (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
           <p className="text-surface-300 text-sm">Set 3 implementation intentions for today:</p>
-          {intentions.map((intent, i) => (
-            <Input
-              key={i}
-              label={`Intention ${i + 1}`}
-              value={intent}
-              onChange={(e) => setIntentions(intentions.map((v, idx) => idx === i ? e.target.value : v))}
-              placeholder={`I will [action] at [time] in [location]`}
-            />
-          ))}
+          {intentions.map((intent, i) => {
+            const updateField = (field: keyof IntentionInput, value: string) => {
+              setIntentions(intentions.map((v, idx) => idx === i ? { ...v, [field]: value } : v))
+            }
+
+            return (
+              <div key={i} className="rounded-xl border border-surface-600/50 bg-surface-800/40 p-3">
+                <p className="text-xs text-surface-400 mb-2">Intention {i + 1}</p>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-surface-300">I will</span>
+                  <input
+                    value={intent.action}
+                    onChange={(e) => updateField('action', e.target.value)}
+                    placeholder="[action]"
+                    className="min-w-[140px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-white placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <span className="text-surface-300">at</span>
+                  <input
+                    value={intent.time}
+                    onChange={(e) => updateField('time', e.target.value)}
+                    placeholder="[time]"
+                    className="min-w-[100px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-white placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <span className="text-surface-300">in</span>
+                  <input
+                    value={intent.location}
+                    onChange={(e) => updateField('location', e.target.value)}
+                    placeholder="[location]"
+                    className="min-w-[120px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-white placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+            )
+          })}
           <div className="flex gap-2">
             <Button variant="secondary" className="flex-1" onClick={() => setStep(0)}>← Back</Button>
             <Button className="flex-1" onClick={() => setStep(2)}>Next →</Button>
@@ -138,12 +203,25 @@ function MorningRitual() {
             <Button
               className="flex-1"
               onClick={async () => {
+                const formattedIntentions = intentions
+                  .filter((i) => i.action.trim())
+                  .map((i) => {
+                    const action = i.action.trim()
+                    const time = i.time.trim()
+                    const location = i.location.trim()
+
+                    let sentence = `I will ${action}`
+                    if (time) sentence += ` at ${time}`
+                    if (location) sentence += ` in ${location}`
+                    return sentence
+                  })
+
                 await saveMorning({
-                  intentions: JSON.stringify(intentions.filter(Boolean)),
+                  intentions: JSON.stringify(formattedIntentions),
                   gratitude: JSON.stringify(gratitude.filter(Boolean)),
                   energy_level: energyLevel,
-                  mood_emoji: ENERGY_LEVEL_EMOJIS[energyLevel - 1]
-                })
+                  mood_emoji: moodOptions.find((m) => m.value === mood)?.emoji ?? '😐'
+                }, intentions.map((i) => i.action))
                 setSaved(true)
               }}
             >

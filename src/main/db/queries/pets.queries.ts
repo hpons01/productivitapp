@@ -4,7 +4,7 @@ import {
   PET_XP_SHARE_RATE,
   petLevelFromXP,
   getPetMultiplier,
-  type PetRarity
+  rollPetRarity
 } from '../../domain/pets'
 
 export interface PetRow {
@@ -40,7 +40,7 @@ export interface PetWithDefinition extends PetRow {
 
 export interface EggRow {
   id: string
-  tier: string
+  tier: string | null
   source_quest_id: string | null
   earned_at: number
   hatched_at: number | null
@@ -147,14 +147,15 @@ export function unequipAll(db: Database.Database): void {
 }
 
 /**
- * Hatches an egg: picks a random pet definition matching the egg's tier,
+ * Hatches an egg: rolls rarity at open time,
  * creates a pets row, marks the egg as hatched.
  */
 export function hatchEgg(db: Database.Database, eggId: string): HatchResult | null {
   const egg = db.prepare('SELECT * FROM pet_eggs WHERE id = ? AND hatched_at IS NULL').get(eggId) as EggRow | undefined
   if (!egg) return null
 
-  const defs = ALL_PET_DEFINITIONS.filter((d) => d.rarity === egg.tier)
+  const rolledRarity = rollPetRarity()
+  const defs = ALL_PET_DEFINITIONS.filter((d) => d.rarity === rolledRarity)
   if (defs.length === 0) return null
 
   const chosenDef = defs[Math.floor(Math.random() * defs.length)]
@@ -167,7 +168,7 @@ export function hatchEgg(db: Database.Database, eggId: string): HatchResult | nu
     VALUES (?, ?, ?, ?, 0, 1, ?, 0)
   `).run(petId, chosenDef.id, eggId, chosenDef.name)
 
-  db.prepare('UPDATE pet_eggs SET hatched_at = ?, pet_id = ? WHERE id = ?').run(now, chosenDef.id, eggId)
+  db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = ? WHERE id = ?').run(chosenDef.rarity, now, chosenDef.id, eggId)
 
   const updatedEgg = db.prepare('SELECT * FROM pet_eggs WHERE id = ?').get(eggId) as EggRow
   const newPet = db.prepare(`
@@ -180,13 +181,13 @@ export function hatchEgg(db: Database.Database, eggId: string): HatchResult | nu
   return { pet: newPet, egg: updatedEgg }
 }
 
-/** Awards an egg to the player from a completed quest */
-export function awardEgg(db: Database.Database, questId: string, tier: PetRarity): EggRow {
+/** Awards a mystery egg to the player from a completed quest */
+export function awardEgg(db: Database.Database, questId: string): EggRow {
   const id = `egg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
   db.prepare(`
     INSERT INTO pet_eggs (id, tier, source_quest_id, earned_at)
     VALUES (?, ?, ?, ?)
-  `).run(id, tier, questId, Date.now())
+  `).run(id, 'mystery', questId, Date.now())
 
   return db.prepare('SELECT * FROM pet_eggs WHERE id = ?').get(id) as EggRow
 }

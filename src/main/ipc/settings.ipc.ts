@@ -25,4 +25,36 @@ export function registerSettingsIpc(): void {
     const db = getDb()
     return getAllSettings(db)
   })
+
+  ipcMain.handle('settings:resetOnboarding', () => {
+    const db = getDb()
+
+    const resetJourney = db.transaction(() => {
+      db.exec(`
+        DELETE FROM habit_completions;
+        DELETE FROM habits;
+        DELETE FROM pomodoro_sessions;
+        DELETE FROM tasks;
+        DELETE FROM journal_entries;
+        DELETE FROM energy_logs;
+        DELETE FROM xp_log;
+        DELETE FROM boss_battles;
+        DELETE FROM daily_quests;
+        DELETE FROM loot_inventory;
+        DELETE FROM pet_xp_log;
+        DELETE FROM pets;
+        DELETE FROM pet_eggs;
+      `)
+
+      db.prepare('UPDATE badges SET unlocked_at = NULL').run()
+      db.prepare('DELETE FROM settings WHERE key IN (?, ?)').run('user_name', 'commitment_statement')
+      setSetting(db, 'selected_character_class', 'apprentice')
+      setSetting(db, 'onboarding_completed', 'false')
+    })
+
+    resetJourney()
+    scheduleNotifications()
+
+    return { success: true }
+  })
 }

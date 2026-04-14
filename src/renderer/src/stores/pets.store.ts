@@ -23,7 +23,7 @@ export interface PetInstance {
 
 export interface EggInstance {
   id: string
-  tier: string
+  tier: string | null
   source_quest_id: string | null
   earned_at: number
   hatched_at: number | null
