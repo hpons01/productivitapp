@@ -10,6 +10,7 @@ import { EnergyPage } from './pages/Energy'
 import { AnalyticsPage } from './pages/Analytics'
 import { SettingsPage } from './pages/Settings'
 import { InventoryPage } from './pages/Inventory'
+import { PetsPage } from './pages/Pets'
 import { OnboardingPage } from './pages/Onboarding'
 import { GamificationOverlay } from './components/feedback/GamificationOverlay'
 import { useSettingsStore } from './stores/settings.store'
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="energy" element={<EnergyPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="pets" element={<PetsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

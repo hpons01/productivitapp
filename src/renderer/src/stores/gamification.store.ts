@@ -8,7 +8,7 @@ const api = () => window.api
 
 export interface PendingReward {
   id: string
-  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked'
+  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked' | 'egg_hatch'
   data: Record<string, unknown>
 }
 

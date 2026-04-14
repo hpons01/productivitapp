@@ -10,6 +10,8 @@ import {
 } from '../../domain/classes'
 import { getSetting, setSetting } from './settings.queries'
 import { sendNotification } from '../../notifications'
+import { getEquippedPet, awardPetXP, awardEgg } from './pets.queries'
+import { getPetMultiplier, ALL_PET_DEFINITIONS, type PetRarity } from '../../domain/pets'
 
 const SELECTED_CLASS_KEY = 'selected_character_class'
 
@@ -24,6 +26,10 @@ export interface XpAwardResult {
   finalAmount: number
   bonusAmount: number
   classIdApplied: CharacterClassId | null
+  petMultiplier: number
+  petXpGain: number
+  petLeveledUp: boolean
+  equippedPetId: string | null
 }
 
 export interface CharacterClassConfig {
@@ -74,11 +80,31 @@ export function awardXP(
 
   const classMultiplier = sourceGetsClassBonus ? classDef.multiplier : 1
   const evolutionMultiplier = sourceGetsClassBonus ? 1 + evolutionTier * 0.03 : 1
-  const multiplier = Math.min(1.5, classMultiplier * evolutionMultiplier)
-  const finalAmount = Math.max(0, Math.round(baseAmount * multiplier))
-  const bonusAmount = Math.max(0, finalAmount - baseAmount)
+  const classCappedMultiplier = Math.min(1.5, classMultiplier * evolutionMultiplier)
   const classIdApplied = sourceGetsClassBonus ? selectedClassId : null
   const evolutionTierApplied = sourceGetsClassBonus ? evolutionTier : null
+
+  // ── Pet bonus layer (applied after class cap) ──────────────────────────────
+  let petMultiplier = 1
+  let petXpGain = 0
+  let petLeveledUp = false
+  let equippedPetId: string | null = null
+
+  const equippedPet = getEquippedPet(db)
+  if (equippedPet) {
+    equippedPetId = equippedPet.id
+    const def = ALL_PET_DEFINITIONS.find((d) => d.id === equippedPet.definition_id)
+    if (def) {
+      petMultiplier = getPetMultiplier(def, equippedPet.level, source)
+    }
+    const petResult = awardPetXP(db, equippedPet.id, source, baseAmount)
+    petXpGain = petResult.petXpGain
+    petLeveledUp = petResult.leveledUp
+  }
+
+  const multiplier = classCappedMultiplier * petMultiplier
+  const finalAmount = Math.max(0, Math.round(baseAmount * multiplier))
+  const bonusAmount = Math.max(0, finalAmount - baseAmount)
 
   db.prepare(`
     INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
@@ -109,7 +135,11 @@ export function awardXP(
     multiplier,
     finalAmount,
     bonusAmount,
-    classIdApplied
+    classIdApplied,
+    petMultiplier,
+    petXpGain,
+    petLeveledUp,
+    equippedPetId
   }
 }
 
@@ -314,7 +344,15 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
 
   // Seed normal quests if we have fewer than 3
   if (normalQuests.length < 3) {
-    const questPool = [
+    type QuestTemplate = {
+      type: string
+      description: string
+      target: number
+      xp: number
+      eggTier?: PetRarity
+    }
+
+    const questPool: QuestTemplate[] = [
       { type: 'pomodoros', description: 'Complete 3 Pomodoros', target: 3, xp: 75 },
       { type: 'pomodoros_morning', description: 'Complete 2 Pomodoros before noon', target: 2, xp: 80 },
       { type: 'habits_all', description: 'Check off all habits', target: 1, xp: 60 },
@@ -322,17 +360,32 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
       { type: 'tasks', description: 'Complete 5 tasks', target: 5, xp: 60 },
       { type: 'morning_ritual', description: 'Complete your morning ritual', target: 1, xp: 40 },
       { type: 'evening_ritual', description: 'Complete your evening reflection', target: 1, xp: 40 },
-      { type: 'two_min_tasks', description: 'Complete 3 two-minute tasks', target: 3, xp: 45 }
+      { type: 'two_min_tasks', description: 'Complete 3 two-minute tasks', target: 3, xp: 45 },
+      // Egg-reward quests (always award their egg tier on completion)
+      { type: 'egg_hatch_prep', description: 'Complete 5 Pomodoros today', target: 5, xp: 100, eggTier: 'uncommon' },
+      { type: 'deep_focus_day', description: 'Complete 4 Pomodoros with no interruptions', target: 4, xp: 90, eggTier: 'uncommon' },
+      { type: 'egg_seeker', description: 'Check all habits, complete 2 Pomodoros, and journal today', target: 1, xp: 120, eggTier: 'rare' }
     ]
 
     const shuffled = questPool.sort(() => Math.random() - 0.5).slice(0, 3 - normalQuests.length)
 
     for (const q of shuffled) {
       const id = `quest_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+
+      // Standard quests get a 25% chance of a bonus egg at seed time
+      let eggTier: PetRarity | null = q.eggTier ?? null
+      if (!eggTier && Math.random() < 0.25) {
+        const roll = Math.random()
+        if (roll < 0.60) eggTier = 'common'
+        else if (roll < 0.88) eggTier = 'uncommon'
+        else if (roll < 0.98) eggTier = 'rare'
+        else eggTier = 'epic'
+      }
+
       db.prepare(`
-        INSERT INTO daily_quests (id, date, quest_type, description, target, progress, completed, xp_reward)
-        VALUES (?, ?, ?, ?, ?, 0, 0, ?)
-      `).run(id, Date.now(), q.type, q.description, q.target, q.xp)
+        INSERT INTO daily_quests (id, date, quest_type, description, target, progress, completed, xp_reward, egg_reward_tier)
+        VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
+      `).run(id, Date.now(), q.type, q.description, q.target, q.xp, eggTier)
     }
   }
 
@@ -357,7 +410,11 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
 }
 
 export function updateQuestProgress(db: Database.Database, questId: string, progress: number): void {
-  const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ?').get(questId) as { target: number; completed: number } | undefined
+  const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ?').get(questId) as {
+    target: number
+    completed: number
+    egg_reward_tier: string | null
+  } | undefined
   if (!quest || quest.completed) return
 
   const completed = progress >= quest.target ? 1 : 0
@@ -366,4 +423,9 @@ export function updateQuestProgress(db: Database.Database, questId: string, prog
     completed,
     questId
   )
+
+  // Award egg if this quest has an egg reward and just completed
+  if (completed === 1 && quest.egg_reward_tier) {
+    awardEgg(db, questId, quest.egg_reward_tier as PetRarity)
+  }
 }
