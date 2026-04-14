@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, StopCircle, SkipForward, AlertCircle, Clock, Zap } from 'lucide-react'
+import { Play, Pause, StopCircle, SkipForward, AlertCircle, Clock, Zap, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
@@ -46,10 +46,15 @@ export function PomodoroPage() {
     status, timeLeft, duration, breakDuration, sessionLabel,
     interruptions, todayPomodoros, todayMinutes,
     start, pause, resume, tick, complete, abandon, startBreak, endBreak,
-    setLabel, increment, loadTodayStats
+    setLabel, increment, loadTodayStats,
+    presets, loadPresets, createPreset, deletePreset, applyPreset
   } = usePomodoroStore()
 
   const [sessions, setSessions] = useState<SessionRow[]>([])
+  const [customWork, setCustomWork] = useState(25)
+  const [customBreak, setCustomBreak] = useState(5)
+  const [showCustom, setShowCustom] = useState(false)
+  const [presetError, setPresetError] = useState('')
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef<number>(Date.now())
@@ -58,6 +63,7 @@ export function PomodoroPage() {
   useEffect(() => {
     loadTodayStats()
     loadSessions()
+    loadPresets()
   }, [])
 
   // Reload session list whenever a session completes
@@ -106,6 +112,31 @@ export function PomodoroPage() {
   const totalSeconds = (status === 'break' ? breakDuration : duration) * 60
   const progressPct = ((totalSeconds - timeLeft) / totalSeconds) * 100
   const circumference = 2 * Math.PI * 110
+  const customPresets = presets.filter((preset) => preset.user_created === 1)
+
+  async function handleSavePreset() {
+    const workMins = Number(customWork)
+    const breakMins = Number(customBreak)
+
+    if (!Number.isInteger(workMins) || workMins < 1 || workMins > 240) {
+      setPresetError('Work must be 1-240 minutes')
+      return
+    }
+
+    if (!Number.isInteger(breakMins) || breakMins < 1 || breakMins > 120) {
+      setPresetError('Break must be 1-120 minutes')
+      return
+    }
+
+    try {
+      await createPreset(workMins, breakMins)
+      setPresetError('')
+      setShowCustom(false)
+      applyPreset(workMins, breakMins)
+    } catch {
+      setPresetError('Could not save preset')
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -214,23 +245,104 @@ export function PomodoroPage() {
       {status === 'idle' && (
         <Card>
           <CardHeader><CardTitle className="text-sm">Presets</CardTitle></CardHeader>
-          <CardContent className="flex gap-2 flex-wrap">
-            {PRESETS.map((p) => (
+          <CardContent className="space-y-3">
+            <div className="flex items-start gap-2">
+              <div className="flex gap-2 flex-wrap flex-1">
+                {PRESETS.map((preset) => {
+                  const isSelected = duration === preset.work && breakDuration === preset.break
+                  return (
+                    <button
+                      key={preset.label}
+                      onClick={() => applyPreset(preset.work, preset.break)}
+                      className={cn(
+                        'px-3 py-2 rounded-xl text-sm border transition-all',
+                        isSelected
+                          ? 'bg-primary-600/20 border-primary-500/40 text-primary-300'
+                          : 'bg-surface-800 border-surface-600 text-surface-300 hover:border-surface-400'
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  )
+                })}
+              </div>
+
               <button
-                key={p.label}
-                onClick={() => {
-                  usePomodoroStore.setState({ duration: p.work, breakDuration: p.break, timeLeft: p.work * 60 })
-                }}
+                onClick={() => setShowCustom((v) => !v)}
                 className={cn(
-                  'px-3 py-2 rounded-xl text-sm border transition-all',
-                  duration === p.work
+                  'px-3 py-2 rounded-xl text-sm border transition-all whitespace-nowrap ml-auto',
+                  showCustom
                     ? 'bg-primary-600/20 border-primary-500/40 text-primary-300'
-                    : 'bg-surface-800 border-surface-600 text-surface-300 hover:border-surface-400'
+                    : 'bg-surface-800 border-dashed border-surface-500 text-surface-300 hover:border-surface-400'
                 )}
               >
-                {p.label}
+                + Custom session
               </button>
-            ))}
+            </div>
+
+            {customPresets.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {customPresets.map((preset) => {
+                  const isSelected = duration === preset.work_mins && breakDuration === preset.break_mins
+                  return (
+                    <div key={preset.id} className="flex items-center gap-1">
+                      <button
+                        onClick={() => applyPreset(preset.work_mins, preset.break_mins)}
+                        className={cn(
+                          'px-3 py-2 rounded-xl text-sm border transition-all',
+                          isSelected
+                            ? 'bg-primary-600/20 border-primary-500/40 text-primary-300'
+                            : 'bg-surface-800 border-surface-600 text-surface-300 hover:border-surface-400'
+                        )}
+                      >
+                        {preset.name}
+                      </button>
+                      <button
+                        onClick={() => deletePreset(preset.id)}
+                        className="p-2 rounded-lg border border-surface-600 text-surface-300 hover:text-red-300 hover:border-red-500/40 transition-colors"
+                        title="Delete preset"
+                        aria-label={`Delete ${preset.name}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {showCustom && (
+              <div className="rounded-xl border border-surface-600 bg-surface-800/50 p-3 space-y-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={240}
+                    value={customWork}
+                    onChange={(e) => setCustomWork(Number(e.target.value || 0))}
+                    placeholder="Work (min)"
+                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-white placeholder:text-surface-400 focus:outline-none focus:border-primary-500"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={customBreak}
+                    onChange={(e) => setCustomBreak(Number(e.target.value || 0))}
+                    placeholder="Break (min)"
+                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-white placeholder:text-surface-400 focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => applyPreset(customWork, customBreak)}>
+                    Use custom session
+                  </Button>
+                  <Button size="sm" onClick={handleSavePreset}>Save preset</Button>
+                  {presetError && <span className="text-xs text-red-400">{presetError}</span>}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

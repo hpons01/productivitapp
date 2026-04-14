@@ -20,6 +20,7 @@ export function initDatabase(): void {
   runMigrations()
   ensureClassXpColumns()
   ensurePetQuestColumns()
+  ensurePomodoroPresets()
   ensureDefaultSettings()
   seedBadges()
   seedPetDefinitions()
@@ -141,6 +142,38 @@ function ensurePetQuestColumns(): void {
   }
 }
 
+function ensurePomodoroPresets(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pomodoro_presets (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      work_mins     INTEGER NOT NULL,
+      break_mins    INTEGER NOT NULL,
+      user_created  INTEGER NOT NULL DEFAULT 1,
+      created_at    INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pomodoro_presets_user
+      ON pomodoro_presets(user_created, created_at);
+  `)
+
+  const defaults = [
+    { id: 'default-25-5', name: '25 / 5', work_mins: 25, break_mins: 5 },
+    { id: 'default-50-10', name: '50 / 10', work_mins: 50, break_mins: 10 },
+    { id: 'default-90-15', name: '90 / 15', work_mins: 90, break_mins: 15 },
+    { id: 'default-15-3', name: '15 / 3', work_mins: 15, break_mins: 3 }
+  ]
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO pomodoro_presets (id, name, work_mins, break_mins, user_created, created_at)
+    VALUES (?, ?, ?, ?, 0, ?)
+  `)
+
+  for (const preset of defaults) {
+    stmt.run(preset.id, preset.name, preset.work_mins, preset.break_mins, Date.now())
+  }
+}
+
 const INITIAL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS habits (
   id          TEXT PRIMARY KEY,
@@ -179,6 +212,17 @@ CREATE TABLE IF NOT EXISTS pomodoro_sessions (
   xp_awarded     INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_pomodoro_started ON pomodoro_sessions(started_at);
+
+CREATE TABLE IF NOT EXISTS pomodoro_presets (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  work_mins     INTEGER NOT NULL,
+  break_mins    INTEGER NOT NULL,
+  user_created  INTEGER NOT NULL DEFAULT 1,
+  created_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pomodoro_presets_user
+  ON pomodoro_presets(user_created, created_at);
 
 CREATE TABLE IF NOT EXISTS tasks (
   id                 TEXT PRIMARY KEY,

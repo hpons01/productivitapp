@@ -6,6 +6,15 @@ const api = () => window.api
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'break' | 'completed'
 
+export interface PomodoroPreset {
+  id: string
+  name: string
+  work_mins: number
+  break_mins: number
+  user_created: number
+  created_at: number
+}
+
 interface PomodoroState {
   status: TimerStatus
   timeLeft: number // seconds
@@ -16,6 +25,7 @@ interface PomodoroState {
   interruptions: number
   todayPomodoros: number
   todayMinutes: number
+  presets: PomodoroPreset[]
 
   start: (label?: string, durationMins?: number) => Promise<void>
   pause: () => void
@@ -28,6 +38,10 @@ interface PomodoroState {
   setLabel: (label: string) => void
   increment: () => void
   loadTodayStats: () => Promise<void>
+  loadPresets: () => Promise<void>
+  createPreset: (workMins: number, breakMins: number) => Promise<void>
+  deletePreset: (id: string) => Promise<void>
+  applyPreset: (workMins: number, breakMins: number) => void
 }
 
 export const usePomodoroStore = create<PomodoroState>((set, get) => ({
@@ -40,6 +54,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   interruptions: 0,
   todayPomodoros: 0,
   todayMinutes: 0,
+  presets: [],
 
   start: async (label = '', durationMins?: number) => {
     const duration = durationMins ?? get().duration
@@ -149,5 +164,46 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
         todayMinutes: stats.totalMinutes
       })
     } catch {}
+  },
+
+  loadPresets: async () => {
+    try {
+      const presets = await api().pomodoro.listPresets()
+      set({ presets: presets as PomodoroPreset[] })
+    } catch {}
+  },
+
+  createPreset: async (workMins, breakMins) => {
+    const preset = await api().pomodoro.createPreset({
+      work_mins: workMins,
+      break_mins: breakMins
+    })
+
+    set((s) => {
+      const next = preset as PomodoroPreset
+      const byId = s.presets.find((p) => p.id === next.id)
+      const byDuration = s.presets.find(
+        (p) => p.work_mins === next.work_mins && p.break_mins === next.break_mins
+      )
+
+      if (byId || byDuration) {
+        return {
+          presets: s.presets.map((p) => (p.id === next.id ? next : p))
+        }
+      }
+
+      return {
+        presets: [...s.presets, next]
+      }
+    })
+  },
+
+  deletePreset: async (id) => {
+    await api().pomodoro.deletePreset(id)
+    set((s) => ({ presets: s.presets.filter((preset) => preset.id !== id) }))
+  },
+
+  applyPreset: (workMins, breakMins) => {
+    set({ duration: workMins, breakDuration: breakMins, timeLeft: workMins * 60 })
   }
 }))

@@ -5,7 +5,10 @@ import {
   completeSession,
   abandonSession,
   listSessions,
-  getTodayStats
+  getTodayStats,
+  listPresets,
+  createPreset,
+  deletePreset
 } from '../db/queries/pomodoro.queries'
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { sendNotification } from '../notifications'
@@ -55,5 +58,39 @@ export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:todayStats', () => {
     const db = getDb()
     return getTodayStats(db)
+  })
+
+  ipcMain.handle('pomodoro:presets:list', () => {
+    const db = getDb()
+    return listPresets(db)
+  })
+
+  ipcMain.handle('pomodoro:presets:create', (_event, data: { name?: string; work_mins: number; break_mins: number }) => {
+    const db = getDb()
+
+    const name = String(data?.name ?? '').trim()
+    const workMins = Number(data?.work_mins)
+    const breakMins = Number(data?.break_mins)
+
+    if (!Number.isInteger(workMins) || workMins < 1 || workMins > 240) {
+      throw new Error('Work duration must be an integer between 1 and 240 minutes')
+    }
+
+    if (!Number.isInteger(breakMins) || breakMins < 1 || breakMins > 120) {
+      throw new Error('Break duration must be an integer between 1 and 120 minutes')
+    }
+
+    return createPreset(db, {
+      name: name || `${workMins} / ${breakMins}`,
+      work_mins: workMins,
+      break_mins: breakMins,
+      user_created: 1
+    })
+  })
+
+  ipcMain.handle('pomodoro:presets:delete', (_event, id: string) => {
+    const db = getDb()
+    deletePreset(db, id)
+    return { success: true }
   })
 }

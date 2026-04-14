@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 import { startOfDay, endOfDay } from 'date-fns'
+import { randomUUID } from 'crypto'
 
 export interface PomodoroSession {
   id: string
@@ -12,6 +13,15 @@ export interface PomodoroSession {
   completed: number
   interruptions: number
   xp_awarded: number
+}
+
+export interface PomodoroPreset {
+  id: string
+  name: string
+  work_mins: number
+  break_mins: number
+  user_created: number
+  created_at: number
 }
 
 export function startSession(db: Database.Database, data: Omit<PomodoroSession, 'ended_at' | 'completed' | 'interruptions' | 'xp_awarded'>): PomodoroSession {
@@ -82,4 +92,44 @@ export function getTodayStats(db: Database.Database): {
 export function getTotalCompletedCount(db: Database.Database): number {
   const result = db.prepare('SELECT COUNT(*) as count FROM pomodoro_sessions WHERE completed = 1').get() as { count: number }
   return result.count
+}
+
+export function listPresets(db: Database.Database): PomodoroPreset[] {
+  return db
+    .prepare('SELECT * FROM pomodoro_presets ORDER BY user_created ASC, created_at ASC')
+    .all() as PomodoroPreset[]
+}
+
+export function createPreset(
+  db: Database.Database,
+  data: { name?: string; work_mins: number; break_mins: number; user_created?: number }
+): PomodoroPreset {
+  const existing = db
+    .prepare('SELECT * FROM pomodoro_presets WHERE work_mins = ? AND break_mins = ? LIMIT 1')
+    .get(data.work_mins, data.break_mins) as PomodoroPreset | undefined
+
+  if (existing) {
+    return existing
+  }
+
+  const fallbackName = `${data.work_mins} / ${data.break_mins}`
+  const preset = {
+    id: randomUUID(),
+    name: (data.name?.trim() || fallbackName),
+    work_mins: data.work_mins,
+    break_mins: data.break_mins,
+    user_created: data.user_created ?? 1,
+    created_at: Date.now()
+  }
+
+  db.prepare(`
+    INSERT INTO pomodoro_presets (id, name, work_mins, break_mins, user_created, created_at)
+    VALUES (@id, @name, @work_mins, @break_mins, @user_created, @created_at)
+  `).run(preset)
+
+  return db.prepare('SELECT * FROM pomodoro_presets WHERE id = ?').get(preset.id) as PomodoroPreset
+}
+
+export function deletePreset(db: Database.Database, id: string): void {
+  db.prepare('DELETE FROM pomodoro_presets WHERE id = ? AND user_created = 1').run(id)
 }

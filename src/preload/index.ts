@@ -21,7 +21,10 @@ const api = {
     complete: (data: unknown) => ipcRenderer.invoke('pomodoro:complete', data),
     abandon: (id: string) => ipcRenderer.invoke('pomodoro:abandon', id),
     list: (date?: string) => ipcRenderer.invoke('pomodoro:list', date),
-    todayStats: () => ipcRenderer.invoke('pomodoro:todayStats')
+    todayStats: () => ipcRenderer.invoke('pomodoro:todayStats'),
+    listPresets: () => ipcRenderer.invoke('pomodoro:presets:list'),
+    createPreset: (data: unknown) => ipcRenderer.invoke('pomodoro:presets:create', data),
+    deletePreset: (id: string) => ipcRenderer.invoke('pomodoro:presets:delete', id)
   },
 
   // Tasks
@@ -103,21 +106,29 @@ const api = {
   // Tray events (renderer listens)
   onTrayStartPomodoro: (callback: () => void) => {
     ipcRenderer.on('tray:start-pomodoro', () => callback())
-    return () => ipcRenderer.removeAllListeners('tray:start-pomodoro')
+    return () => {
+      ipcRenderer.removeAllListeners('tray:start-pomodoro')
+    }
   },
   onTrayOpenHabits: (callback: () => void) => {
     ipcRenderer.on('tray:open-habits', () => callback())
-    return () => ipcRenderer.removeAllListeners('tray:open-habits')
+    return () => {
+      ipcRenderer.removeAllListeners('tray:open-habits')
+    }
   },
 
   // Update events
   onUpdateAvailable: (callback: () => void) => {
     ipcRenderer.on('updater:update-available', () => callback())
-    return () => ipcRenderer.removeAllListeners('updater:update-available')
+    return () => {
+      ipcRenderer.removeAllListeners('updater:update-available')
+    }
   },
   onUpdateReady: (callback: () => void) => {
     ipcRenderer.on('updater:update-ready', () => callback())
-    return () => ipcRenderer.removeAllListeners('updater:update-ready')
+    return () => {
+      ipcRenderer.removeAllListeners('updater:update-ready')
+    }
   },
 
   // Task reminder events
