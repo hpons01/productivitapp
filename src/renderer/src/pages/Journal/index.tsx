@@ -166,6 +166,7 @@ function MorningRitual() {
                   <input
                     value={intent.time}
                     onChange={(e) => updateField('time', e.target.value)}
+                    type="time"
                     placeholder="[time]"
                     className="min-w-[100px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-white placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
@@ -221,7 +222,7 @@ function MorningRitual() {
                   gratitude: JSON.stringify(gratitude.filter(Boolean)),
                   energy_level: energyLevel,
                   mood_emoji: moodOptions.find((m) => m.value === mood)?.emoji ?? '😐'
-                }, intentions.map((i) => i.action))
+                }, intentions)
                 setSaved(true)
               }}
             >

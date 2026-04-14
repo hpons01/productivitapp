@@ -18,13 +18,19 @@ export interface JournalEntry {
   created_at: number
 }
 
+interface IntentionPlan {
+  action: string
+  time?: string
+  location?: string
+}
+
 interface JournalState {
   todayMorning: JournalEntry | null
   todayEvening: JournalEntry | null
   entries: JournalEntry[]
   loading: boolean
   loadToday: () => Promise<void>
-  saveMorning: (data: Partial<JournalEntry>, intentionActions?: string[]) => Promise<JournalEntry>
+  saveMorning: (data: Partial<JournalEntry>, intentions?: IntentionPlan[]) => Promise<JournalEntry>
   saveEvening: (data: Partial<JournalEntry>) => Promise<JournalEntry>
 }
 
@@ -47,7 +53,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     }
   },
 
-  saveMorning: async (data, intentionActions = []) => {
+  saveMorning: async (data, intentions = []) => {
     const entry = await api().journal.save({
       id: generateId(),
       type: 'morning',
@@ -57,10 +63,18 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     })
     set({ todayMorning: entry })
 
+    const normalizedIntentions = intentions
+      .map((item) => ({
+        action: item.action.trim(),
+        time: (item.time || '').trim(),
+        location: (item.location || '').trim()
+      }))
+      .filter((item) => item.action)
+
     const normalizedActions = Array.from(
       new Set(
-        intentionActions
-          .map((action) => action.trim())
+        normalizedIntentions
+          .map((item) => item.action)
           .filter(Boolean)
       )
     )
@@ -73,20 +87,29 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         (action) => !existingTitles.has(action.toLowerCase())
       )
 
-      await Promise.all(actionsToCreate.map((action) =>
-        api().tasks.create({
+      await Promise.all(actionsToCreate.map((action) => {
+        const matched = normalizedIntentions.find((item) => item.action.toLowerCase() === action.toLowerCase())
+        const dueDate = (() => {
+          if (!matched?.time || !/^\d{2}:\d{2}$/.test(matched.time)) return null
+          const [hours, minutes] = matched.time.split(':').map(Number)
+          const date = new Date()
+          date.setHours(hours, minutes, 0, 0)
+          return date.getTime()
+        })()
+
+        return api().tasks.create({
           id: generateId(),
           title: action,
           notes: 'Created from morning intention',
           priority: 2,
           estimated_mins: null,
-          due_date: null,
+          due_date: dueDate,
           completed_at: null,
           created_at: Date.now(),
           habit_id: null,
           temptation_bundle: null
         })
-      ))
+      }))
     }
 
     const { refreshFromDB, checkAndUnlockBadges } = useGamificationStore.getState()

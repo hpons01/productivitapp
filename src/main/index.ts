@@ -5,7 +5,7 @@ import { setupTray } from './tray'
 import { initDatabase } from './db'
 import { registerAllIpcHandlers } from './ipc'
 import { setupAutoUpdater } from './updater'
-import { scheduleNotifications } from './notifications'
+import { rehydrateTaskReminders, scheduleNotifications } from './notifications'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -74,6 +74,7 @@ app.whenReady().then(() => {
 
   // Schedule notifications
   scheduleNotifications()
+  rehydrateTaskReminders()
 
   // Setup auto-updater (only in production)
   if (!is.dev) {

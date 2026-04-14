@@ -1,7 +1,8 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db'
-import { listTasks, createTask, updateTask, completeTask, deleteTask } from '../db/queries/tasks.queries'
+import { listTasks, createTask, updateTask, completeTask, deleteTask, getTaskById } from '../db/queries/tasks.queries'
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
+import { cancelTaskReminder, scheduleTaskReminder, snoozeTaskReminder } from '../notifications'
 
 export function registerTasksIpc(): void {
   ipcMain.handle('tasks:list', () => {
@@ -11,17 +12,22 @@ export function registerTasksIpc(): void {
 
   ipcMain.handle('tasks:create', (_event, data) => {
     const db = getDb()
-    return createTask(db, data)
+    const task = createTask(db, data)
+    scheduleTaskReminder(task.id, task.title, task.due_date)
+    return task
   })
 
   ipcMain.handle('tasks:update', (_event, data) => {
     const db = getDb()
     const { id, ...rest } = data
-    return updateTask(db, id, rest)
+    const task = updateTask(db, id, rest)
+    scheduleTaskReminder(task.id, task.title, task.due_date)
+    return task
   })
 
   ipcMain.handle('tasks:complete', (_event, id: string) => {
     const db = getDb()
+    cancelTaskReminder(id)
     const task = completeTask(db, id)
 
     // XP: 10 for normal, 5 for 2-min tasks (quick = less effort)
@@ -43,7 +49,17 @@ export function registerTasksIpc(): void {
 
   ipcMain.handle('tasks:delete', (_event, id: string) => {
     const db = getDb()
+    cancelTaskReminder(id)
     deleteTask(db, id)
+    return { success: true }
+  })
+
+  ipcMain.handle('tasks:snoozeReminder', (_event, taskId: string, minutes = 5) => {
+    const db = getDb()
+    const task = getTaskById(db, taskId)
+    if (!task || task.completed_at) return { success: false }
+
+    snoozeTaskReminder(task.id, task.title, task.due_date, minutes)
     return { success: true }
   })
 }

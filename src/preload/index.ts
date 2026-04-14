@@ -30,7 +30,8 @@ const api = {
     create: (data: unknown) => ipcRenderer.invoke('tasks:create', data),
     update: (data: unknown) => ipcRenderer.invoke('tasks:update', data),
     complete: (id: string) => ipcRenderer.invoke('tasks:complete', id),
-    delete: (id: string) => ipcRenderer.invoke('tasks:delete', id)
+    delete: (id: string) => ipcRenderer.invoke('tasks:delete', id),
+    snoozeReminder: (taskId: string, minutes = 5) => ipcRenderer.invoke('tasks:snoozeReminder', taskId, minutes)
   },
 
   // Journal
@@ -117,6 +118,13 @@ const api = {
   onUpdateReady: (callback: () => void) => {
     ipcRenderer.on('updater:update-ready', () => callback())
     return () => ipcRenderer.removeAllListeners('updater:update-ready')
+  },
+
+  // Task reminder events
+  onTaskReminder: (callback: (payload: { taskId: string; title: string; dueDate: number }) => void) => {
+    const listener = (_event: unknown, payload: { taskId: string; title: string; dueDate: number }) => callback(payload)
+    ipcRenderer.on('task:reminder', listener)
+    return () => ipcRenderer.off('task:reminder', listener)
   }
 }
 

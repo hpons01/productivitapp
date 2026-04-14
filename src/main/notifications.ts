@@ -1,5 +1,6 @@
-import { Notification, app } from 'electron'
+import { BrowserWindow, Notification } from 'electron'
 import { getDb } from './db'
+import { listOpenScheduledTasks } from './db/queries/tasks.queries'
 
 interface ScheduledNotification {
   id: string
@@ -10,6 +11,19 @@ interface ScheduledNotification {
 }
 
 const scheduledNotifications = new Map<string, ScheduledNotification>()
+const TASK_REMINDER_OFFSET_MS = 5 * 60 * 1000
+
+function getTaskReminderId(taskId: string): string {
+  return `task-reminder-${taskId}`
+}
+
+function emitTaskReminder(taskId: string, title: string, dueDate: number): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('task:reminder', { taskId, title, dueDate })
+    }
+  }
+}
 
 export function sendNotification(title: string, body: string): void {
   if (Notification.isSupported()) {
@@ -59,6 +73,75 @@ export function scheduleNotifications(): void {
     scheduleDailyNotifications(settingsMap)
   } catch {
     // DB not ready yet — will be called again after init
+  }
+}
+
+export function scheduleTaskReminder(taskId: string, title: string, dueDate: number | null): void {
+  const notificationId = getTaskReminderId(taskId)
+  cancelNotification(notificationId)
+
+  if (!dueDate) return
+
+  const now = Date.now()
+  if (dueDate <= now) return
+
+  const reminderAt = dueDate - TASK_REMINDER_OFFSET_MS
+  const effectiveAt = reminderAt <= now ? now + 500 : reminderAt
+
+  const delay = effectiveAt - now
+  const timeout = setTimeout(() => {
+    sendNotification('⏰ Task starting soon', `${title} starts in 5 minutes.`)
+    emitTaskReminder(taskId, title, dueDate)
+    scheduledNotifications.delete(notificationId)
+  }, Math.min(delay, 2147483647))
+
+  scheduledNotifications.set(notificationId, {
+    id: notificationId,
+    title: '⏰ Task starting soon',
+    body: `${title} starts in 5 minutes.`,
+    scheduledAt: effectiveAt,
+    timeout
+  })
+}
+
+export function cancelTaskReminder(taskId: string): void {
+  cancelNotification(getTaskReminderId(taskId))
+}
+
+export function snoozeTaskReminder(
+  taskId: string,
+  title: string,
+  dueDate: number | null,
+  snoozeMins = 5
+): void {
+  const notificationId = getTaskReminderId(taskId)
+  cancelNotification(notificationId)
+
+  const atMs = Date.now() + snoozeMins * 60 * 1000
+  const timeout = setTimeout(() => {
+    sendNotification('😴 Snoozed task reminder', `${title} is still waiting for you.`)
+    emitTaskReminder(taskId, title, dueDate ?? atMs)
+    scheduledNotifications.delete(notificationId)
+  }, Math.min(snoozeMins * 60 * 1000, 2147483647))
+
+  scheduledNotifications.set(notificationId, {
+    id: notificationId,
+    title: '😴 Snoozed task reminder',
+    body: `${title} is still waiting for you.`,
+    scheduledAt: atMs,
+    timeout
+  })
+}
+
+export function rehydrateTaskReminders(): void {
+  try {
+    const db = getDb()
+    const tasks = listOpenScheduledTasks(db)
+    for (const task of tasks) {
+      scheduleTaskReminder(task.id, task.title, task.due_date)
+    }
+  } catch {
+    // DB may not be ready yet; startup sequence will retry on next launch.
   }
 }
 
