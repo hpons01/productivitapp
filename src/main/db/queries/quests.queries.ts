@@ -5,10 +5,13 @@ import { awardEgg } from './pets.queries'
 
 export type QuestStatus = 'available' | 'enrolled' | 'active' | 'completed' | 'failed' | 'expired' | 'abandoned'
 export type QuestTimeWindowType = 'daily' | 'weekly' | 'custom'
+export type QuestCategory = 'focus' | 'discipline' | 'reflection' | 'vitality' | 'mastery' | 'legendary'
+export type QuestDifficulty = 'easy' | 'medium' | 'hard' | 'legendary'
+export type CatalogEnrollmentStatus = 'enrolled' | 'active' | 'completed' | 'abandoned' | 'failed'
 
 export interface QuestProgressResult {
   questId: string
-  status: QuestStatus
+  status: QuestStatus | CatalogEnrollmentStatus
   progress: number
   target: number
   milestoneXpAwarded: number
@@ -16,8 +19,66 @@ export interface QuestProgressResult {
   penaltyApplied: number
 }
 
+export interface QuestDefinition {
+  id: string
+  slug: string
+  title: string
+  description: string
+  flavor_text: string | null
+  category: QuestCategory
+  difficulty: QuestDifficulty
+  target_type: string
+  target_count: number
+  xp_reward: number
+  duration_days: number
+  min_level_required: number
+  max_level_visible: number | null
+  egg_reward_tier: string | null
+  loot_reward_tier: string | null
+  is_active: number
+  sort_order: number
+}
+
+export interface CatalogEnrollmentRow {
+  id: string
+  definition_id: string
+  status: CatalogEnrollmentStatus
+  progress: number
+  milestones_awarded: number
+  reward_xp_awarded: number
+  sanction_xp: number
+  enrolled_at: number
+  deadline_at: number
+  completed_at: number | null
+  failed_at: number | null
+  abandoned_at: number | null
+  last_progress_at: number | null
+  updated_at: number
+}
+
+export interface CatalogQuestView extends QuestDefinition {
+  enrollment: CatalogEnrollmentRow | null
+  scaled_xp_reward: number
+  is_locked: boolean
+  user_level: number
+}
+
 const ENROLLMENT_CAP = 3
 const ACTIVE_STATUSES: QuestStatus[] = ['enrolled', 'active']
+
+function getUserLevel(db: Database.Database): number {
+  const result = db
+    .prepare('SELECT COALESCE(SUM(amount), 0) as total FROM xp_log')
+    .get() as { total: number }
+  return Math.max(1, Math.floor(Math.sqrt(result.total / 10)))
+}
+
+export function scaleCatalogXP(baseXP: number, userLevel: number, difficulty: QuestDifficulty): number {
+  if (difficulty !== 'easy') return baseXP
+  if (userLevel <= 10) return baseXP
+  const scale = Math.max(0.25, 1 - (userLevel - 10) * 0.075)
+  return Math.max(1, Math.round(baseXP * scale))
+}
 
 interface QuestRow {
   id: string
@@ -187,12 +248,11 @@ export function listQuestBoard(db: Database.Database): QuestRow[] {
 
 export function enrollQuest(
   db: Database.Database,
-  questId: string,
-  options?: { timeWindowType?: QuestTimeWindowType; customDurationMins?: number }
+  questId: string
 ): QuestRow {
   const now = new Date()
   const nowMs = now.getTime()
-  const windowType: QuestTimeWindowType = options?.timeWindowType ?? 'daily'
+  const deadlineAt = endOfDay(now).getTime()
 
   const tx = db.transaction(() => {
     syncExpiredEnrolledQuests(db, nowMs)
@@ -220,25 +280,23 @@ export function enrollQuest(
       throw new Error(`Quest cannot be enrolled from status: ${quest.status}`)
     }
 
-    const deadlineAt = computeDeadline(now, windowType, options?.customDurationMins)
-
     db.prepare(`
       UPDATE daily_quests
       SET
         status = 'enrolled',
-        time_window_type = ?,
+        time_window_type = 'daily',
         enrolled_at = ?,
         started_at = ?,
         deadline_at = ?,
         updated_at = ?
       WHERE id = ?
-    `).run(windowType, nowMs, nowMs, deadlineAt, nowMs, questId)
+    `).run(nowMs, nowMs, deadlineAt, nowMs, questId)
 
     db.prepare(`
       INSERT INTO quest_enrollments
         (id, quest_id, status, time_window_type, enrolled_at, started_at, deadline_at, created_at, updated_at)
       VALUES
-        (?, ?, 'enrolled', ?, ?, ?, ?, ?, ?)
+        (?, ?, 'enrolled', 'daily', ?, ?, ?, ?, ?)
       ON CONFLICT(quest_id) DO UPDATE SET
         status = excluded.status,
         time_window_type = excluded.time_window_type,
@@ -246,9 +304,9 @@ export function enrollQuest(
         started_at = excluded.started_at,
         deadline_at = excluded.deadline_at,
         updated_at = excluded.updated_at
-    `).run(makeId('enroll'), questId, windowType, nowMs, nowMs, deadlineAt, nowMs, nowMs)
+    `).run(makeId('enroll'), questId, nowMs, nowMs, deadlineAt, nowMs, nowMs)
 
-    recordOutcome(db, questId, 'enrolled', -1, 0, { timeWindowType: windowType, deadlineAt })
+    recordOutcome(db, questId, 'enrolled', -1, 0, { timeWindowType: 'daily', deadlineAt })
   })
 
   tx()
@@ -468,6 +526,24 @@ export function incrementQuestProgressByType(db: Database.Database, questType: s
   for (const row of rows) {
     results.push(recordQuestProgress(db, row.id, row.progress + delta))
   }
+
+  // Also propagate to active catalog enrollments of matching type
+  const catalogRows = db.prepare(`
+    SELECT ce.id, ce.progress
+    FROM catalog_enrollments ce
+    JOIN quest_definitions qd ON qd.id = ce.definition_id
+    WHERE qd.target_type = ?
+      AND ce.status IN ('enrolled', 'active')
+  `).all(questType) as Array<{ id: string; progress: number }>
+
+  for (const row of catalogRows) {
+    try {
+      results.push(recordCatalogQuestProgress(db, row.id, row.progress + delta))
+    } catch {
+      // Silently skip if quest expired or completed concurrently
+    }
+  }
+
   return results
 }
 
@@ -531,4 +607,339 @@ export function getQuestHistory(db: Database.Database, limit = 100): Array<{
     quest_type: string
     description: string
   }>
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CATALOG QUEST FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function applyCatalogSanction(db: Database.Database, enrollment: CatalogEnrollmentRow, scaledXP: number): number {
+  const sourceId = `catalog_sanction_${enrollment.id}`
+  const alreadySanctioned = db
+    .prepare('SELECT COUNT(*) as n FROM xp_log WHERE source = ? AND source_id = ?')
+    .get('catalog_sanction', sourceId) as { n: number }
+  if (alreadySanctioned.n > 0) return 0
+
+  const raw = Math.round(scaledXP * 0.75)
+  const penalty = Math.max(20, Math.min(250, raw))
+  db.prepare(`
+    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
+    VALUES (?, 'catalog_sanction', ?, ?, ?, 1, NULL, NULL, ?)
+  `).run(`xp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, sourceId, -penalty, -penalty, Date.now())
+  return penalty
+}
+
+export function syncExpiredCatalogEnrollments(db: Database.Database, nowMs = Date.now()): number {
+  const stale = db.prepare(`
+    SELECT ce.*, qd.xp_reward, qd.difficulty
+    FROM catalog_enrollments ce
+    JOIN quest_definitions qd ON qd.id = ce.definition_id
+    WHERE ce.status IN ('enrolled', 'active')
+      AND ce.deadline_at < ?
+  `).all(nowMs) as Array<CatalogEnrollmentRow & { xp_reward: number; difficulty: QuestDifficulty }>
+
+  if (!stale.length) return 0
+
+  const userLevel = getUserLevel(db)
+
+  const tx = db.transaction(() => {
+    for (const enrollment of stale) {
+      const scaledXP = scaleCatalogXP(enrollment.xp_reward, userLevel, enrollment.difficulty)
+      const penalty = applyCatalogSanction(db, enrollment, scaledXP)
+      db.prepare(`
+        UPDATE catalog_enrollments
+        SET status = 'failed', failed_at = ?, sanction_xp = ?, updated_at = ?
+        WHERE id = ?
+      `).run(nowMs, penalty, nowMs, enrollment.id)
+    }
+  })
+
+  tx()
+  return stale.length
+}
+
+export function getCatalogQuests(db: Database.Database): CatalogQuestView[] {
+  syncExpiredCatalogEnrollments(db)
+
+  const userLevel = getUserLevel(db)
+
+  const definitions = db.prepare(`
+    SELECT * FROM quest_definitions
+    WHERE is_active = 1
+      AND (max_level_visible IS NULL OR max_level_visible >= ?)
+    ORDER BY sort_order ASC, min_level_required ASC
+  `).all(userLevel) as QuestDefinition[]
+
+  // Fetch most-recent enrollment per definition (any status)
+  const enrollments = db.prepare(`
+    SELECT ce.*
+    FROM catalog_enrollments ce
+    INNER JOIN (
+      SELECT definition_id, MAX(enrolled_at) as latest
+      FROM catalog_enrollments
+      GROUP BY definition_id
+    ) latest ON ce.definition_id = latest.definition_id AND ce.enrolled_at = latest.latest
+  `).all() as CatalogEnrollmentRow[]
+
+  const enrollmentMap = new Map<string, CatalogEnrollmentRow>()
+  for (const e of enrollments) {
+    enrollmentMap.set(e.definition_id, e)
+  }
+
+  return definitions.map((def) => ({
+    ...def,
+    enrollment: enrollmentMap.get(def.id) ?? null,
+    scaled_xp_reward: scaleCatalogXP(def.xp_reward, userLevel, def.difficulty),
+    is_locked: userLevel < def.min_level_required,
+    user_level: userLevel
+  }))
+}
+
+export function enrollCatalogQuest(db: Database.Database, definitionId: string): CatalogEnrollmentRow {
+  syncExpiredCatalogEnrollments(db)
+
+  const nowMs = Date.now()
+  const userLevel = getUserLevel(db)
+
+  let newId: string | null = null
+
+  const tx = db.transaction(() => {
+    const def = db
+      .prepare('SELECT * FROM quest_definitions WHERE id = ? AND is_active = 1')
+      .get(definitionId) as QuestDefinition | undefined
+    if (!def) throw new Error('Quest definition not found.')
+
+    if (userLevel < def.min_level_required) {
+      throw new Error(`Requires level ${def.min_level_required} (you are level ${userLevel}).`)
+    }
+
+    const existing = db.prepare(`
+      SELECT id FROM catalog_enrollments
+      WHERE definition_id = ? AND status IN ('enrolled', 'active')
+    `).get(definitionId) as { id: string } | undefined
+    if (existing) throw new Error('Already enrolled in this quest.')
+
+    const deadlineAt = nowMs + def.duration_days * 24 * 60 * 60 * 1000
+    const id = makeId('cenroll')
+
+    db.prepare(`
+      INSERT INTO catalog_enrollments
+        (id, definition_id, status, progress, milestones_awarded, reward_xp_awarded,
+         sanction_xp, enrolled_at, deadline_at, updated_at)
+      VALUES (?, ?, 'enrolled', 0, 0, 0, 0, ?, ?, ?)
+    `).run(id, definitionId, nowMs, deadlineAt, nowMs)
+
+    newId = id
+  })
+
+  tx()
+
+  if (!newId) throw new Error('Catalog enrollment failed.')
+  return db.prepare('SELECT * FROM catalog_enrollments WHERE id = ?').get(newId) as CatalogEnrollmentRow
+}
+
+export function abandonCatalogQuest(db: Database.Database, enrollmentId: string): CatalogEnrollmentRow {
+  const nowMs = Date.now()
+
+  const row = db.prepare('SELECT * FROM catalog_enrollments WHERE id = ?').get(enrollmentId) as CatalogEnrollmentRow | undefined
+  if (!row) throw new Error('Enrollment not found.')
+  if (row.status !== 'enrolled' && row.status !== 'active') {
+    throw new Error(`Cannot abandon quest with status: ${row.status}`)
+  }
+
+  db.prepare(`
+    UPDATE catalog_enrollments
+    SET status = 'abandoned', abandoned_at = ?, updated_at = ?
+    WHERE id = ?
+  `).run(nowMs, nowMs, enrollmentId)
+
+  return db.prepare('SELECT * FROM catalog_enrollments WHERE id = ?').get(enrollmentId) as CatalogEnrollmentRow
+}
+
+export function recordCatalogQuestProgress(
+  db: Database.Database,
+  enrollmentId: string,
+  newProgress: number
+): QuestProgressResult {
+  syncExpiredCatalogEnrollments(db)
+
+  const nowMs = Date.now()
+  let result: QuestProgressResult | null = null
+
+  const tx = db.transaction(() => {
+    const enrollment = db.prepare(`
+      SELECT ce.*, qd.target_count, qd.xp_reward, qd.egg_reward_tier, qd.difficulty
+      FROM catalog_enrollments ce
+      JOIN quest_definitions qd ON qd.id = ce.definition_id
+      WHERE ce.id = ?
+    `).get(enrollmentId) as (CatalogEnrollmentRow & {
+      target_count: number
+      xp_reward: number
+      egg_reward_tier: string | null
+      difficulty: QuestDifficulty
+    }) | undefined
+
+    if (!enrollment) throw new Error('Catalog enrollment not found.')
+
+    if (enrollment.status === 'completed' || enrollment.status === 'abandoned' || enrollment.status === 'failed') {
+      result = {
+        questId: enrollmentId,
+        status: enrollment.status,
+        progress: enrollment.progress,
+        target: enrollment.target_count,
+        milestoneXpAwarded: 0,
+        completionXpAwarded: 0,
+        penaltyApplied: 0
+      }
+      return
+    }
+
+    // Check if deadline passed
+    if (nowMs > enrollment.deadline_at) {
+      const userLevel = getUserLevel(db)
+      const scaledXP = scaleCatalogXP(enrollment.xp_reward, userLevel, enrollment.difficulty)
+      const penalty = applyCatalogSanction(db, enrollment, scaledXP)
+      db.prepare(`
+        UPDATE catalog_enrollments
+        SET status = 'failed', failed_at = ?, sanction_xp = ?, updated_at = ?
+        WHERE id = ?
+      `).run(nowMs, penalty, nowMs, enrollmentId)
+      result = {
+        questId: enrollmentId,
+        status: 'failed',
+        progress: enrollment.progress,
+        target: enrollment.target_count,
+        milestoneXpAwarded: 0,
+        completionXpAwarded: 0,
+        penaltyApplied: penalty
+      }
+      return
+    }
+
+    const userLevel = getUserLevel(db)
+    const scaledXP = scaleCatalogXP(enrollment.xp_reward, userLevel, enrollment.difficulty)
+    const clamped = Math.max(0, Math.min(enrollment.target_count, newProgress))
+    const completedNow = clamped >= enrollment.target_count
+
+    // Milestone handling
+    const thresholds = getMilestoneThresholds(enrollment.target_count)
+    let milestoneXpAwarded = 0
+    let milestonesAwarded = enrollment.milestones_awarded
+
+    for (let i = 0; i < thresholds.length; i++) {
+      if (i < milestonesAwarded) continue
+      if (clamped >= thresholds[i]) {
+        const sourceId = `${enrollment.id}:milestone:${i + 1}`
+        if (!hasXpLog(db, 'catalog_quest_milestone', sourceId)) {
+          const milestoneReward = Math.max(5, Math.round(scaledXP * 0.2))
+          const award = awardXP(db, 'catalog_quest_milestone', sourceId, milestoneReward)
+          milestoneXpAwarded += award.finalAmount
+        }
+        milestonesAwarded = i + 1
+      }
+    }
+
+    let completionXpAwarded = 0
+    if (completedNow) {
+      if (!hasXpLog(db, 'catalog_quest_completion', enrollment.id)) {
+        const completionReward = awardXP(db, 'catalog_quest_completion', enrollment.id, scaledXP)
+        completionXpAwarded = completionReward.finalAmount
+      }
+
+      if (enrollment.egg_reward_tier) {
+        const existingEgg = db
+          .prepare('SELECT COUNT(*) as n FROM pet_eggs WHERE source_quest_id = ?')
+          .get(enrollment.id) as { n: number }
+        if (existingEgg.n === 0) {
+          awardEgg(db, enrollment.id)
+        }
+      }
+
+      db.prepare(`
+        UPDATE catalog_enrollments
+        SET status = 'completed', progress = ?, milestones_awarded = ?,
+            reward_xp_awarded = reward_xp_awarded + ?,
+            completed_at = ?, last_progress_at = ?, updated_at = ?
+        WHERE id = ?
+      `).run(clamped, milestonesAwarded, completionXpAwarded, nowMs, nowMs, nowMs, enrollmentId)
+
+      result = {
+        questId: enrollmentId,
+        status: 'completed',
+        progress: clamped,
+        target: enrollment.target_count,
+        milestoneXpAwarded,
+        completionXpAwarded,
+        penaltyApplied: 0
+      }
+      return
+    }
+
+    const nextStatus: CatalogEnrollmentStatus = enrollment.status === 'enrolled' ? 'active' : enrollment.status
+
+    db.prepare(`
+      UPDATE catalog_enrollments
+      SET status = ?, progress = ?, milestones_awarded = ?,
+          last_progress_at = ?, updated_at = ?
+      WHERE id = ?
+    `).run(nextStatus, clamped, milestonesAwarded, nowMs, nowMs, enrollmentId)
+
+    result = {
+      questId: enrollmentId,
+      status: nextStatus,
+      progress: clamped,
+      target: enrollment.target_count,
+      milestoneXpAwarded,
+      completionXpAwarded: 0,
+      penaltyApplied: 0
+    }
+  })
+
+  tx()
+
+  if (!result) throw new Error('Unable to update catalog quest progress.')
+  return result
+}
+
+export function incrementCatalogProgressByType(db: Database.Database, questType: string, delta: number): void {
+  const catalogRows = db.prepare(`
+    SELECT ce.id, ce.progress
+    FROM catalog_enrollments ce
+    JOIN quest_definitions qd ON qd.id = ce.definition_id
+    WHERE qd.target_type = ?
+      AND ce.status IN ('enrolled', 'active')
+  `).all(questType) as Array<{ id: string; progress: number }>
+
+  for (const row of catalogRows) {
+    try {
+      recordCatalogQuestProgress(db, row.id, row.progress + delta)
+    } catch {
+      // Skip if expired or completed concurrently
+    }
+  }
+}
+
+export function decrementCatalogProgressByType(db: Database.Database, questType: string, delta: number): void {
+  if (!Number.isFinite(delta) || delta <= 0) return
+  incrementCatalogProgressByType(db, questType, -Math.floor(delta))
+}
+
+export function setCatalogProgressByType(db: Database.Database, questType: string, progress: number): void {
+  const nextProgress = Math.max(0, Math.floor(progress))
+
+  const catalogRows = db.prepare(`
+    SELECT ce.id
+    FROM catalog_enrollments ce
+    JOIN quest_definitions qd ON qd.id = ce.definition_id
+    WHERE qd.target_type = ?
+      AND ce.status IN ('enrolled', 'active')
+  `).all(questType) as Array<{ id: string }>
+
+  for (const row of catalogRows) {
+    try {
+      recordCatalogQuestProgress(db, row.id, nextProgress)
+    } catch {
+      // Skip if expired or completed concurrently
+    }
+  }
 }

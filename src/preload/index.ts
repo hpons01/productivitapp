@@ -68,12 +68,15 @@ const api = {
   // Quests
   quests: {
     list: () => ipcRenderer.invoke('quests:list'),
-    enroll: (questId: string, options?: { timeWindowType?: 'daily' | 'weekly' | 'custom'; customDurationMins?: number }) =>
-      ipcRenderer.invoke('quests:enroll', questId, options),
+    enroll: (questId: string) => ipcRenderer.invoke('quests:enroll', questId),
     progress: (questId: string, progress: number) => ipcRenderer.invoke('quests:progress', questId, progress),
     abandon: (questId: string) => ipcRenderer.invoke('quests:abandon', questId),
     history: (limit?: number) => ipcRenderer.invoke('quests:history', limit),
-    refresh: () => ipcRenderer.invoke('quests:refresh')
+    refresh: () => ipcRenderer.invoke('quests:refresh'),
+    catalog: () => ipcRenderer.invoke('quests:catalog'),
+    catalogEnroll: (definitionId: string) => ipcRenderer.invoke('quests:catalog:enroll', definitionId),
+    catalogAbandon: (enrollmentId: string) => ipcRenderer.invoke('quests:catalog:abandon', enrollmentId),
+    catalogProgress: (enrollmentId: string, progress: number) => ipcRenderer.invoke('quests:catalog:progress', enrollmentId, progress)
   },
 
   // Settings

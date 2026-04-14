@@ -2,11 +2,14 @@ import { ipcMain } from 'electron'
 import { getDb } from '../db'
 import { saveJournalEntry, getTodayEntry, listEntries } from '../db/queries/journal.queries'
 import { awardXP } from '../db/queries/gamification.queries'
-import { setQuestProgressByType } from '../db/queries/quests.queries'
+import { setQuestProgressByType, incrementCatalogProgressByType } from '../db/queries/quests.queries'
 
 export function registerJournalIpc(): void {
   ipcMain.handle('journal:save', (_event, data) => {
     const db = getDb()
+    const isRitualType = data.type === 'morning' || data.type === 'evening'
+    const hadEntryToday = isRitualType ? Boolean(getTodayEntry(db, data.type)) : false
+
     const entry = saveJournalEntry(db, data)
 
     // Award XP based on type
@@ -18,11 +21,13 @@ export function registerJournalIpc(): void {
     const baseXP = xpMap[data.type] || 10
     const xpAward = awardXP(db, 'journal', entry.id, baseXP)
 
-    if (data.type === 'morning') {
+    if (data.type === 'morning' && !hadEntryToday) {
       setQuestProgressByType(db, 'morning_ritual', 1)
+      incrementCatalogProgressByType(db, 'morning_ritual', 1)
     }
-    if (data.type === 'evening') {
+    if (data.type === 'evening' && !hadEntryToday) {
       setQuestProgressByType(db, 'evening_ritual', 1)
+      incrementCatalogProgressByType(db, 'evening_ritual', 1)
     }
 
     return {

@@ -6,7 +6,12 @@ import {
   getQuestHistory,
   listQuestBoard,
   recordQuestProgress,
-  syncExpiredEnrolledQuests
+  syncExpiredEnrolledQuests,
+  getCatalogQuests,
+  enrollCatalogQuest,
+  abandonCatalogQuest,
+  recordCatalogQuestProgress,
+  syncExpiredCatalogEnrollments
 } from '../db/queries/quests.queries'
 
 export function registerQuestsIpc(): void {
@@ -15,14 +20,11 @@ export function registerQuestsIpc(): void {
     return listQuestBoard(db)
   })
 
-  ipcMain.handle(
-    'quests:enroll',
-    (_event, questId: string, options?: { timeWindowType?: 'daily' | 'weekly' | 'custom'; customDurationMins?: number }) => {
-      const db = getDb()
-      if (!questId) throw new Error('questId is required')
-      return enrollQuest(db, questId, options)
-    }
-  )
+  ipcMain.handle('quests:enroll', (_event, questId: string) => {
+    const db = getDb()
+    if (!questId) throw new Error('questId is required')
+    return enrollQuest(db, questId)
+  })
 
   ipcMain.handle('quests:progress', (_event, questId: string, progress: number) => {
     const db = getDb()
@@ -46,6 +48,33 @@ export function registerQuestsIpc(): void {
   ipcMain.handle('quests:refresh', () => {
     const db = getDb()
     const expiredCount = syncExpiredEnrolledQuests(db)
-    return { expiredCount }
+    const catalogExpiredCount = syncExpiredCatalogEnrollments(db)
+    return { expiredCount, catalogExpiredCount }
+  })
+
+  // ── Catalog ──────────────────────────────────────────────────────────────
+
+  ipcMain.handle('quests:catalog', () => {
+    const db = getDb()
+    return getCatalogQuests(db)
+  })
+
+  ipcMain.handle('quests:catalog:enroll', (_event, definitionId: string) => {
+    const db = getDb()
+    if (!definitionId) throw new Error('definitionId is required')
+    return enrollCatalogQuest(db, definitionId)
+  })
+
+  ipcMain.handle('quests:catalog:abandon', (_event, enrollmentId: string) => {
+    const db = getDb()
+    if (!enrollmentId) throw new Error('enrollmentId is required')
+    return abandonCatalogQuest(db, enrollmentId)
+  })
+
+  ipcMain.handle('quests:catalog:progress', (_event, enrollmentId: string, progress: number) => {
+    const db = getDb()
+    if (!enrollmentId) throw new Error('enrollmentId is required')
+    if (!Number.isFinite(progress)) throw new Error('progress must be a number')
+    return recordCatalogQuestProgress(db, enrollmentId, Math.floor(progress))
   })
 }

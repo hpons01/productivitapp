@@ -14,6 +14,18 @@ import { format } from 'date-fns'
 
 const api = () => window.api
 
+type DashboardActiveQuest = {
+  id: string
+  source: 'daily' | 'catalog'
+  title: string
+  description: string
+  target: number
+  progress: number
+  xpReward: number
+  eggRewardTier: string | null
+  status: 'enrolled' | 'active'
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.06 } }
@@ -30,7 +42,8 @@ export function DashboardPage() {
   const { getSetting } = useSettingsStore()
   const [dashStats, setDashStats] = useState<Record<string, number>>({})
   const [weeklyBoss, setWeeklyBoss] = useState<{ name: string; max_hp: number; current_hp: number; defeated: number } | null>(null)
-  const [dailyQuests, setDailyQuests] = useState<Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number; egg_reward_tier: string | null }>>([])
+  const [activeQuests, setActiveQuests] = useState<DashboardActiveQuest[]>([])
+  const [activeQuestsLoading, setActiveQuestsLoading] = useState(true)
   const [updatingHabitId, setUpdatingHabitId] = useState<string | null>(null)
 
   const refreshDashboardStats = async () => {
@@ -42,12 +55,73 @@ export function DashboardPage() {
       tasksCompletedToday: stats.tasksCompletedToday as number
     })
     setWeeklyBoss(stats.weeklyBoss as { name: string; max_hp: number; current_hp: number; defeated: number } | null)
-    setDailyQuests(stats.dailyQuests as Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number; egg_reward_tier: string | null }> || [])
+  }
+
+  const refreshActiveQuests = async () => {
+    setActiveQuestsLoading(true)
+    try {
+      await api().quests.refresh()
+      const [dailyData, catalogData] = await Promise.all([
+        api().quests.list(),
+        api().quests.catalog()
+      ])
+
+      const dailyActive = (dailyData as Array<{
+        id: string
+        quest_type: string
+        description: string
+        target: number
+        progress: number
+        xp_reward: number
+        egg_reward_tier: string | null
+        status: string
+      }>)
+        .filter((q) => q.status === 'enrolled' || q.status === 'active')
+        .map((q) => ({
+          id: `daily:${q.id}`,
+          source: 'daily' as const,
+          title: q.quest_type.replace(/_/g, ' '),
+          description: q.description,
+          target: q.target,
+          progress: q.progress,
+          xpReward: q.xp_reward,
+          eggRewardTier: q.egg_reward_tier,
+          status: q.status as 'enrolled' | 'active'
+        }))
+
+      const catalogActive = (catalogData as Array<{
+        id: string
+        title: string
+        description: string
+        target_count: number
+        scaled_xp_reward: number
+        egg_reward_tier: string | null
+        enrollment: { id: string; status: string; progress: number } | null
+      }>)
+        .filter((q) => q.enrollment && (q.enrollment.status === 'enrolled' || q.enrollment.status === 'active'))
+        .map((q) => ({
+          id: `catalog:${q.enrollment!.id}`,
+          source: 'catalog' as const,
+          title: q.title,
+          description: q.description,
+          target: q.target_count,
+          progress: q.enrollment!.progress,
+          xpReward: q.scaled_xp_reward,
+          eggRewardTier: q.egg_reward_tier,
+          status: q.enrollment!.status as 'enrolled' | 'active'
+        }))
+
+      setActiveQuests([...dailyActive, ...catalogActive])
+    } catch {
+      setActiveQuests([])
+    } finally {
+      setActiveQuestsLoading(false)
+    }
   }
 
   useEffect(() => {
     Promise.all([habits.load(), journal.loadToday(), pomodoro.loadTodayStats()])
-    refreshDashboardStats()
+    void Promise.all([refreshDashboardStats(), refreshActiveQuests()])
   }, [])
 
   const handleToggleHabit = async (habitId: string, completedToday: boolean) => {
@@ -58,7 +132,7 @@ export function DashboardPage() {
       } else {
         await habits.complete(habitId)
       }
-      await refreshDashboardStats()
+      await Promise.all([refreshDashboardStats(), refreshActiveQuests()])
     } finally {
       setUpdatingHabitId(null)
     }
@@ -218,46 +292,49 @@ export function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* Bottom Row: Daily Quests + Weekly Boss */}
+      {/* Bottom Row: Active Quests + Weekly Boss */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Daily Quests */}
+        {/* Active Quests */}
         <motion.div variants={item}>
           <Card className="bg-gradient-to-br from-primary-900/30 to-surface-700 border-primary-700/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target size={16} className="text-primary-400" />
-                Daily Quests
+                Active Quests
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {dailyQuests.length === 0 ? (
+              {activeQuestsLoading ? (
                 <p className="text-surface-400 text-sm text-center py-4">Quests loading...</p>
+              ) : activeQuests.length === 0 ? (
+                <p className="text-surface-400 text-sm text-center py-4">No active quests right now.</p>
               ) : (
                 <div className="space-y-3">
-                  {dailyQuests.map((q) => {
-                    const isRecovery = q.quest_type === 'streak_recovery'
+                  {activeQuests.map((q) => {
                     return (
                       <div
                         key={q.id}
                         className={cn(
                           'p-3 rounded-xl border',
-                          q.completed
-                            ? 'bg-emerald-500/10 border-emerald-500/20'
-                            : isRecovery
-                              ? 'bg-amber-500/10 border-amber-500/40'
-                              : 'bg-surface-800/40 border-surface-600/30'
+                          q.source === 'daily'
+                            ? 'bg-amber-500/10 border-amber-500/40'
+                            : 'bg-primary-500/10 border-primary-500/40'
                         )}
                       >
                         <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className={cn(
-                            'text-sm font-medium',
-                            q.completed ? 'text-emerald-300 line-through opacity-60' : isRecovery ? 'text-amber-300' : 'text-white'
-                          )}>
-                            {isRecovery && !q.completed && <span className="mr-1">🔥</span>}
+                          <span className={cn('text-sm font-medium', q.source === 'daily' ? 'text-amber-200' : 'text-primary-200')}>
                             {q.description}
                           </span>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {q.egg_reward_tier && !q.completed && (
+                            <span className={cn(
+                              'text-[10px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-wide',
+                              q.source === 'daily'
+                                ? 'text-amber-200 border-amber-500/50 bg-amber-500/10'
+                                : 'text-primary-200 border-primary-500/50 bg-primary-500/10'
+                            )}>
+                              {q.source}
+                            </span>
+                            {q.eggRewardTier && (
                               <span className={cn(
                                 'text-[10px] font-bold px-1.5 py-0.5 rounded-full border',
                                 'text-emerald-300 border-emerald-500/50 bg-emerald-500/10'
@@ -265,13 +342,13 @@ export function DashboardPage() {
                                 🥚 mystery egg
                               </span>
                             )}
-                            <span className={cn('text-xs font-bold', isRecovery ? 'text-amber-300' : 'text-amber-400')}>
-                              +{q.xp_reward} XP
+                            <span className="text-xs font-bold text-amber-300">
+                              +{q.xpReward} XP
                             </span>
                           </div>
                         </div>
-                        <Progress value={q.progress} max={q.target} size="sm" />
-                        <div className="text-[10px] text-surface-400 mt-1">{q.progress}/{q.target}</div>
+                        <Progress value={q.progress} max={Math.max(1, q.target)} size="sm" />
+                        <div className="text-[10px] text-surface-400 mt-1">{q.progress}/{q.target} • {q.status}</div>
                       </div>
                     )
                   })}

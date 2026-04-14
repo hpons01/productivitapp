@@ -12,7 +12,15 @@ import {
   getTodayCompletedCount
 } from '../db/queries/habits.queries'
 import { awardXP, damageBoss, updateStreakRecoveryQuest } from '../db/queries/gamification.queries'
-import { setQuestProgressByType } from '../db/queries/quests.queries'
+import { setQuestProgressByType, incrementCatalogProgressByType, decrementCatalogProgressByType } from '../db/queries/quests.queries'
+
+function getTotalDailyHabits(db: ReturnType<typeof getDb>): number {
+  return (
+    db
+      .prepare("SELECT COUNT(*) as n FROM habits WHERE archived_at IS NULL AND frequency = 'daily'")
+      .get() as { n: number }
+  ).n
+}
 
 export function registerHabitsIpc(): void {
   ipcMain.handle('habits:list', () => {
@@ -41,6 +49,10 @@ export function registerHabitsIpc(): void {
 
   ipcMain.handle('habits:complete', (_event, data) => {
     const db = getDb()
+    const completedBefore = getTodayCompletedCount(db)
+    const totalHabits = getTotalDailyHabits(db)
+    const required = Math.max(1, totalHabits)
+
     const completion = completeHabit(db, data)
 
     // Get streak for XP multiplier
@@ -56,15 +68,14 @@ export function registerHabitsIpc(): void {
     const completedToday = getTodayCompletedCount(db)
     updateStreakRecoveryQuest(db, completedToday)
 
-    const totalHabits = (
-      db
-        .prepare("SELECT COUNT(*) as n FROM habits WHERE archived_at IS NULL AND frequency = 'daily'")
-        .get() as { n: number }
-    ).n
-
     // Enrolled quest progress updates (new lifecycle engine).
     setQuestProgressByType(db, 'streak_recovery', completedToday)
-    setQuestProgressByType(db, 'habits_all', completedToday >= Math.max(1, totalHabits) ? 1 : 0)
+    setQuestProgressByType(db, 'habits_all', completedToday >= required ? 1 : 0)
+
+    // Catalog habits_all should count once per day when crossing from incomplete -> complete.
+    if (completedBefore < required && completedToday >= required) {
+      incrementCatalogProgressByType(db, 'habits_all', 1)
+    }
 
     return {
       ...completion,
@@ -77,7 +88,22 @@ export function registerHabitsIpc(): void {
 
   ipcMain.handle('habits:uncomplete', (_event, data) => {
     const db = getDb()
+    const completedBefore = getTodayCompletedCount(db)
+    const totalHabits = getTotalDailyHabits(db)
+    const required = Math.max(1, totalHabits)
+
     uncompleteHabit(db, data.habitId, data.date)
+
+    const completedToday = getTodayCompletedCount(db)
+    updateStreakRecoveryQuest(db, completedToday)
+    setQuestProgressByType(db, 'streak_recovery', completedToday)
+    setQuestProgressByType(db, 'habits_all', completedToday >= required ? 1 : 0)
+
+    // Revert catalog habits_all progress when crossing from complete -> incomplete.
+    if (completedBefore >= required && completedToday < required) {
+      decrementCatalogProgressByType(db, 'habits_all', 1)
+    }
+
     return { success: true }
   })
 
