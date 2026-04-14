@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, readdirSync } from 'fs'
 import { createRequire } from 'module'
+import { ALL_PET_DEFINITIONS } from '../domain/pets'
 
 const require = createRequire(import.meta.url)
 const Database = require('better-sqlite3') as typeof import('better-sqlite3')
@@ -18,8 +19,10 @@ export function initDatabase(): void {
 
   runMigrations()
   ensureClassXpColumns()
+  ensurePetQuestColumns()
   ensureDefaultSettings()
   seedBadges()
+  seedPetDefinitions()
 }
 
 export function getDb(): Database.Database {
@@ -73,7 +76,8 @@ function runInlineMigrations(): void {
   const migrations = [
     { version: '001_initial', sql: INITIAL_SCHEMA },
     { version: '002_energy', sql: ENERGY_SCHEMA },
-    { version: '003_badges', sql: BADGES_SCHEMA }
+    { version: '003_badges', sql: BADGES_SCHEMA },
+    { version: '004_pets', sql: PETS_SCHEMA }
   ]
 
   for (const { version, sql } of migrations) {
@@ -126,6 +130,15 @@ function ensureClassXpColumns(): void {
 
   db.exec('UPDATE xp_log SET base_amount = amount WHERE base_amount IS NULL')
   db.exec('UPDATE xp_log SET multiplier = 1 WHERE multiplier IS NULL')
+}
+
+function ensurePetQuestColumns(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(daily_quests)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('egg_reward_tier')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN egg_reward_tier TEXT')
+  }
 }
 
 const INITIAL_SCHEMA = `
@@ -307,6 +320,51 @@ const BADGE_DEFINITIONS = [
   { code: 'secret_consistent', name: '???', description: 'A mysterious achievement...', rarity: 'legendary', icon: '🌌', xp_value: 2000 }
 ]
 
+const PETS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS pet_definitions (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  icon            TEXT NOT NULL,
+  rarity          TEXT NOT NULL,
+  boosted_source  TEXT,
+  bonus_rate      REAL NOT NULL,
+  flavor_text     TEXT,
+  max_level       INTEGER NOT NULL DEFAULT 20
+);
+
+CREATE TABLE IF NOT EXISTS pet_eggs (
+  id              TEXT PRIMARY KEY,
+  tier            TEXT NOT NULL,
+  source_quest_id TEXT,
+  earned_at       INTEGER NOT NULL,
+  hatched_at      INTEGER,
+  pet_id          TEXT REFERENCES pet_definitions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_eggs_earned ON pet_eggs(earned_at);
+
+CREATE TABLE IF NOT EXISTS pets (
+  id              TEXT PRIMARY KEY,
+  definition_id   TEXT NOT NULL REFERENCES pet_definitions(id),
+  egg_id          TEXT REFERENCES pet_eggs(id),
+  name            TEXT NOT NULL,
+  total_xp        INTEGER NOT NULL DEFAULT 0,
+  level           INTEGER NOT NULL DEFAULT 1,
+  obtained_at     INTEGER NOT NULL,
+  equipped        INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_pets_equipped ON pets(equipped);
+
+CREATE TABLE IF NOT EXISTS pet_xp_log (
+  id              TEXT PRIMARY KEY,
+  pet_id          TEXT NOT NULL REFERENCES pets(id),
+  source          TEXT NOT NULL,
+  source_xp       INTEGER NOT NULL,
+  pet_xp_gain     INTEGER NOT NULL,
+  logged_at       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pet_xp_time ON pet_xp_log(logged_at);
+`
+
 function seedBadges(): void {
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO badges (id, code, name, description, rarity, icon, xp_value)
@@ -323,6 +381,30 @@ function seedBadges(): void {
         badge.rarity,
         badge.icon,
         badge.xp_value
+      )
+    }
+  })
+
+  insertMany()
+}
+
+function seedPetDefinitions(): void {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO pet_definitions (id, name, icon, rarity, boosted_source, bonus_rate, flavor_text, max_level)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  const insertMany = db.transaction(() => {
+    for (const def of ALL_PET_DEFINITIONS) {
+      stmt.run(
+        def.id,
+        def.name,
+        def.icon,
+        def.rarity,
+        def.boostedSource ?? null,
+        def.bonusRate,
+        def.flavorText,
+        def.maxLevel
       )
     }
   })

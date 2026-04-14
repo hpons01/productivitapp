@@ -10,7 +10,9 @@ import { useHabitsStore } from '../../stores/habits.store'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
 import { useJournalStore } from '../../stores/journal.store'
 import { useSettingsStore } from '../../stores/settings.store'
+import { usePetsStore } from '../../stores/pets.store'
 import { levelFromXP, xpForLevel } from '../../lib/science/xp'
+import { getPetBonusDescription } from '../../lib/science/pets'
 import { cn } from '../../lib/utils'
 import { format } from 'date-fns'
 
@@ -36,12 +38,13 @@ export function DashboardPage() {
   const pomodoro = usePomodoroStore()
   const journal = useJournalStore()
   const { getSetting } = useSettingsStore()
+  const { equippedPet, load: loadPets } = usePetsStore()
   const [dashStats, setDashStats] = useState<Record<string, number>>({})
   const [weeklyBoss, setWeeklyBoss] = useState<{ name: string; max_hp: number; current_hp: number; defeated: number } | null>(null)
-  const [dailyQuests, setDailyQuests] = useState<Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number }>>([])
+  const [dailyQuests, setDailyQuests] = useState<Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number; egg_reward_tier: string | null }>>([])
 
   useEffect(() => {
-    Promise.all([habits.load(), journal.loadToday(), pomodoro.loadTodayStats()])
+    Promise.all([habits.load(), journal.loadToday(), pomodoro.loadTodayStats(), loadPets()])
 
     api().analytics.dashboard().then((stats: Record<string, unknown>) => {
       setDashStats({
@@ -51,7 +54,7 @@ export function DashboardPage() {
         tasksCompletedToday: stats.tasksCompletedToday as number
       })
       setWeeklyBoss(stats.weeklyBoss as { name: string; max_hp: number; current_hp: number; defeated: number } | null)
-      setDailyQuests(stats.dailyQuests as Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number }> || [])
+      setDailyQuests(stats.dailyQuests as Array<{ id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number; egg_reward_tier: string | null }> || [])
     })
   }, [])
 
@@ -110,6 +113,26 @@ export function DashboardPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Equipped pet widget */}
+              {equippedPet && (
+                <Link to="/pets" className="block mt-3">
+                  <div className="flex items-center gap-3 bg-surface-800/60 rounded-xl p-2.5 border border-amber-500/20 hover:border-amber-500/40 transition-colors cursor-pointer">
+                    <div className="text-2xl">{equippedPet.icon}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-white truncate">{equippedPet.name}</div>
+                      <div className="text-[10px] text-amber-400">
+                        Lv.{equippedPet.level} · {getPetBonusDescription(
+                          equippedPet.rarity as 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary',
+                          equippedPet.level,
+                          equippedPet.boosted_source
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-surface-500 uppercase tracking-wide">Companion</div>
+                  </div>
+                </Link>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -286,9 +309,23 @@ export function DashboardPage() {
                             {isRecovery && !q.completed && <span className="mr-1">🔥</span>}
                             {q.description}
                           </span>
-                          <span className={cn('text-xs font-bold shrink-0', isRecovery ? 'text-amber-300' : 'text-amber-400')}>
-                            +{q.xp_reward} XP
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {q.egg_reward_tier && !q.completed && (
+                              <span className={cn(
+                                'text-[10px] font-bold px-1.5 py-0.5 rounded-full border',
+                                q.egg_reward_tier === 'legendary' ? 'text-amber-400 border-amber-500/50 bg-amber-500/10' :
+                                q.egg_reward_tier === 'epic' ? 'text-purple-400 border-purple-500/50 bg-purple-500/10' :
+                                q.egg_reward_tier === 'rare' ? 'text-blue-400 border-blue-500/50 bg-blue-500/10' :
+                                q.egg_reward_tier === 'uncommon' ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10' :
+                                'text-gray-300 border-gray-500/50 bg-gray-500/10'
+                              )}>
+                                🥚 {q.egg_reward_tier}
+                              </span>
+                            )}
+                            <span className={cn('text-xs font-bold', isRecovery ? 'text-amber-300' : 'text-amber-400')}>
+                              +{q.xp_reward} XP
+                            </span>
+                          </div>
                         </div>
                         <Progress value={q.progress} max={q.target} size="sm" />
                         <div className="text-[10px] text-surface-400 mt-1">{q.progress}/{q.target}</div>

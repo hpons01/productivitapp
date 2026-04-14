@@ -4,6 +4,7 @@ import { TIER_COLORS, LootTier, LootItem } from '../../lib/science/rewards'
 import { cn } from '../../lib/utils'
 import { Button } from '../ui/button'
 import { useEffect, useRef } from 'react'
+import { EggHatchScreen } from './EggHatchScreen'
 
 /** Master overlay that renders all queued gamification events */
 export function GamificationOverlay() {
@@ -11,7 +12,7 @@ export function GamificationOverlay() {
 
   // Take highest priority reward to show full-screen
   const fullScreenReward = pendingRewards.find(
-    (r) => r.type === 'level_up' || r.type === 'badge_unlock' || r.type === 'loot_box' || r.type === 'boss_defeated'
+    (r) => r.type === 'level_up' || r.type === 'badge_unlock' || r.type === 'loot_box' || r.type === 'boss_defeated' || r.type === 'egg_hatch'
   )
 
   // XP popups can stack
@@ -115,6 +116,7 @@ function FullScreenEvent({ reward, onDismiss }: { reward: PendingReward; onDismi
   if (reward.type === 'badge_unlock') return <BadgeUnlockScreen reward={reward} onDismiss={onDismiss} />
   if (reward.type === 'loot_box') return <LootBoxScreen reward={reward} onDismiss={onDismiss} />
   if (reward.type === 'boss_defeated') return <BossDefeatedScreen onDismiss={onDismiss} />
+  if (reward.type === 'egg_hatch') return <EggHatchScreen reward={reward} onDismiss={onDismiss} />
   return null
 }
 

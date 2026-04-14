@@ -74,6 +74,17 @@ const api = {
     activate: (id: string) => ipcRenderer.invoke('loot:activate', id)
   },
 
+  // Pets
+  pets: {
+    list: () => ipcRenderer.invoke('pets:list'),
+    eggs: () => ipcRenderer.invoke('pets:eggs'),
+    equip: (id: string) => ipcRenderer.invoke('pets:equip', id),
+    unequip: () => ipcRenderer.invoke('pets:unequip'),
+    hatchEgg: (eggId: string) => ipcRenderer.invoke('pets:hatchEgg', eggId),
+    rename: (id: string, name: string) => ipcRenderer.invoke('pets:rename', id, name),
+    getEquipped: () => ipcRenderer.invoke('pets:getEquipped')
+  },
+
   // Data export
   export: {
     exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format)
