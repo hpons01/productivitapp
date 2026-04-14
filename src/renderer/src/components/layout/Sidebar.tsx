@@ -5,9 +5,8 @@ import {
   CheckSquare,
   Timer,
   ListTodo,
+  ScrollText,
   Zap,
-  BarChart3,
-  BookOpen,
   Settings,
   Trophy,
   Package,
@@ -17,13 +16,17 @@ import { useGamificationStore } from '../../stores/gamification.store'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
 import { cn } from '../../lib/utils'
 
-const navItems = [
+const coreNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/journal', icon: Sunrise, label: 'Ritual' },
   { to: '/habits', icon: CheckSquare, label: 'Habits' },
   { to: '/pomodoro', icon: Timer, label: 'Focus' },
   { to: '/tasks', icon: ListTodo, label: 'Tasks' },
-  { to: '/energy', icon: Zap, label: 'Energy' },
+  { to: '/energy', icon: Zap, label: 'Energy' }
+]
+
+const rpgNavItems = [
+  { to: '/quests', icon: ScrollText, label: 'Quests' },
   { to: '/analytics', icon: Trophy, label: 'Profile' },
   { to: '/inventory', icon: Package, label: 'Loot' },
   { to: '/pets', icon: Heart, label: 'Pets' }

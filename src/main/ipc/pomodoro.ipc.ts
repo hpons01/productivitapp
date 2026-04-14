@@ -12,6 +12,7 @@ import {
 } from '../db/queries/pomodoro.queries'
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { sendNotification } from '../notifications'
+import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 
 export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:start', (_event, data) => {
@@ -32,6 +33,16 @@ export function registerPomodoroIpc(): void {
     try {
       damageBoss(db, 50)
     } catch {}
+
+    // Enrolled quest progress updates.
+    incrementQuestProgressByType(db, 'pomodoros', 1)
+    if (new Date().getHours() < 12) {
+      incrementQuestProgressByType(db, 'pomodoros_morning', 1)
+    }
+    if (interruptions === 0) {
+      incrementQuestProgressByType(db, 'deep_focus_day', 1)
+    }
+    incrementQuestProgressByType(db, 'egg_hatch_prep', 1)
 
     // Send break notification
     sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a well-deserved break.')

@@ -65,6 +65,17 @@ const api = {
       ipcRenderer.invoke('analytics:addXp', source, sourceId, amount)
   },
 
+  // Quests
+  quests: {
+    list: () => ipcRenderer.invoke('quests:list'),
+    enroll: (questId: string, options?: { timeWindowType?: 'daily' | 'weekly' | 'custom'; customDurationMins?: number }) =>
+      ipcRenderer.invoke('quests:enroll', questId, options),
+    progress: (questId: string, progress: number) => ipcRenderer.invoke('quests:progress', questId, progress),
+    abandon: (questId: string) => ipcRenderer.invoke('quests:abandon', questId),
+    history: (limit?: number) => ipcRenderer.invoke('quests:history', limit),
+    refresh: () => ipcRenderer.invoke('quests:refresh')
+  },
+
   // Settings
   settings: {
     get: (key: string) => ipcRenderer.invoke('settings:get', key),

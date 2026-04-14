@@ -2,12 +2,14 @@ import { ipcMain } from 'electron'
 import { getDb } from '../db'
 import { logEnergy, getEnergyRange, getLatestEnergy } from '../db/queries/energy.queries'
 import { awardXP } from '../db/queries/gamification.queries'
+import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 
 export function registerEnergyIpc(): void {
   ipcMain.handle('energy:log', (_event, data) => {
     const db = getDb()
     const log = logEnergy(db, data)
     const xpAward = awardXP(db, 'energy', log.id, 5)
+    incrementQuestProgressByType(db, 'energy_logs', 1)
     return {
       ...log,
       xpAwarded: xpAward.finalAmount,

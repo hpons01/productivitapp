@@ -12,6 +12,7 @@ import {
   getTodayCompletedCount
 } from '../db/queries/habits.queries'
 import { awardXP, damageBoss, updateStreakRecoveryQuest } from '../db/queries/gamification.queries'
+import { setQuestProgressByType } from '../db/queries/quests.queries'
 
 export function registerHabitsIpc(): void {
   ipcMain.handle('habits:list', () => {
@@ -54,6 +55,16 @@ export function registerHabitsIpc(): void {
     // Update streak recovery quest progress if one exists today
     const completedToday = getTodayCompletedCount(db)
     updateStreakRecoveryQuest(db, completedToday)
+
+    const totalHabits = (
+      db
+        .prepare("SELECT COUNT(*) as n FROM habits WHERE archived_at IS NULL AND frequency = 'daily'")
+        .get() as { n: number }
+    ).n
+
+    // Enrolled quest progress updates (new lifecycle engine).
+    setQuestProgressByType(db, 'streak_recovery', completedToday)
+    setQuestProgressByType(db, 'habits_all', completedToday >= Math.max(1, totalHabits) ? 1 : 0)
 
     return {
       ...completion,

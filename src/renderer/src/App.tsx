@@ -11,6 +11,7 @@ import { AnalyticsPage } from './pages/Analytics'
 import { SettingsPage } from './pages/Settings'
 import { InventoryPage } from './pages/Inventory'
 import { PetsPage } from './pages/Pets'
+import { QuestsPage } from './pages/Quests'
 import { OnboardingPage } from './pages/Onboarding'
 import { GamificationOverlay } from './components/feedback/GamificationOverlay'
 import { Button } from './components/ui/button'
@@ -132,6 +133,7 @@ export default function App() {
           <Route path="tasks" element={<TasksPage />} />
           <Route path="journal" element={<JournalPage />} />
           <Route path="energy" element={<EnergyPage />} />
+          <Route path="quests" element={<QuestsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="pets" element={<PetsPage />} />

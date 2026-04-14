@@ -9,12 +9,14 @@ import {
   setSelectedCharacterClassId,
   unlockBadge
 } from '../db/queries/gamification.queries'
+import { syncExpiredEnrolledQuests } from '../db/queries/quests.queries'
 
 export function registerAnalyticsIpc(): void {
   ipcMain.handle('analytics:dashboard', () => {
     const db = getDb()
     // Ensure daily quests exist
     getOrCreateDailyQuests(db)
+    syncExpiredEnrolledQuests(db)
     return getDashboardStats(db)
   })
 

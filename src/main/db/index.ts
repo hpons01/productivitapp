@@ -20,6 +20,7 @@ export function initDatabase(): void {
   runMigrations()
   ensureClassXpColumns()
   ensurePetQuestColumns()
+  ensureQuestLifecycleSchema()
   ensurePomodoroPresets()
   ensureDefaultSettings()
   seedBadges()
@@ -140,6 +141,85 @@ function ensurePetQuestColumns(): void {
   if (!columns.has('egg_reward_tier')) {
     db.exec('ALTER TABLE daily_quests ADD COLUMN egg_reward_tier TEXT')
   }
+}
+
+function ensureQuestLifecycleSchema(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(daily_quests)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('status')) {
+    db.exec("ALTER TABLE daily_quests ADD COLUMN status TEXT NOT NULL DEFAULT 'available'")
+  }
+  if (!columns.has('time_window_type')) {
+    db.exec("ALTER TABLE daily_quests ADD COLUMN time_window_type TEXT NOT NULL DEFAULT 'daily'")
+  }
+  if (!columns.has('enrolled_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN enrolled_at INTEGER')
+  }
+  if (!columns.has('started_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN started_at INTEGER')
+  }
+  if (!columns.has('deadline_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN deadline_at INTEGER')
+  }
+  if (!columns.has('completed_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN completed_at INTEGER')
+  }
+  if (!columns.has('failed_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN failed_at INTEGER')
+  }
+  if (!columns.has('abandoned_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN abandoned_at INTEGER')
+  }
+  if (!columns.has('milestones_awarded')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN milestones_awarded INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('reward_xp_awarded')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN reward_xp_awarded INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('sanction_xp')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN sanction_xp INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('updated_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN updated_at INTEGER')
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS quest_enrollments (
+      id                TEXT PRIMARY KEY,
+      quest_id          TEXT NOT NULL UNIQUE REFERENCES daily_quests(id) ON DELETE CASCADE,
+      status            TEXT NOT NULL,
+      time_window_type  TEXT NOT NULL,
+      enrolled_at       INTEGER NOT NULL,
+      started_at        INTEGER NOT NULL,
+      deadline_at       INTEGER NOT NULL,
+      completed_at      INTEGER,
+      failed_at         INTEGER,
+      abandoned_at      INTEGER,
+      last_progress_at  INTEGER,
+      created_at        INTEGER NOT NULL,
+      updated_at        INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quest_enrollments_status_deadline
+      ON quest_enrollments(status, deadline_at);
+
+    CREATE TABLE IF NOT EXISTS quest_outcomes (
+      id               TEXT PRIMARY KEY,
+      quest_id         TEXT NOT NULL REFERENCES daily_quests(id) ON DELETE CASCADE,
+      outcome_type     TEXT NOT NULL,
+      milestone_index  INTEGER NOT NULL DEFAULT -1,
+      xp_delta         INTEGER NOT NULL DEFAULT 0,
+      recorded_at      INTEGER NOT NULL,
+      metadata         TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quest_outcomes_quest_time
+      ON quest_outcomes(quest_id, recorded_at DESC);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_quest_outcomes_unique
+      ON quest_outcomes(quest_id, outcome_type, milestone_index);
+  `)
 }
 
 function ensurePomodoroPresets(): void {

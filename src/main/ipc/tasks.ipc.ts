@@ -3,6 +3,7 @@ import { getDb } from '../db'
 import { listTasks, createTask, updateTask, completeTask, deleteTask, getTaskById } from '../db/queries/tasks.queries'
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { cancelTaskReminder, scheduleTaskReminder, snoozeTaskReminder } from '../notifications'
+import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 
 export function registerTasksIpc(): void {
   ipcMain.handle('tasks:list', () => {
@@ -38,6 +39,12 @@ export function registerTasksIpc(): void {
     try {
       damageBoss(db, 15)
     } catch {}
+
+    // Enrolled quest progress updates.
+    incrementQuestProgressByType(db, 'tasks', 1)
+    if (task.estimated_mins && task.estimated_mins <= 2) {
+      incrementQuestProgressByType(db, 'two_min_tasks', 1)
+    }
 
     return {
       ...task,

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, screen } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupTray } from './tray'
@@ -10,9 +10,13 @@ import { rehydrateTaskReminders, scheduleNotifications } from './notifications'
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): BrowserWindow {
+  const { width: workAreaWidth, height: workAreaHeight } = screen.getPrimaryDisplay().workAreaSize
+  const launchWidth = Math.max(900, Math.round(workAreaWidth * 0.80))
+  const launchHeight = Math.max(600, Math.round(workAreaHeight * 0.80))
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 780,
+    width: launchWidth,
+    height: launchHeight,
     minWidth: 900,
     minHeight: 600,
     show: false,

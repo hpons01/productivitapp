@@ -9,6 +9,7 @@ import { registerLootIpc } from './loot.ipc'
 import { registerExportIpc } from './export.ipc'
 import { registerWindowIpc } from './window.ipc'
 import { registerPetsIpc } from './pets.ipc'
+import { registerQuestsIpc } from './quests.ipc'
 
 export function registerAllIpcHandlers(): void {
   registerHabitsIpc()
@@ -22,4 +23,5 @@ export function registerAllIpcHandlers(): void {
   registerExportIpc()
   registerWindowIpc()
   registerPetsIpc()
+  registerQuestsIpc()
 }
