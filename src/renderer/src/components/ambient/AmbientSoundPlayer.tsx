@@ -57,8 +57,8 @@ export function AmbientSoundPlayer() {
         <Slider.Root
           className="relative flex items-center select-none touch-none w-full h-4"
           min={0}
-          max={1}
-          step={0.01}
+          max={0.2}
+          step={0.001}  
           value={[volume]}
           onValueChange={([v]) => setVolume(v)}
           aria-label="Volume"
@@ -69,7 +69,7 @@ export function AmbientSoundPlayer() {
           <Slider.Thumb className="block w-3 h-3 bg-white rounded-full shadow-md hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500" />
         </Slider.Root>
         <span className="text-[10px] text-surface-500 w-7 text-right shrink-0">
-          {Math.round(volume * 100)}%
+          {Math.round((volume * 100)/0.2)}%
         </span>
       </div>
 

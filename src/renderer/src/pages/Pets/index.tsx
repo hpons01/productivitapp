@@ -18,13 +18,7 @@ const RARITY_LABELS: Record<string, string> = {
   legendary: 'Legendary'
 }
 
-const EGG_DESCRIPTIONS: Record<string, string> = {
-  common: 'A speckled egg. Something ordinary stirs within...',
-  uncommon: 'A glowing egg. You sense something special inside.',
-  rare: 'An iridescent egg. A rare creature waits to emerge.',
-  epic: 'A pulsing egg. Power radiates from within.',
-  legendary: 'A radiant egg of myth. What lies within defies imagination.'
-}
+const MYSTERY_EGG_DESCRIPTION = 'A sealed companion egg. Rarity is rolled when you hatch it.'
 
 const container = {
   hidden: { opacity: 0 },
@@ -180,16 +174,13 @@ function EggCard({
   isHatching: boolean
   onHatch: () => void
 }) {
-  const colors = TIER_COLORS[egg.tier as LootTier] ?? TIER_COLORS.common
-  const rarity = egg.tier
-  const label = RARITY_LABELS[rarity] ?? rarity
-  const desc = EGG_DESCRIPTIONS[rarity] ?? 'A mysterious egg.'
+  const colors = TIER_COLORS.uncommon
+  const label = 'Mystery'
+  const desc = MYSTERY_EGG_DESCRIPTION
 
   return (
     <Card className={cn('border transition-all duration-300', colors.border, colors.bg,
-      rarity === 'legendary' ? 'shadow-lg shadow-amber-500/20' :
-      rarity === 'epic' ? 'shadow-lg shadow-purple-500/15' :
-      rarity === 'rare' ? 'shadow-md shadow-blue-500/10' : ''
+      'shadow-md shadow-emerald-500/10'
     )}>
       <CardContent className="p-4 flex items-center gap-4">
         {/* Egg icon */}

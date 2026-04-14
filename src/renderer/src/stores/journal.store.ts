@@ -24,7 +24,7 @@ interface JournalState {
   entries: JournalEntry[]
   loading: boolean
   loadToday: () => Promise<void>
-  saveMorning: (data: Partial<JournalEntry>) => Promise<JournalEntry>
+  saveMorning: (data: Partial<JournalEntry>, intentionActions?: string[]) => Promise<JournalEntry>
   saveEvening: (data: Partial<JournalEntry>) => Promise<JournalEntry>
 }
 
@@ -47,7 +47,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     }
   },
 
-  saveMorning: async (data) => {
+  saveMorning: async (data, intentionActions = []) => {
     const entry = await api().journal.save({
       id: generateId(),
       type: 'morning',
@@ -56,6 +56,38 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       ...data
     })
     set({ todayMorning: entry })
+
+    const normalizedActions = Array.from(
+      new Set(
+        intentionActions
+          .map((action) => action.trim())
+          .filter(Boolean)
+      )
+    )
+
+    if (normalizedActions.length > 0) {
+      const existingTasks = await api().tasks.list() as Array<{ title: string }>
+      const existingTitles = new Set(existingTasks.map((task) => task.title.trim().toLowerCase()))
+
+      const actionsToCreate = normalizedActions.filter(
+        (action) => !existingTitles.has(action.toLowerCase())
+      )
+
+      await Promise.all(actionsToCreate.map((action) =>
+        api().tasks.create({
+          id: generateId(),
+          title: action,
+          notes: 'Created from morning intention',
+          priority: 2,
+          estimated_mins: null,
+          due_date: null,
+          completed_at: null,
+          created_at: Date.now(),
+          habit_id: null,
+          temptation_bundle: null
+        })
+      ))
+    }
 
     const { refreshFromDB, checkAndUnlockBadges } = useGamificationStore.getState()
     await refreshFromDB()

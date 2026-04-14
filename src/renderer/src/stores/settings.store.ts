@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useGamificationStore } from './gamification.store'
 
 const api = () => window.api
 
@@ -9,6 +10,7 @@ interface SettingsState {
   loadSettings: () => Promise<void>
   getSetting: (key: string, defaultValue?: string) => string
   setSetting: (key: string, value: string) => Promise<void>
+  resetOnboarding: () => Promise<void>
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -34,5 +36,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setSetting: async (key, value) => {
     await api().settings.set(key, value)
     set((s) => ({ settings: { ...s.settings, [key]: value } }))
+  },
+
+  resetOnboarding: async () => {
+    await api().settings.resetOnboarding()
+    set((s) => {
+      const { user_name: _userName, commitment_statement: _commitment, ...rest } = s.settings
+      return {
+        settings: {
+          ...rest,
+          selected_character_class: 'apprentice',
+          onboarding_completed: 'false'
+        }
+      }
+    })
+
+    const { refreshFromDB, loadCharacterClassConfig } = useGamificationStore.getState()
+    await Promise.all([refreshFromDB(), loadCharacterClassConfig()])
   }
 }))

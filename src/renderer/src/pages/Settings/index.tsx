@@ -1,14 +1,27 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Select } from '../../components/ui/select'
+import { Modal } from '../../components/ui/modal'
 import { useSettingsStore } from '../../stores/settings.store'
 
 export function SettingsPage() {
-  const { settings, getSetting, setSetting, loadSettings } = useSettingsStore()
+  const { settings, getSetting, setSetting, loadSettings, resetOnboarding } = useSettingsStore()
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => { loadSettings() }, [])
+
+  const handleConfirmReset = async () => {
+    setResetting(true)
+    try {
+      await resetOnboarding()
+      setShowResetConfirm(false)
+    } finally {
+      setResetting(false)
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -121,12 +134,45 @@ export function SettingsPage() {
       <Card>
         <CardHeader><CardTitle className="text-red-400">Danger Zone</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-surface-400 text-sm mb-4">This will mark onboarding as incomplete and restart the setup flow.</p>
-          <Button variant="danger" onClick={() => setSetting('onboarding_completed', 'false')}>
+          <p className="text-surface-400 text-sm mb-4">This will clear your journey data, mark onboarding as incomplete, and restart the setup flow.</p>
+          <Button variant="danger" onClick={() => setShowResetConfirm(true)}>
             Reset Onboarding
           </Button>
         </CardContent>
       </Card>
+
+      <Modal
+        open={showResetConfirm}
+        onClose={() => !resetting && setShowResetConfirm(false)}
+        title="Reset Onboarding?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-surface-300">
+            This action will delete your journey progress and restart onboarding from the beginning.
+          </p>
+          <p className="text-xs text-red-300/90">
+            This cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowResetConfirm(false)}
+              disabled={resetting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => void handleConfirmReset()}
+              loading={resetting}
+              disabled={resetting}
+            >
+              Yes, Reset
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

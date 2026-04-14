@@ -124,11 +124,21 @@ export function getDashboardStats(db: Database.Database): DashboardStats {
   const journalXP = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM xp_log WHERE source = 'journal' AND logged_at >= ?`).get(last30Start) as { total: number }
   const energyXP = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM xp_log WHERE source = 'energy' AND logged_at >= ?`).get(last30Start) as { total: number }
 
-  const totalActivityXP = Math.max(1, pomodoroXP.total + habitXP.total + journalXP.total + energyXP.total)
-  const focusPower = Math.min(100, Math.round((pomodoroXP.total / totalActivityXP) * 100 * 2))
-  const discipline = Math.min(100, Math.round((habitXP.total / totalActivityXP) * 100 * 2))
-  const vitality = Math.min(100, Math.round((energyXP.total / totalActivityXP) * 100 * 2))
-  const wisdom = Math.min(100, Math.round((journalXP.total / totalActivityXP) * 100 * 2))
+  const totalActivityXP = pomodoroXP.total + habitXP.total + journalXP.total + energyXP.total
+
+  // Prevent a single early action from instantly maxing a stat.
+  // Stats ramp up as the 30-day activity sample grows.
+  const activityConfidence = Math.min(1, totalActivityXP / 300)
+  const scaledStat = (sourceXp: number): number => {
+    if (totalActivityXP <= 0) return 0
+    const share = sourceXp / totalActivityXP
+    return Math.min(100, Math.round(share * 100 * activityConfidence))
+  }
+
+  const focusPower = scaledStat(pomodoroXP.total)
+  const discipline = scaledStat(habitXP.total)
+  const vitality = scaledStat(energyXP.total)
+  const wisdom = scaledStat(journalXP.total)
 
   // Determine class
   const stats = { focusPower, discipline, vitality, wisdom }

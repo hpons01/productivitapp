@@ -65,7 +65,8 @@ const api = {
   settings: {
     get: (key: string) => ipcRenderer.invoke('settings:get', key),
     set: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
-    getAll: () => ipcRenderer.invoke('settings:getAll')
+    getAll: () => ipcRenderer.invoke('settings:getAll'),
+    resetOnboarding: () => ipcRenderer.invoke('settings:resetOnboarding')
   },
 
   // Loot inventory

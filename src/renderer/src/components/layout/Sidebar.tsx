@@ -24,13 +24,13 @@ const navItems = [
   { to: '/pomodoro', icon: Timer, label: 'Focus' },
   { to: '/tasks', icon: ListTodo, label: 'Tasks' },
   { to: '/energy', icon: Zap, label: 'Energy' },
-  { to: '/analytics', icon: Trophy, label: 'Progress' },
+  { to: '/analytics', icon: Trophy, label: 'Profile' },
   { to: '/inventory', icon: Package, label: 'Loot' },
   { to: '/pets', icon: Heart, label: 'Pets' }
 ]
 
 export function Sidebar() {
-  const { level, totalXP, xpToNextLevel } = useGamificationStore()
+  const { level, totalXP } = useGamificationStore()
   const { status, timeLeft } = usePomodoroStore()
   const location = useLocation()
 
@@ -40,13 +40,6 @@ export function Sidebar() {
 
   return (
     <div className="flex flex-col w-[72px] bg-surface-800 border-r border-surface-600 py-4">
-      {/* Logo */}
-      <div className="flex items-center justify-center mb-6">
-        <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center font-bold text-sm text-white shadow-lg">
-          P
-        </div>
-      </div>
-
       {/* Nav items */}
       <nav className="flex flex-col items-center gap-1 flex-1">
         {navItems.map(({ to, icon: Icon, label, end }) => (
