@@ -1,5 +1,117 @@
 import Database from 'better-sqlite3'
 import { startOfDay, endOfDay, startOfWeek, subDays } from 'date-fns'
+import {
+  CHARACTER_CLASSES,
+  CHARACTER_CLASSES_BY_ID,
+  CharacterClassId,
+  CharacterClassDefinition,
+  getEvolutionTier,
+  isCharacterClassId
+} from '../../domain/classes'
+import { getSetting, setSetting } from './settings.queries'
+import { sendNotification } from '../../notifications'
+
+const SELECTED_CLASS_KEY = 'selected_character_class'
+
+export interface XpAwardResult {
+  source: string
+  sourceId: string
+  baseAmount: number
+  classMultiplier: number
+  evolutionMultiplier: number
+  evolutionTier: number
+  multiplier: number
+  finalAmount: number
+  bonusAmount: number
+  classIdApplied: CharacterClassId | null
+}
+
+export interface CharacterClassConfig {
+  selectedClassId: CharacterClassId
+  classes: CharacterClassDefinition[]
+}
+
+export function getSelectedCharacterClassId(db: Database.Database): CharacterClassId {
+  const raw = getSetting(db, SELECTED_CLASS_KEY)
+  if (raw && isCharacterClassId(raw)) return raw
+  setSetting(db, SELECTED_CLASS_KEY, 'apprentice')
+  return 'apprentice'
+}
+
+export function setSelectedCharacterClassId(db: Database.Database, classId: string): CharacterClassId {
+  if (!isCharacterClassId(classId)) {
+    throw new Error(`Invalid class id: ${classId}`)
+  }
+  setSetting(db, SELECTED_CLASS_KEY, classId)
+  return classId
+}
+
+export function getCharacterClassConfig(db: Database.Database): CharacterClassConfig {
+  return {
+    selectedClassId: getSelectedCharacterClassId(db),
+    classes: CHARACTER_CLASSES
+  }
+}
+
+export function awardXP(
+  db: Database.Database,
+  source: string,
+  sourceId: string,
+  baseAmount: number
+): XpAwardResult {
+  const id = `xp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const selectedClassId = getSelectedCharacterClassId(db)
+  const classDef = CHARACTER_CLASSES_BY_ID[selectedClassId]
+  const sourceGetsClassBonus = classDef.boostedSource === source
+
+  const masteryResult = db.prepare(`
+    SELECT COALESCE(SUM(base_amount), 0) as total
+    FROM xp_log
+    WHERE class_id_applied = ?
+  `).get(selectedClassId) as { total: number }
+  const masteryXpBefore = masteryResult.total || 0
+  const evolutionTier = getEvolutionTier(classDef, masteryXpBefore)
+
+  const classMultiplier = sourceGetsClassBonus ? classDef.multiplier : 1
+  const evolutionMultiplier = sourceGetsClassBonus ? 1 + evolutionTier * 0.03 : 1
+  const multiplier = Math.min(1.5, classMultiplier * evolutionMultiplier)
+  const finalAmount = Math.max(0, Math.round(baseAmount * multiplier))
+  const bonusAmount = Math.max(0, finalAmount - baseAmount)
+  const classIdApplied = sourceGetsClassBonus ? selectedClassId : null
+  const evolutionTierApplied = sourceGetsClassBonus ? evolutionTier : null
+
+  db.prepare(`
+    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, source, sourceId, finalAmount, baseAmount, multiplier, classIdApplied, evolutionTierApplied, Date.now())
+
+  if (sourceGetsClassBonus) {
+    const masteryXpAfter = masteryXpBefore + baseAmount
+    const evolutionTierAfter = getEvolutionTier(classDef, masteryXpAfter)
+    if (evolutionTierAfter > evolutionTier) {
+      const unlocked = classDef.evolutionPath[evolutionTierAfter]
+      if (unlocked) {
+        sendNotification(
+          `✨ ${classDef.name} evolved: ${unlocked.title}`,
+          unlocked.perk
+        )
+      }
+    }
+  }
+
+  return {
+    source,
+    sourceId,
+    baseAmount,
+    classMultiplier,
+    evolutionMultiplier,
+    evolutionTier,
+    multiplier,
+    finalAmount,
+    bonusAmount,
+    classIdApplied
+  }
+}
 
 export function addXP(
   db: Database.Database,
@@ -7,11 +119,7 @@ export function addXP(
   sourceId: string,
   amount: number
 ): void {
-  const id = `xp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  db.prepare(`
-    INSERT INTO xp_log (id, source, source_id, amount, logged_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, source, sourceId, amount, Date.now())
+  awardXP(db, source, sourceId, amount)
 }
 
 export function getTotalXP(db: Database.Database): number {
@@ -38,7 +146,7 @@ export function unlockBadge(db: Database.Database, code: string): { unlocked: bo
   db.prepare('UPDATE badges SET unlocked_at = ? WHERE code = ?').run(Date.now(), code)
 
   // Award XP for the badge
-  addXP(db, 'badge', badge.id, badge.xp_value)
+  awardXP(db, 'badge', badge.id, badge.xp_value)
 
   return { unlocked: true, badge: { code: badge.code, name: badge.name, icon: badge.icon, rarity: badge.rarity, xp_value: badge.xp_value } }
 }
@@ -88,7 +196,18 @@ export function damageBoss(db: Database.Database, damage: number): { current_hp:
 
   if (boss.defeated) return { current_hp: 0, defeated: true }
 
-  const newHp = Math.max(0, boss.current_hp - damage)
+  const selectedClassId = getSelectedCharacterClassId(db)
+  const classDef = CHARACTER_CLASSES_BY_ID[selectedClassId]
+  const masteryResult = db.prepare(`
+    SELECT COALESCE(SUM(base_amount), 0) as total
+    FROM xp_log
+    WHERE class_id_applied = ?
+  `).get(selectedClassId) as { total: number }
+  const evolutionTier = getEvolutionTier(classDef, masteryResult.total || 0)
+  const perkMultiplier = Math.min(1.25, 1 + evolutionTier * 0.08)
+  const effectiveDamage = Math.max(1, Math.round(damage * perkMultiplier))
+
+  const newHp = Math.max(0, boss.current_hp - effectiveDamage)
   const defeated = newHp === 0
 
   db.prepare('UPDATE boss_battles SET current_hp = ?, defeated = ? WHERE id = ?').run(

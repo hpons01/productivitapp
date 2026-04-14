@@ -29,8 +29,10 @@ const REWARD_PROBABILITY: Record<string, number> = {
 export const STREAK_MILESTONES = [3, 7, 14, 21, 30, 60, 66, 100, 365]
 
 /** Should a surprise reward trigger? */
-export function shouldReward(context: keyof typeof REWARD_PROBABILITY | string): boolean {
-  const prob = REWARD_PROBABILITY[context] ?? REWARD_PROBABILITY.default
+export function shouldReward(context: keyof typeof REWARD_PROBABILITY | string, evolutionTier = 0): boolean {
+  const baseProb = REWARD_PROBABILITY[context] ?? REWARD_PROBABILITY.default
+  const tierBonus = baseProb >= 1 ? 0 : Math.max(0, evolutionTier) * 0.01
+  const prob = Math.min(0.35, baseProb + tierBonus)
   return Math.random() < prob
 }
 
@@ -43,12 +45,23 @@ const TIER_WEIGHTS: Record<LootTier, number> = {
   legendary: 1
 }
 
-export function rollLootTier(): LootTier {
+export function rollLootTier(evolutionTier = 0): LootTier {
+  const tier = Math.max(0, Math.min(3, evolutionTier))
+  const weights: Record<LootTier, number> = { ...TIER_WEIGHTS }
+  if (tier > 0) {
+    const shift = tier * 2
+    weights.common = Math.max(30, weights.common - shift)
+    weights.uncommon = Math.max(15, weights.uncommon - tier)
+    weights.rare += tier
+    weights.epic += tier
+    weights.legendary += Math.min(2, tier)
+  }
+
   const roll = Math.random() * 100
   let cumulative = 0
-  for (const [tier, weight] of Object.entries(TIER_WEIGHTS) as [LootTier, number][]) {
+  for (const [lootTier, weight] of Object.entries(weights) as [LootTier, number][]) {
     cumulative += weight
-    if (roll < cumulative) return tier
+    if (roll < cumulative) return lootTier
   }
   return 'common'
 }
@@ -84,8 +97,8 @@ const LOOT_POOLS: Record<LootTier, LootItem[]> = {
   ]
 }
 
-export function rollLoot(tier?: LootTier): LootItem {
-  const t = tier ?? rollLootTier()
+export function rollLoot(tier?: LootTier, evolutionTier = 0): LootItem {
+  const t = tier ?? rollLootTier(evolutionTier)
   const pool = LOOT_POOLS[t]
   return pool[Math.floor(Math.random() * pool.length)]
 }

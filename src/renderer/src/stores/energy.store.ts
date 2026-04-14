@@ -52,7 +52,7 @@ export const useEnergyStore = create<EnergyState>((set, get) => ({
 
     set((s) => ({ logs: [...s.logs, log], latest: log }))
 
-    const { addXP } = useGamificationStore.getState()
-    await addXP('energy', 5, false)
+    const { refreshFromDB } = useGamificationStore.getState()
+    await refreshFromDB()
   }
 }))

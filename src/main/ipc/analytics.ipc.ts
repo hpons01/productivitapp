@@ -1,7 +1,14 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db'
-import { getDashboardStats, getHeatmapData } from '../db/queries/analytics.queries'
-import { getBadges, unlockBadge, addXP, getOrCreateDailyQuests } from '../db/queries/gamification.queries'
+import { getClassProgressData, getDashboardStats, getHeatmapData } from '../db/queries/analytics.queries'
+import {
+  awardXP,
+  getBadges,
+  getCharacterClassConfig,
+  getOrCreateDailyQuests,
+  setSelectedCharacterClassId,
+  unlockBadge
+} from '../db/queries/gamification.queries'
 
 export function registerAnalyticsIpc(): void {
   ipcMain.handle('analytics:dashboard', () => {
@@ -35,7 +42,22 @@ export function registerAnalyticsIpc(): void {
 
   ipcMain.handle('analytics:addXp', (_event, source: string, sourceId: string, amount: number) => {
     const db = getDb()
-    addXP(db, source, sourceId, amount)
-    return { success: true }
+    return awardXP(db, source, sourceId, amount)
+  })
+
+  ipcMain.handle('analytics:classConfig', () => {
+    const db = getDb()
+    return getCharacterClassConfig(db)
+  })
+
+  ipcMain.handle('analytics:classProgress', () => {
+    const db = getDb()
+    return getClassProgressData(db)
+  })
+
+  ipcMain.handle('analytics:setCharacterClass', (_event, classId: string) => {
+    const db = getDb()
+    const selectedClassId = setSelectedCharacterClassId(db, classId)
+    return { success: true, selectedClassId }
   })
 }

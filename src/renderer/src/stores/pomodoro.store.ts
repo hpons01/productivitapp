@@ -92,8 +92,8 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
     set({ status: 'completed', timeLeft: 0 })
 
-    const { addXP, triggerLootBox, checkAndUnlockBadges } = useGamificationStore.getState()
-    await addXP('pomodoro', result.xpAwarded)
+    const { refreshFromDB, triggerLootBox, checkAndUnlockBadges } = useGamificationStore.getState()
+    await refreshFromDB()
 
     triggerLootBox('pomodoro')
 

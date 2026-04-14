@@ -7,6 +7,7 @@ import { registerAnalyticsIpc } from './analytics.ipc'
 import { registerSettingsIpc } from './settings.ipc'
 import { registerLootIpc } from './loot.ipc'
 import { registerExportIpc } from './export.ipc'
+import { registerWindowIpc } from './window.ipc'
 
 export function registerAllIpcHandlers(): void {
   registerHabitsIpc()
@@ -18,4 +19,5 @@ export function registerAllIpcHandlers(): void {
   registerSettingsIpc()
   registerLootIpc()
   registerExportIpc()
+  registerWindowIpc()
 }

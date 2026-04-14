@@ -165,7 +165,11 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
     })
 
     // Loot box trigger
-    const triggerLoot = shouldReward(streak === 1 ? 'first_ever' : isStreakMilestone(streak) ? 'streak_milestone' : 'habit')
+    const evolutionTier = useGamificationStore.getState().classEvolutionIndex
+    const triggerLoot = shouldReward(
+      streak === 1 ? 'first_ever' : isStreakMilestone(streak) ? 'streak_milestone' : 'habit',
+      evolutionTier
+    )
     if (triggerLoot) {
       triggerLootBox(isStreakMilestone(streak) ? 'streak_milestone' : 'habit')
     }

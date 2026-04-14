@@ -52,8 +52,11 @@ const api = {
     dashboard: () => ipcRenderer.invoke('analytics:dashboard'),
     heatmap: (year: number) => ipcRenderer.invoke('analytics:heatmap', year),
     badges: () => ipcRenderer.invoke('analytics:badges'),
+    classProgress: () => ipcRenderer.invoke('analytics:classProgress'),
     xpLog: (limit?: number) => ipcRenderer.invoke('analytics:xpLog', limit),
     unlockBadge: (code: string) => ipcRenderer.invoke('analytics:unlockBadge', code),
+    classConfig: () => ipcRenderer.invoke('analytics:classConfig'),
+    setCharacterClass: (classId: string) => ipcRenderer.invoke('analytics:setCharacterClass', classId),
     addXp: (source: string, sourceId: string, amount: number) =>
       ipcRenderer.invoke('analytics:addXp', source, sourceId, amount)
   },
@@ -74,6 +77,14 @@ const api = {
   // Data export
   export: {
     exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format)
+  },
+
+  // Window controls
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
+    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+    close: () => ipcRenderer.invoke('window:close')
   },
 
   // Tray events (renderer listens)

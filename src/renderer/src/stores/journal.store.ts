@@ -57,8 +57,8 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     })
     set({ todayMorning: entry })
 
-    const { addXP, checkAndUnlockBadges } = useGamificationStore.getState()
-    await addXP('journal', 25)
+    const { refreshFromDB, checkAndUnlockBadges } = useGamificationStore.getState()
+    await refreshFromDB()
     await checkAndUnlockBadges({
       habitsCount: 0,
       habitStreak: 0,
@@ -90,8 +90,8 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     })
     set({ todayEvening: entry })
 
-    const { addXP, checkAndUnlockBadges } = useGamificationStore.getState()
-    await addXP('journal', 20)
+    const { refreshFromDB, checkAndUnlockBadges } = useGamificationStore.getState()
+    await refreshFromDB()
     await checkAndUnlockBadges({
       habitsCount: 0,
       habitStreak: 0,

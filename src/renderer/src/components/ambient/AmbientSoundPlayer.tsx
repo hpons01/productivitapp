@@ -58,7 +58,7 @@ export function AmbientSoundPlayer() {
           className="relative flex items-center select-none touch-none w-full h-4"
           min={0}
           max={1}
-          step={0.05}
+          step={0.01}
           value={[volume]}
           onValueChange={([v]) => setVolume(v)}
           aria-label="Volume"

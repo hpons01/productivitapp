@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button'
 import { Textarea, Input } from '../../components/ui/input'
 import { useJournalStore } from '../../stores/journal.store'
 import { cn } from '../../lib/utils'
+import { ENERGY_LEVEL_EMOJIS } from '../../lib/constants/energy-emojis'
 
 const VISUALIZATION_PROMPTS = [
   'Describe your ideal productive day in vivid detail. Where are you? What have you accomplished?',
@@ -46,6 +47,11 @@ function MorningRitual() {
             ))}
           </div>
         )}
+        {entry?.mood_emoji && (
+          <div className="text-xs text-surface-400">
+            Morning energy: <span className="text-base align-middle">{entry.mood_emoji}</span>
+          </div>
+        )}
       </div>
     )
   }
@@ -77,10 +83,12 @@ function MorningRitual() {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
           <p className="text-surface-300 text-sm">How are you feeling right now?</p>
           <div className="flex gap-4 justify-center py-2">
-            {[['🪫', 1], ['😴', 2], ['🙂', 3], ['😊', 4], ['⚡', 5]].map(([emoji, val]) => (
+            {ENERGY_LEVEL_EMOJIS.map((emoji, idx) => {
+              const val = idx + 1
+              return (
               <button
                 key={val}
-                onClick={() => setEnergyLevel(val as number)}
+                onClick={() => setEnergyLevel(val)}
                 className={cn(
                   'text-3xl p-2 rounded-xl transition-all',
                   energyLevel === val ? 'bg-primary-600/30 scale-125' : 'hover:bg-surface-700'
@@ -88,7 +96,8 @@ function MorningRitual() {
               >
                 {emoji}
               </button>
-            ))}
+              )
+            })}
           </div>
           <Button className="w-full" onClick={() => setStep(1)}>Next →</Button>
         </motion.div>
@@ -133,7 +142,7 @@ function MorningRitual() {
                   intentions: JSON.stringify(intentions.filter(Boolean)),
                   gratitude: JSON.stringify(gratitude.filter(Boolean)),
                   energy_level: energyLevel,
-                  mood_emoji: ['🪫', '😴', '🙂', '😊', '⚡'][energyLevel - 1]
+                  mood_emoji: ENERGY_LEVEL_EMOJIS[energyLevel - 1]
                 })
                 setSaved(true)
               }}

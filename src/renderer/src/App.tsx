@@ -16,12 +16,12 @@ import { useSettingsStore } from './stores/settings.store'
 import { useGamificationStore } from './stores/gamification.store'
 
 export default function App() {
-  const { settings, loadSettings } = useSettingsStore()
+  const { settings, initialized, loadSettings } = useSettingsStore()
   const { initialize } = useGamificationStore()
 
   useEffect(() => {
-    loadSettings()
-    initialize()
+    void loadSettings()
+    void initialize()
   }, [])
 
   useEffect(() => {
@@ -32,6 +32,10 @@ export default function App() {
   }, [settings])
 
   const isOnboarded = settings['onboarding_completed'] === 'true'
+
+  if (!initialized) {
+    return <div className="h-screen w-screen bg-surface-900" />
+  }
 
   return (
     <HashRouter>

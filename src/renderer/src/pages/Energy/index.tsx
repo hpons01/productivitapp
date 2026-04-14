@@ -7,14 +7,7 @@ import { useEnergyStore } from '../../stores/energy.store'
 import { getEnergyZone } from '../../lib/science/energy-zones'
 import { format } from 'date-fns'
 import { cn } from '../../lib/utils'
-
-const ENERGY_OPTIONS = [
-  { value: 1, emoji: '🪫', label: 'Depleted' },
-  { value: 2, emoji: '😴', label: 'Low' },
-  { value: 3, emoji: '🙂', label: 'Moderate' },
-  { value: 4, emoji: '😊', label: 'High' },
-  { value: 5, emoji: '⚡', label: 'Peak' }
-]
+import { ENERGY_OPTIONS } from '../../lib/constants/energy-emojis'
 
 export function EnergyPage() {
   const { logs, latest, loading, loadRange, logEnergy } = useEnergyStore()
