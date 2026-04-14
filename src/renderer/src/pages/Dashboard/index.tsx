@@ -26,6 +26,17 @@ type DashboardActiveQuest = {
   status: 'enrolled' | 'active'
 }
 
+const CORE_VALUE_META: Record<string, { label: string; icon: string; cue: string }> = {
+  health: { label: 'Health', icon: '🫀', cue: 'Protect your energy with focused, sustainable effort today.' },
+  growth: { label: 'Growth', icon: '🌱', cue: 'Every completed action is another level gained.' },
+  discipline: { label: 'Discipline', icon: '🛡️', cue: 'Choose what matters, especially when motivation dips.' },
+  freedom: { label: 'Freedom', icon: '🕊️', cue: 'Your systems are buying back future time and choice.' },
+  family: { label: 'Family', icon: '🏠', cue: 'Consistency here helps you show up better for your people.' },
+  mastery: { label: 'Mastery', icon: '🎯', cue: 'Practice with intent and your craft will compound.' },
+  impact: { label: 'Impact', icon: '🌍', cue: "Today's output can create value beyond yourself." },
+  calm: { label: 'Calm', icon: '🧘', cue: 'Slow is smooth, smooth is fast. Keep the pace grounded.' }
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.06 } }
@@ -140,6 +151,22 @@ export function DashboardPage() {
 
   const playerName = getSetting('user_name', 'Hero')
   const commitmentStatement = getSetting('commitment_statement', 'I commit to growing 1% every day.')
+  const coreValuesSetting = getSetting('core_values', '[]')
+
+  let coreValues: string[] = []
+  try {
+    const parsed = JSON.parse(coreValuesSetting)
+    if (Array.isArray(parsed)) {
+      coreValues = parsed.filter((value): value is string => typeof value === 'string')
+    }
+  } catch {
+    coreValues = []
+  }
+
+  const visibleCoreValues = coreValues.slice(0, 3)
+  const primaryValueCue = visibleCoreValues.length > 0
+    ? (CORE_VALUE_META[visibleCoreValues[0]]?.cue ?? 'Small actions compound into real growth.')
+    : null
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="max-w-6xl mx-auto space-y-6">
@@ -151,6 +178,29 @@ export function DashboardPage() {
         </h1>
         <p className="text-surface-400 text-sm mt-1">{format(new Date(), 'EEEE, MMMM d')}</p>
         <p className="text-sm italic text-primary-200/90 mt-2 max-w-3xl">"{commitmentStatement}"</p>
+        {visibleCoreValues.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {visibleCoreValues.map((valueId) => {
+                const valueMeta = CORE_VALUE_META[valueId]
+                if (!valueMeta) {
+                  return null
+                }
+
+                return (
+                  <span
+                    key={valueId}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-primary-500/40 bg-primary-500/10 text-xs text-primary-100"
+                  >
+                    <span>{valueMeta.icon}</span>
+                    <span>{valueMeta.label}</span>
+                  </span>
+                )
+              })}
+            </div>
+            {primaryValueCue && <p className="text-xs text-surface-300">{primaryValueCue}</p>}
+          </div>
+        )}
       </motion.div>
 
       {/* Today's Stats */}

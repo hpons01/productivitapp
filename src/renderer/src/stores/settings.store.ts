@@ -41,7 +41,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   resetOnboarding: async () => {
     await api().settings.resetOnboarding()
     set((s) => {
-      const { user_name: _userName, commitment_statement: _commitment, ...rest } = s.settings
+      const {
+        user_name: _userName,
+        commitment_statement: _commitment,
+        core_values: _coreValues,
+        primary_value: _primaryValue,
+        ...rest
+      } = s.settings
       return {
         settings: {
           ...rest,

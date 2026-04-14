@@ -103,37 +103,40 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     const { currentSessionId, interruptions } = get()
     if (!currentSessionId) return
 
-    const result = await api().pomodoro.complete({ id: currentSessionId, interruptions })
+    await api().pomodoro.complete({ id: currentSessionId, interruptions })
 
     set({ status: 'completed', timeLeft: 0 })
 
-    const { refreshFromDB, triggerLootBox, checkAndUnlockBadges } = useGamificationStore.getState()
-    await refreshFromDB()
+    try {
+      const { refreshFromDB, triggerLootBox, checkAndUnlockBadges } = useGamificationStore.getState()
+      await refreshFromDB()
 
-    triggerLootBox('pomodoro')
+      triggerLootBox('pomodoro')
 
-    await checkAndUnlockBadges({
-      habitsCount: 0,
-      habitStreak: 0,
-      totalPomodoros: (get().todayPomodoros || 0) + 1,
-      tasksCompletedToday: 0,
-      twoMinTasksTotal: 0,
-      morningRitualConsecutive: 0,
-      eveningRitualHour: 0,
-      journalDaysStreak: 0,
-      energyLogDaysStreak: 0,
-      bossesDefeated: 0,
-      pomodorosBeforeNoon: new Date().getHours() < 12 ? (get().todayPomodoros || 0) + 1 : 0,
-      journalWordCount: 0,
-      isPerfectDay: false,
-      perfectDaysStreak: 0,
-      currentHour: new Date().getHours()
-    })
-
-    await get().loadTodayStats()
-
-    // Auto-start break after a moment
-    setTimeout(() => get().startBreak(), 1500)
+      await checkAndUnlockBadges({
+        habitsCount: 0,
+        habitStreak: 0,
+        totalPomodoros: (get().todayPomodoros || 0) + 1,
+        tasksCompletedToday: 0,
+        twoMinTasksTotal: 0,
+        morningRitualConsecutive: 0,
+        eveningRitualHour: 0,
+        journalDaysStreak: 0,
+        energyLogDaysStreak: 0,
+        bossesDefeated: 0,
+        pomodorosBeforeNoon: new Date().getHours() < 12 ? (get().todayPomodoros || 0) + 1 : 0,
+        journalWordCount: 0,
+        isPerfectDay: false,
+        perfectDaysStreak: 0,
+        currentHour: new Date().getHours()
+      })
+    } catch (error) {
+      console.error('Pomodoro post-completion side effects failed', error)
+    } finally {
+      await get().loadTodayStats()
+      // Auto-start break after a moment, even if reward side effects fail.
+      setTimeout(() => get().startBreak(), 1500)
+    }
   },
 
   abandon: async () => {

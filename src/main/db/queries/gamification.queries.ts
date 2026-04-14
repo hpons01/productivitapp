@@ -12,6 +12,7 @@ import { getSetting, setSetting } from './settings.queries'
 import { sendNotification } from '../../notifications'
 import { getEquippedPet, awardPetXP, awardEgg } from './pets.queries'
 import { getPetMultiplier, ALL_PET_DEFINITIONS } from '../../domain/pets'
+import { logEvent } from './eventlog.queries'
 
 const SELECTED_CLASS_KEY = 'selected_character_class'
 
@@ -110,6 +111,16 @@ export function awardXP(
     INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, source, sourceId, finalAmount, baseAmount, multiplier, classIdApplied, evolutionTierApplied, Date.now())
+
+  logEvent(db, 'xp_awarded', source, sourceId, {
+    baseAmount,
+    finalAmount,
+    multiplier,
+    classIdApplied,
+    evolutionTier,
+    petMultiplier,
+    petXpGain
+  })
 
   if (sourceGetsClassBonus) {
     const masteryXpAfter = masteryXpBefore + baseAmount
@@ -254,7 +265,7 @@ export function damageBoss(db: Database.Database, damage: number): { current_hp:
  * Checks whether any active daily habit has completions on T-3, T-2, T-1
  * but NOT today — meaning the user had a streak but missed today so far.
  */
-function detectBrokenStreak(db: Database.Database): boolean {
+export function hasBrokenStreakToday(db: Database.Database): boolean {
   const today = startOfDay(new Date())
   const todayStart = today.getTime()
   const todayEnd = endOfDay(new Date()).getTime()
@@ -342,6 +353,17 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
   const normalQuests = existing.filter((q) => q.quest_type !== 'streak_recovery')
   const hasRecoveryQuest = existing.some((q) => q.quest_type === 'streak_recovery')
 
+  const completionWindowStart = startOfDay(subDays(new Date(), 7)).getTime()
+  const recentStats = db.prepare(`
+    SELECT
+      COUNT(*) as total,
+      COALESCE(SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END), 0) as completed_count
+    FROM daily_quests
+    WHERE date >= ?
+      AND quest_type <> 'streak_recovery'
+  `).get(completionWindowStart) as { total: number; completed_count: number }
+  const recentCompletionRate = recentStats.total > 0 ? recentStats.completed_count / recentStats.total : 0.65
+
   // Seed normal quests if we have fewer than 3
   if (normalQuests.length < 3) {
     type QuestTemplate = {
@@ -349,25 +371,43 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
       description: string
       target: number
       xp: number
+      difficulty: 'easy' | 'medium' | 'hard'
       eggReward?: boolean
     }
 
     const questPool: QuestTemplate[] = [
-      { type: 'pomodoros', description: 'Complete 3 Pomodoros', target: 3, xp: 75 },
-      { type: 'pomodoros_morning', description: 'Complete 2 Pomodoros before noon', target: 2, xp: 80 },
-      { type: 'habits_all', description: 'Check off all habits', target: 1, xp: 60 },
-      { type: 'energy_logs', description: 'Log your energy 4 times today', target: 4, xp: 50 },
-      { type: 'tasks', description: 'Complete 5 tasks', target: 5, xp: 60 },
-      { type: 'morning_ritual', description: 'Complete your morning ritual', target: 1, xp: 40 },
-      { type: 'evening_ritual', description: 'Complete your evening reflection', target: 1, xp: 40 },
-      { type: 'two_min_tasks', description: 'Complete 3 two-minute tasks', target: 3, xp: 45 },
+      { type: 'pomodoros', description: 'Complete 3 Pomodoros', target: 3, xp: 75, difficulty: 'medium' },
+      { type: 'pomodoros_morning', description: 'Complete 2 Pomodoros before noon', target: 2, xp: 80, difficulty: 'medium' },
+      { type: 'habits_all', description: 'Check off all habits', target: 1, xp: 60, difficulty: 'easy' },
+      { type: 'energy_logs', description: 'Log your energy 4 times today', target: 4, xp: 50, difficulty: 'easy' },
+      { type: 'tasks', description: 'Complete 5 tasks', target: 5, xp: 60, difficulty: 'medium' },
+      { type: 'morning_ritual', description: 'Complete your morning ritual', target: 1, xp: 40, difficulty: 'easy' },
+      { type: 'evening_ritual', description: 'Complete your evening reflection', target: 1, xp: 40, difficulty: 'easy' },
+      { type: 'two_min_tasks', description: 'Complete 3 two-minute tasks', target: 3, xp: 45, difficulty: 'easy' },
       // Egg-reward quests (always award a mystery egg on completion)
-      { type: 'egg_hatch_prep', description: 'Complete 5 Pomodoros today', target: 5, xp: 100, eggReward: true },
-      { type: 'deep_focus_day', description: 'Complete 4 Pomodoros with no interruptions', target: 4, xp: 90, eggReward: true },
-      { type: 'egg_seeker', description: 'Check all habits, complete 2 Pomodoros, and journal today', target: 1, xp: 120, eggReward: true }
+      { type: 'egg_hatch_prep', description: 'Complete 5 Pomodoros today', target: 5, xp: 100, difficulty: 'hard', eggReward: true },
+      { type: 'deep_focus_day', description: 'Complete 4 Pomodoros with no interruptions', target: 4, xp: 90, difficulty: 'hard', eggReward: true },
+      { type: 'egg_seeker', description: 'Check all habits, complete 2 Pomodoros, and journal today', target: 1, xp: 120, difficulty: 'hard', eggReward: true }
     ]
 
-    const shuffled = questPool.sort(() => Math.random() - 0.5).slice(0, 3 - normalQuests.length)
+    let candidatePool = questPool
+    if (recentCompletionRate >= 0.85) {
+      candidatePool = questPool.filter((q) => q.difficulty !== 'easy')
+    } else if (recentCompletionRate <= 0.5) {
+      candidatePool = questPool.filter((q) => q.difficulty !== 'hard')
+    }
+
+    const needed = 3 - normalQuests.length
+    const shuffled = [...candidatePool].sort(() => Math.random() - 0.5).slice(0, needed)
+
+    if (shuffled.length < needed) {
+      const missing = needed - shuffled.length
+      const fallback = questPool
+        .filter((q) => !shuffled.some((selected) => selected.type === q.type))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, missing)
+      shuffled.push(...fallback)
+    }
 
     for (const q of shuffled) {
       const id = `quest_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
@@ -384,7 +424,7 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
   }
 
   // Inject streak recovery quest if a streak broke and we haven't added one yet
-  if (!hasRecoveryQuest && detectBrokenStreak(db)) {
+  if (!hasRecoveryQuest && hasBrokenStreakToday(db)) {
     const totalHabits = (
       db
         .prepare("SELECT COUNT(*) as n FROM habits WHERE archived_at IS NULL AND frequency = 'daily'")

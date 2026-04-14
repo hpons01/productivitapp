@@ -6,6 +6,35 @@ import { CharacterClassOption } from '../lib/constants/classes'
 
 const api = () => window.api
 
+const CORE_VALUE_CUES: Record<string, string> = {
+  health: 'Show up with sustainable intensity and protect your energy.',
+  growth: 'Stack one more win. Your identity compounds with each action.',
+  discipline: 'Keep promises to yourself, especially when it is uncomfortable.',
+  freedom: 'Each completed block buys back future time and choice.',
+  family: 'Consistency here helps you show up stronger for your people.',
+  mastery: 'Reps today become excellence later. Stay in deliberate practice.',
+  impact: 'Today\'s execution can create value beyond yourself.',
+  calm: 'Stay grounded. Smooth execution beats frantic effort.'
+}
+
+function resolveIdentityCue(coreValuesRaw: string | null, fallback: string): string {
+  if (!coreValuesRaw) return fallback
+
+  try {
+    const parsed = JSON.parse(coreValuesRaw)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const primary = parsed.find((value): value is string => typeof value === 'string')
+      if (primary && CORE_VALUE_CUES[primary]) {
+        return CORE_VALUE_CUES[primary]
+      }
+    }
+  } catch {
+    // Ignore parse errors and use fallback.
+  }
+
+  return fallback
+}
+
 export interface PendingReward {
   id: string
   type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked' | 'egg_hatch'
@@ -90,7 +119,10 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
 
   refreshFromDB: async () => {
     try {
-      const stats = await api().analytics.dashboard()
+      const [stats, coreValuesRaw] = await Promise.all([
+        api().analytics.dashboard(),
+        api().settings.get('core_values')
+      ])
       const newLevel = levelFromXP(stats.totalXP)
       const oldLevel = get().level
       const oldEvolutionIndex = get().classEvolutionIndex
@@ -123,16 +155,28 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       // Level up notification
       if (hydrated && newLevel > oldLevel && oldLevel > 0) {
         const id = `levelup_${Date.now()}`
+        const identityCue = resolveIdentityCue(
+          typeof coreValuesRaw === 'string' ? coreValuesRaw : null,
+          'You are becoming the kind of person who executes with consistency.'
+        )
         set((s) => ({
           pendingRewards: [
             ...s.pendingRewards,
-            { id, type: 'level_up', data: { newLevel, oldLevel, characterClass: stats.characterClass } }
+            {
+              id,
+              type: 'level_up',
+              data: { newLevel, oldLevel, characterClass: stats.characterClass, identityCue }
+            }
           ]
         }))
       }
 
       if (hydrated && stats.classEvolutionIndex > oldEvolutionIndex) {
         const id = `evolution_${Date.now()}`
+        const identityCue = resolveIdentityCue(
+          typeof coreValuesRaw === 'string' ? coreValuesRaw : null,
+          'You unlocked a stronger form. Prove it with one focused action today.'
+        )
         set((s) => ({
           pendingRewards: [
             ...s.pendingRewards,
@@ -141,7 +185,8 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
               type: 'evolution_unlocked',
               data: {
                 className: stats.characterClass,
-                evolutionTitle: stats.classEvolutionTitle
+                evolutionTitle: stats.classEvolutionTitle,
+                identityCue
               }
             }
           ]

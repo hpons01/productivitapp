@@ -3,6 +3,7 @@ import { getDb } from '../db'
 import { saveJournalEntry, getTodayEntry, listEntries } from '../db/queries/journal.queries'
 import { awardXP } from '../db/queries/gamification.queries'
 import { setQuestProgressByType, incrementCatalogProgressByType } from '../db/queries/quests.queries'
+import { logEvent } from '../db/queries/eventlog.queries'
 
 export function registerJournalIpc(): void {
   ipcMain.handle('journal:save', (_event, data) => {
@@ -20,6 +21,10 @@ export function registerJournalIpc(): void {
     }
     const baseXP = xpMap[data.type] || 10
     const xpAward = awardXP(db, 'journal', entry.id, baseXP)
+    logEvent(db, 'journal_saved', 'journal', entry.id, {
+      type: data.type,
+      xpAwarded: xpAward.finalAmount
+    })
 
     if (data.type === 'morning' && !hadEntryToday) {
       setQuestProgressByType(db, 'morning_ritual', 1)

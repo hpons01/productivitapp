@@ -1,6 +1,7 @@
 import { BrowserWindow, Notification } from 'electron'
 import { getDb } from './db'
 import { listOpenScheduledTasks } from './db/queries/tasks.queries'
+import { listActiveHabitObstaclePlans } from './db/queries/habits.queries'
 
 interface ScheduledNotification {
   id: string
@@ -146,11 +147,14 @@ export function rehydrateTaskReminders(): void {
 }
 
 function scheduleDailyNotifications(settings: Record<string, string>): void {
-  const now = new Date()
-
   // Morning ritual reminder
   const morningTime = settings['notification_morning_time'] || '07:00'
-  scheduleDailyAt('morning-ritual', '🌅 Morning Ritual', "Time to set your intentions for today!", morningTime)
+  scheduleDailyAt(
+    'morning-ritual',
+    '🌅 Morning Ritual',
+    buildMorningRitualReminderBody(),
+    morningTime
+  )
 
   // Evening reflection reminder
   const eveningTime = settings['notification_evening_time'] || '21:00'
@@ -158,6 +162,23 @@ function scheduleDailyNotifications(settings: Record<string, string>): void {
 
   // Streak warning (8pm if not active)
   scheduleDailyAt('streak-warning', '🔥 Streak at Risk!', "Don't forget to check in with your habits today.", '20:00')
+}
+
+function buildMorningRitualReminderBody(): string {
+  const defaultBody = 'Time to set your intentions for today!'
+
+  try {
+    const db = getDb()
+    const plans = listActiveHabitObstaclePlans(db, 2)
+    if (plans.length === 0) {
+      return defaultBody
+    }
+
+    const lines = plans.map((plan) => `${plan.name}: ${plan.obstacle_plan}`)
+    return `Plan for resistance: ${lines.join(' | ')}`
+  } catch {
+    return defaultBody
+  }
 }
 
 function scheduleDailyAt(id: string, title: string, body: string, timeStr: string): void {

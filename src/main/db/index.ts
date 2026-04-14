@@ -23,6 +23,11 @@ export function initDatabase(): void {
   ensureQuestLifecycleSchema()
   ensurePomodoroPresets()
   ensureCatalogSchema()
+  ensureLapseReflectionSchema()
+  ensureHabitObstaclePlanColumn()
+  ensureTinyHabitColumns()
+  ensureHabitMicroCheckinSchema()
+  ensureEventLogSchema()
   ensureDefaultSettings()
   seedBadges()
   seedPetDefinitions()
@@ -256,12 +261,92 @@ function ensurePomodoroPresets(): void {
   }
 }
 
+function ensureLapseReflectionSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habit_lapse_reflections (
+      id               TEXT PRIMARY KEY,
+      lapse_date       INTEGER NOT NULL,
+      reason_code      TEXT NOT NULL,
+      note             TEXT,
+      suggested_action TEXT,
+      created_at       INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_habit_lapse_reflections_date
+      ON habit_lapse_reflections(lapse_date, created_at DESC);
+  `)
+}
+
+function ensureHabitObstaclePlanColumn(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(habits)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('obstacle_plan')) {
+    db.exec('ALTER TABLE habits ADD COLUMN obstacle_plan TEXT')
+  }
+}
+
+function ensureEventLogSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS event_log (
+      id          TEXT PRIMARY KEY,
+      event_type  TEXT NOT NULL,
+      source      TEXT NOT NULL,
+      source_id   TEXT,
+      metadata    TEXT,
+      created_at  INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_event_log_time
+      ON event_log(created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_event_log_type
+      ON event_log(event_type, created_at DESC);
+  `)
+}
+
+function ensureTinyHabitColumns(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(habits)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('tiny_mode')) {
+    db.exec('ALTER TABLE habits ADD COLUMN tiny_mode INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('tiny_started_at')) {
+    db.exec('ALTER TABLE habits ADD COLUMN tiny_started_at INTEGER')
+  }
+  if (!columns.has('tiny_graduated_at')) {
+    db.exec('ALTER TABLE habits ADD COLUMN tiny_graduated_at INTEGER')
+  }
+}
+
+function ensureHabitMicroCheckinSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habit_micro_checkins (
+      id            TEXT PRIMARY KEY,
+      habit_id      TEXT NOT NULL,
+      completed_at  INTEGER NOT NULL,
+      difficulty    INTEGER NOT NULL,
+      focus_effort  INTEGER NOT NULL,
+      created_at    INTEGER NOT NULL,
+      FOREIGN KEY(habit_id) REFERENCES habits(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_habit_micro_checkins_habit_time
+      ON habit_micro_checkins(habit_id, created_at DESC);
+  `)
+}
+
 const INITIAL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS habits (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
   description TEXT,
   cue         TEXT,
+  obstacle_plan TEXT,
+  tiny_mode   INTEGER NOT NULL DEFAULT 0,
+  tiny_started_at INTEGER,
+  tiny_graduated_at INTEGER,
   category    TEXT DEFAULT 'general',
   frequency   TEXT NOT NULL DEFAULT 'daily',
   custom_days TEXT,

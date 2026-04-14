@@ -4,6 +4,7 @@ import { listTasks, createTask, updateTask, completeTask, deleteTask, getTaskByI
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { cancelTaskReminder, scheduleTaskReminder, snoozeTaskReminder } from '../notifications'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
+import { logEvent } from '../db/queries/eventlog.queries'
 
 export function registerTasksIpc(): void {
   ipcMain.handle('tasks:list', () => {
@@ -15,6 +16,7 @@ export function registerTasksIpc(): void {
     const db = getDb()
     const task = createTask(db, data)
     scheduleTaskReminder(task.id, task.title, task.due_date)
+    logEvent(db, 'task_created', 'task', task.id, { priority: task.priority, dueDate: task.due_date })
     return task
   })
 
@@ -34,6 +36,11 @@ export function registerTasksIpc(): void {
     // XP: 10 for normal, 5 for 2-min tasks (quick = less effort)
     const baseXP = task.estimated_mins && task.estimated_mins <= 2 ? 5 : 10
     const xpAward = awardXP(db, 'task', id, baseXP)
+    logEvent(db, 'task_completed', 'task', id, {
+      baseXP,
+      xpAwarded: xpAward.finalAmount,
+      isTwoMin: Boolean(task.estimated_mins && task.estimated_mins <= 2)
+    })
 
     // Damage boss
     try {
@@ -58,6 +65,7 @@ export function registerTasksIpc(): void {
     const db = getDb()
     cancelTaskReminder(id)
     deleteTask(db, id)
+    logEvent(db, 'task_deleted', 'task', id, null)
     return { success: true }
   })
 
@@ -67,6 +75,7 @@ export function registerTasksIpc(): void {
     if (!task || task.completed_at) return { success: false }
 
     snoozeTaskReminder(task.id, task.title, task.due_date, minutes)
+    logEvent(db, 'task_reminder_snoozed', 'task', task.id, { minutes })
     return { success: true }
   })
 }

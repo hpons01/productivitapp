@@ -12,7 +12,11 @@ const api = {
     uncomplete: (data: unknown) => ipcRenderer.invoke('habits:uncomplete', data),
     getStreak: (id: string) => ipcRenderer.invoke('habits:getStreak', id),
     getCompletions: (habitId: string, from: number, to: number) =>
-      ipcRenderer.invoke('habits:getCompletions', habitId, from, to)
+      ipcRenderer.invoke('habits:getCompletions', habitId, from, to),
+    lapsePromptStatus: () => ipcRenderer.invoke('habits:lapsePromptStatus'),
+    lapseReflect: (data: unknown) => ipcRenderer.invoke('habits:lapseReflect', data),
+    graduateTiny: (habitId: string) => ipcRenderer.invoke('habits:graduateTiny', habitId),
+    microCheckin: (data: unknown) => ipcRenderer.invoke('habits:microCheckin', data)
   },
 
   // Pomodoro

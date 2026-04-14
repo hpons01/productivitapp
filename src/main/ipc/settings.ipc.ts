@@ -41,13 +41,18 @@ export function registerSettingsIpc(): void {
         DELETE FROM boss_battles;
         DELETE FROM daily_quests;
         DELETE FROM loot_inventory;
+        DELETE FROM habit_lapse_reflections;
+        DELETE FROM habit_micro_checkins;
+        DELETE FROM event_log;
         DELETE FROM pet_xp_log;
         DELETE FROM pets;
         DELETE FROM pet_eggs;
       `)
 
       db.prepare('UPDATE badges SET unlocked_at = NULL').run()
-      db.prepare('DELETE FROM settings WHERE key IN (?, ?)').run('user_name', 'commitment_statement')
+      db
+        .prepare('DELETE FROM settings WHERE key IN (?, ?, ?, ?)')
+        .run('user_name', 'commitment_statement', 'core_values', 'primary_value')
       setSetting(db, 'selected_character_class', 'apprentice')
       setSetting(db, 'onboarding_completed', 'false')
     })

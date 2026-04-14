@@ -13,11 +13,14 @@ import {
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { sendNotification } from '../notifications'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
+import { logEvent } from '../db/queries/eventlog.queries'
 
 export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:start', (_event, data) => {
     const db = getDb()
-    return startSession(db, data)
+    const session = startSession(db, data)
+    logEvent(db, 'pomodoro_started', 'pomodoro', session.id, { duration: session.duration_mins })
+    return session
   })
 
   ipcMain.handle('pomodoro:complete', (_event, data) => {
@@ -28,21 +31,45 @@ export function registerPomodoroIpc(): void {
     const baseXP = interruptions === 0 ? 40 : 30
     const xpAward = awardXP(db, 'pomodoro', id, baseXP)
     const session = completeSession(db, id, Date.now(), interruptions, xpAward.finalAmount)
+    logEvent(db, 'pomodoro_completed', 'pomodoro', id, {
+      interruptions,
+      baseXP,
+      xpAwarded: xpAward.finalAmount
+    })
 
     // Damage boss
     try {
       damageBoss(db, 50)
     } catch {}
 
-    // Enrolled quest progress updates.
-    incrementQuestProgressByType(db, 'pomodoros', 1)
+    // Enrolled quest progress updates should never block session completion.
+    try {
+      incrementQuestProgressByType(db, 'pomodoros', 1)
+    } catch (error) {
+      console.error('Failed to update pomodoros quest progress', error)
+    }
+
     if (new Date().getHours() < 12) {
-      incrementQuestProgressByType(db, 'pomodoros_morning', 1)
+      try {
+        incrementQuestProgressByType(db, 'pomodoros_morning', 1)
+      } catch (error) {
+        console.error('Failed to update morning pomodoro quest progress', error)
+      }
     }
+
     if (interruptions === 0) {
-      incrementQuestProgressByType(db, 'deep_focus_day', 1)
+      try {
+        incrementQuestProgressByType(db, 'deep_focus_day', 1)
+      } catch (error) {
+        console.error('Failed to update deep focus quest progress', error)
+      }
     }
-    incrementQuestProgressByType(db, 'egg_hatch_prep', 1)
+
+    try {
+      incrementQuestProgressByType(db, 'egg_hatch_prep', 1)
+    } catch (error) {
+      console.error('Failed to update egg hatch prep quest progress', error)
+    }
 
     // Send break notification
     sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a well-deserved break.')
@@ -58,6 +85,7 @@ export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:abandon', (_event, id: string) => {
     const db = getDb()
     abandonSession(db, id)
+    logEvent(db, 'pomodoro_abandoned', 'pomodoro', id, null)
     return { success: true }
   })
 
