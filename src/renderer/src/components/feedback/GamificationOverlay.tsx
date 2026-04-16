@@ -229,13 +229,23 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
   async function handleClaim() {
     if (opened.current) return
     opened.current = true
-    await window.api.loot.save({
-      id: reward.id,
-      type: loot.type,
-      tier: loot.tier,
-      payload: JSON.stringify({ name: loot.name, description: loot.description, value: loot.value })
-    })
-    onDismiss()
+    try {
+      const result = await window.api.loot.save({
+        id: reward.id,
+        type: loot.type,
+        tier: loot.tier,
+        payload: JSON.stringify({ name: loot.name, description: loot.description, value: loot.value })
+      }) as { success?: boolean; error?: string }
+
+      if (!result?.success) {
+        throw new Error(result?.error ?? 'Failed to persist loot reward')
+      }
+
+      onDismiss()
+    } catch (error) {
+      opened.current = false
+      console.error('Failed to save claimed loot reward', error)
+    }
   }
 
   return (

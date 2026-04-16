@@ -3,15 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Package, Zap, Sparkles } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
-import { TIER_COLORS, type LootTier } from '../../lib/science/rewards'
+import { TIER_COLORS, type LootTier, type LootItem as RewardLootItem } from '../../lib/science/rewards'
 import { cn } from '../../lib/utils'
 import { format } from 'date-fns'
 import { useSettingsStore } from '../../stores/settings.store'
-import { activateLootItem } from '../../lib/loot-activation'
+import { activateLootItem, getPowerupTypeFromName, getThemeKeyFromLootName } from '../../lib/loot-activation'
 
 interface LootItem {
   id: string
-  type: string
+  type: RewardLootItem['type']
   tier: LootTier
   payload: string
   earned_at: number
@@ -49,12 +49,6 @@ const TYPE_ICONS: Record<string, string> = {
   cosmetic: '✨'
 }
 
-const THEME_KEY_MAP: Record<string, string> = {
-  'Ocean Theme': 'ocean',
-  'Void Theme': 'void',
-  'Golden Theme': 'golden'
-}
-
 export function InventoryPage() {
   const [items, setItems] = useState<LootItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -85,10 +79,10 @@ export function InventoryPage() {
 
   function getItemStatus(item: LootItem, payload: ParsedPayload): 'equipped' | 'active' | 'used' | 'available' {
     if (item.type === 'title') {
-      return payload.name === equippedTitle ? 'equipped' : (item.used_at ? 'used' : 'available')
+      return payload.name === equippedTitle ? 'equipped' : 'available'
     }
     if (item.type === 'theme') {
-      const key = THEME_KEY_MAP[payload.name ?? '']
+      const key = getThemeKeyFromLootName(payload.name)
       return key === activeTheme ? 'equipped' : 'available'
     }
     if (item.type === 'cosmetic') {
@@ -97,9 +91,10 @@ export function InventoryPage() {
     if (item.type === 'power_up') {
       try {
         const pu = JSON.parse(activePowerupRaw)
+        const currentPowerupType = getPowerupTypeFromName(payload.name)
         const expired = pu.expires_at !== null && Date.now() > pu.expires_at
         const depleted = pu.uses_left !== null && pu.uses_left <= 0
-        if (!expired && !depleted && pu.type !== undefined) return 'active'
+        if (!expired && !depleted && pu.type !== undefined && pu.type === currentPowerupType) return 'active'
       } catch {}
       return item.used_at ? 'used' : 'available'
     }
@@ -110,24 +105,33 @@ export function InventoryPage() {
     setActivating(item.id)
     try {
       const payload = parsePayload(item.payload)
+      const payloadName = typeof payload.name === 'string' && payload.name.trim() ? payload.name : undefined
+      const requiresName = item.type === 'title' || item.type === 'theme' || item.type === 'power_up'
+      if (requiresName && !payloadName) {
+        console.error('Cannot activate loot item: payload is missing required name', item)
+        return
+      }
+
       const isPersistent = ['title', 'theme', 'cosmetic'].includes(item.type)
       if (!isPersistent) {
         await window.api.loot.activate(item.id)
         setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await activateLootItem({ ...item, ...payload } as any, setSetting)
+      await activateLootItem({ type: item.type, name: payloadName }, setSetting)
     } catch {}
-    setActivating(null)
+    finally {
+      setActivating(null)
+    }
   }
 
   const filtered = items.filter((i) => {
-    if (filter === 'available') return !i.used_at || ['title', 'theme', 'cosmetic'].includes(i.type)
-    if (filter === 'used') return !!i.used_at && !['title', 'theme', 'cosmetic'].includes(i.type)
+    const status = getItemStatus(i, parsePayload(i.payload))
+    if (filter === 'available') return status !== 'used'
+    if (filter === 'used') return status === 'used'
     return true
   })
 
-  const availableCount = items.filter((i) => !i.used_at || ['title', 'theme', 'cosmetic'].includes(i.type)).length
+  const availableCount = items.filter((i) => getItemStatus(i, parsePayload(i.payload)) !== 'used').length
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

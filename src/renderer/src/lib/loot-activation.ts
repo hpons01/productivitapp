@@ -6,6 +6,13 @@ const THEME_MAP: Record<string, string> = {
   'Golden Theme': 'golden'
 }
 
+const POWERUP_TYPE_MAP: Record<string, string> = {
+  'Focus Potion': 'focus_potion',
+  'Streak Shield': 'streak_shield',
+  'Double XP Elixir': 'double_xp',
+  'Time Warp': 'time_warp'
+}
+
 interface PowerupConfig {
   type: string
   multiplier: number
@@ -18,17 +25,28 @@ const POWERUP_BASE: Record<string, Omit<PowerupConfig, 'expires_at'> & { expires
   'Streak Shield': { type: 'streak_shield', multiplier: 1,   expires_at: null, uses_left: 1 }
 }
 
+export function getThemeKeyFromLootName(name: string | undefined): string | undefined {
+  if (!name) return undefined
+  return THEME_MAP[name]
+}
+
+export function getPowerupTypeFromName(name: string | undefined): string | undefined {
+  if (!name) return undefined
+  return POWERUP_TYPE_MAP[name]
+}
+
 export async function activateLootItem(
-  loot: LootItem & { name: string },
+  loot: Pick<LootItem, 'type'> & { name?: string },
   setSetting: (key: string, val: string) => Promise<void>
 ): Promise<void> {
   switch (loot.type) {
     case 'title':
+      if (!loot.name) return
       await setSetting('equipped_title', loot.name)
       break
 
     case 'theme': {
-      const key = THEME_MAP[loot.name]
+      const key = getThemeKeyFromLootName(loot.name)
       if (key) await setSetting('theme', key)
       break
     }
@@ -38,6 +56,7 @@ export async function activateLootItem(
       break
 
     case 'power_up': {
+      if (!loot.name) return
       let config: PowerupConfig | null = null
       const now = Date.now()
 
