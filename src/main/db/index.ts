@@ -20,9 +20,18 @@ export function initDatabase(): void {
   runMigrations()
   ensureClassXpColumns()
   ensurePetQuestColumns()
+  ensureQuestLifecycleSchema()
+  ensurePomodoroPresets()
+  ensureCatalogSchema()
+  ensureLapseReflectionSchema()
+  ensureHabitObstaclePlanColumn()
+  ensureTinyHabitColumns()
+  ensureHabitMicroCheckinSchema()
+  ensureEventLogSchema()
   ensureDefaultSettings()
   seedBadges()
   seedPetDefinitions()
+  seedCatalogQuests()
 }
 
 export function getDb(): Database.Database {
@@ -141,12 +150,203 @@ function ensurePetQuestColumns(): void {
   }
 }
 
+function ensureQuestLifecycleSchema(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(daily_quests)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('status')) {
+    db.exec("ALTER TABLE daily_quests ADD COLUMN status TEXT NOT NULL DEFAULT 'available'")
+  }
+  if (!columns.has('time_window_type')) {
+    db.exec("ALTER TABLE daily_quests ADD COLUMN time_window_type TEXT NOT NULL DEFAULT 'daily'")
+  }
+  if (!columns.has('enrolled_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN enrolled_at INTEGER')
+  }
+  if (!columns.has('started_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN started_at INTEGER')
+  }
+  if (!columns.has('deadline_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN deadline_at INTEGER')
+  }
+  if (!columns.has('completed_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN completed_at INTEGER')
+  }
+  if (!columns.has('failed_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN failed_at INTEGER')
+  }
+  if (!columns.has('abandoned_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN abandoned_at INTEGER')
+  }
+  if (!columns.has('milestones_awarded')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN milestones_awarded INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('reward_xp_awarded')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN reward_xp_awarded INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('sanction_xp')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN sanction_xp INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('updated_at')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN updated_at INTEGER')
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS quest_enrollments (
+      id                TEXT PRIMARY KEY,
+      quest_id          TEXT NOT NULL UNIQUE REFERENCES daily_quests(id) ON DELETE CASCADE,
+      status            TEXT NOT NULL,
+      time_window_type  TEXT NOT NULL,
+      enrolled_at       INTEGER NOT NULL,
+      started_at        INTEGER NOT NULL,
+      deadline_at       INTEGER NOT NULL,
+      completed_at      INTEGER,
+      failed_at         INTEGER,
+      abandoned_at      INTEGER,
+      last_progress_at  INTEGER,
+      created_at        INTEGER NOT NULL,
+      updated_at        INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quest_enrollments_status_deadline
+      ON quest_enrollments(status, deadline_at);
+
+    CREATE TABLE IF NOT EXISTS quest_outcomes (
+      id               TEXT PRIMARY KEY,
+      quest_id         TEXT NOT NULL REFERENCES daily_quests(id) ON DELETE CASCADE,
+      outcome_type     TEXT NOT NULL,
+      milestone_index  INTEGER NOT NULL DEFAULT -1,
+      xp_delta         INTEGER NOT NULL DEFAULT 0,
+      recorded_at      INTEGER NOT NULL,
+      metadata         TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quest_outcomes_quest_time
+      ON quest_outcomes(quest_id, recorded_at DESC);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_quest_outcomes_unique
+      ON quest_outcomes(quest_id, outcome_type, milestone_index);
+  `)
+}
+
+function ensurePomodoroPresets(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pomodoro_presets (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      work_mins     INTEGER NOT NULL,
+      break_mins    INTEGER NOT NULL,
+      user_created  INTEGER NOT NULL DEFAULT 1,
+      created_at    INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pomodoro_presets_user
+      ON pomodoro_presets(user_created, created_at);
+  `)
+
+  const defaults = [
+    { id: 'default-25-5', name: '25 / 5', work_mins: 25, break_mins: 5 },
+    { id: 'default-50-10', name: '50 / 10', work_mins: 50, break_mins: 10 },
+    { id: 'default-90-15', name: '90 / 15', work_mins: 90, break_mins: 15 },
+    { id: 'default-15-3', name: '15 / 3', work_mins: 15, break_mins: 3 }
+  ]
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO pomodoro_presets (id, name, work_mins, break_mins, user_created, created_at)
+    VALUES (?, ?, ?, ?, 0, ?)
+  `)
+
+  for (const preset of defaults) {
+    stmt.run(preset.id, preset.name, preset.work_mins, preset.break_mins, Date.now())
+  }
+}
+
+function ensureLapseReflectionSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habit_lapse_reflections (
+      id               TEXT PRIMARY KEY,
+      lapse_date       INTEGER NOT NULL,
+      reason_code      TEXT NOT NULL,
+      note             TEXT,
+      suggested_action TEXT,
+      created_at       INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_habit_lapse_reflections_date
+      ON habit_lapse_reflections(lapse_date, created_at DESC);
+  `)
+}
+
+function ensureHabitObstaclePlanColumn(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(habits)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('obstacle_plan')) {
+    db.exec('ALTER TABLE habits ADD COLUMN obstacle_plan TEXT')
+  }
+}
+
+function ensureEventLogSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS event_log (
+      id          TEXT PRIMARY KEY,
+      event_type  TEXT NOT NULL,
+      source      TEXT NOT NULL,
+      source_id   TEXT,
+      metadata    TEXT,
+      created_at  INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_event_log_time
+      ON event_log(created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_event_log_type
+      ON event_log(event_type, created_at DESC);
+  `)
+}
+
+function ensureTinyHabitColumns(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(habits)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('tiny_mode')) {
+    db.exec('ALTER TABLE habits ADD COLUMN tiny_mode INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!columns.has('tiny_started_at')) {
+    db.exec('ALTER TABLE habits ADD COLUMN tiny_started_at INTEGER')
+  }
+  if (!columns.has('tiny_graduated_at')) {
+    db.exec('ALTER TABLE habits ADD COLUMN tiny_graduated_at INTEGER')
+  }
+}
+
+function ensureHabitMicroCheckinSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habit_micro_checkins (
+      id            TEXT PRIMARY KEY,
+      habit_id      TEXT NOT NULL,
+      completed_at  INTEGER NOT NULL,
+      difficulty    INTEGER NOT NULL,
+      focus_effort  INTEGER NOT NULL,
+      created_at    INTEGER NOT NULL,
+      FOREIGN KEY(habit_id) REFERENCES habits(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_habit_micro_checkins_habit_time
+      ON habit_micro_checkins(habit_id, created_at DESC);
+  `)
+}
+
 const INITIAL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS habits (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
   description TEXT,
   cue         TEXT,
+  obstacle_plan TEXT,
+  tiny_mode   INTEGER NOT NULL DEFAULT 0,
+  tiny_started_at INTEGER,
+  tiny_graduated_at INTEGER,
   category    TEXT DEFAULT 'general',
   frequency   TEXT NOT NULL DEFAULT 'daily',
   custom_days TEXT,
@@ -179,6 +379,17 @@ CREATE TABLE IF NOT EXISTS pomodoro_sessions (
   xp_awarded     INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_pomodoro_started ON pomodoro_sessions(started_at);
+
+CREATE TABLE IF NOT EXISTS pomodoro_presets (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,
+  work_mins     INTEGER NOT NULL,
+  break_mins    INTEGER NOT NULL,
+  user_created  INTEGER NOT NULL DEFAULT 1,
+  created_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pomodoro_presets_user
+  ON pomodoro_presets(user_created, created_at);
 
 CREATE TABLE IF NOT EXISTS tasks (
   id                 TEXT PRIMARY KEY,
@@ -410,4 +621,144 @@ function seedPetDefinitions(): void {
   })
 
   insertMany()
+}
+
+function ensureCatalogSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS quest_definitions (
+      id                 TEXT PRIMARY KEY,
+      slug               TEXT NOT NULL UNIQUE,
+      title              TEXT NOT NULL,
+      description        TEXT NOT NULL,
+      flavor_text        TEXT,
+      category           TEXT NOT NULL,
+      difficulty         TEXT NOT NULL,
+      target_type        TEXT NOT NULL,
+      target_count       INTEGER NOT NULL DEFAULT 1,
+      xp_reward          INTEGER NOT NULL,
+      duration_days      INTEGER NOT NULL DEFAULT 1,
+      min_level_required INTEGER NOT NULL DEFAULT 1,
+      max_level_visible  INTEGER,
+      egg_reward_tier    TEXT,
+      loot_reward_tier   TEXT,
+      is_active          INTEGER NOT NULL DEFAULT 1,
+      sort_order         INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quest_def_category
+      ON quest_definitions(category, difficulty);
+
+    CREATE INDEX IF NOT EXISTS idx_quest_def_level
+      ON quest_definitions(min_level_required);
+
+    CREATE TABLE IF NOT EXISTS catalog_enrollments (
+      id                  TEXT PRIMARY KEY,
+      definition_id       TEXT NOT NULL REFERENCES quest_definitions(id),
+      status              TEXT NOT NULL DEFAULT 'enrolled',
+      progress            INTEGER NOT NULL DEFAULT 0,
+      milestones_awarded  INTEGER NOT NULL DEFAULT 0,
+      reward_xp_awarded   INTEGER NOT NULL DEFAULT 0,
+      sanction_xp         INTEGER NOT NULL DEFAULT 0,
+      enrolled_at         INTEGER NOT NULL,
+      deadline_at         INTEGER NOT NULL,
+      completed_at        INTEGER,
+      failed_at           INTEGER,
+      abandoned_at        INTEGER,
+      last_progress_at    INTEGER,
+      updated_at          INTEGER NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_enroll_active
+      ON catalog_enrollments(definition_id)
+      WHERE status IN ('enrolled', 'active');
+
+    CREATE INDEX IF NOT EXISTS idx_catalog_enroll_status
+      ON catalog_enrollments(status);
+
+    CREATE INDEX IF NOT EXISTS idx_catalog_enroll_deadline
+      ON catalog_enrollments(deadline_at, status);
+  `)
+}
+
+const CATALOG_QUEST_DEFINITIONS = [
+  // ── EASY (duration_days 1-3, xp 30-50, level 1) ──
+  { slug: 'first_blood',       title: 'First Blood',       description: 'Complete 1 Pomodoro',                    flavor_text: 'Every legend starts with a single step.',            category: 'focus',       difficulty: 'easy',      target_type: 'pomodoros',      target_count: 1,   xp_reward: 30,   duration_days: 1,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 10 },
+  { slug: 'quick_start',       title: 'Quick Start',       description: 'Complete 3 tasks',                       flavor_text: 'Momentum starts with the first check.',              category: 'discipline',  difficulty: 'easy',      target_type: 'tasks',          target_count: 3,   xp_reward: 35,   duration_days: 1,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 20 },
+  { slug: 'morning_person',    title: 'Morning Person',    description: 'Complete morning ritual 3 times',        flavor_text: 'The morning belongs to those who show up.',          category: 'reflection',  difficulty: 'easy',      target_type: 'morning_ritual', target_count: 3,   xp_reward: 40,   duration_days: 3,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 30 },
+  { slug: 'quick_wins',        title: 'Quick Wins',        description: 'Complete 5 two-minute tasks',            flavor_text: 'Momentum is built from small victories.',            category: 'discipline',  difficulty: 'easy',      target_type: 'two_min_tasks',  target_count: 5,   xp_reward: 35,   duration_days: 2,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 40 },
+  { slug: 'energy_scout',      title: 'Energy Scout',      description: 'Log your energy 3 times',               flavor_text: "You can't manage what you don't measure.",           category: 'vitality',    difficulty: 'easy',      target_type: 'energy_logs',    target_count: 3,   xp_reward: 30,   duration_days: 2,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 50 },
+  { slug: 'habit_seed',        title: 'Habit Seed',        description: 'Complete all habits 3 times',           flavor_text: 'A seed planted is a future harvested.',              category: 'discipline',  difficulty: 'easy',      target_type: 'habits_all',     target_count: 3,   xp_reward: 50,   duration_days: 3,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 60 },
+  { slug: 'task_starter',      title: 'Task Starter',      description: 'Complete 10 tasks',                     flavor_text: 'The hardest part is starting.',                      category: 'discipline',  difficulty: 'easy',      target_type: 'tasks',          target_count: 10,  xp_reward: 40,   duration_days: 3,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 70 },
+  { slug: 'evening_closer',    title: 'Evening Closer',    description: 'Complete evening reflection 3 times',   flavor_text: 'End each day with intention.',                       category: 'reflection',  difficulty: 'easy',      target_type: 'evening_ritual', target_count: 3,   xp_reward: 40,   duration_days: 3,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 80 },
+  { slug: 'focus_spark',       title: 'Focus Spark',       description: 'Complete 3 Pomodoros',                  flavor_text: 'Three fires lit. The habit begins.',                 category: 'focus',       difficulty: 'easy',      target_type: 'pomodoros',      target_count: 3,   xp_reward: 35,   duration_days: 2,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 90 },
+  { slug: 'energy_check',      title: 'Energy Check',      description: 'Log your energy 5 times',               flavor_text: 'Self-awareness is the first step to mastery.',       category: 'vitality',    difficulty: 'easy',      target_type: 'energy_logs',    target_count: 5,   xp_reward: 40,   duration_days: 3,  min_level_required: 1,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 100 },
+  // ── MEDIUM (duration_days 3-7, xp 100-170, level 3-7) ──
+  { slug: 'week_warrior',      title: 'Week Warrior',      description: 'Complete 15 Pomodoros',                 flavor_text: 'Deep work compounds like interest.',                 category: 'focus',       difficulty: 'medium',    target_type: 'pomodoros',      target_count: 15,  xp_reward: 120,  duration_days: 7,  min_level_required: 3,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 110 },
+  { slug: 'ritual_master',     title: 'Ritual Master',     description: 'Complete morning ritual 5 times',       flavor_text: 'Rituals are the scaffolding of great lives.',        category: 'reflection',  difficulty: 'medium',    target_type: 'morning_ritual', target_count: 5,   xp_reward: 100,  duration_days: 7,  min_level_required: 3,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 120 },
+  { slug: 'task_blitz',        title: 'Task Blitz',        description: 'Complete 25 tasks',                     flavor_text: 'Execution separates dreamers from doers.',           category: 'discipline',  difficulty: 'medium',    target_type: 'tasks',          target_count: 25,  xp_reward: 130,  duration_days: 7,  min_level_required: 5,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 130 },
+  { slug: 'deep_diver',        title: 'Deep Diver',        description: 'Complete 3 zero-interruption Pomodoros',flavor_text: 'Flow state is where mastery is forged.',             category: 'focus',       difficulty: 'medium',    target_type: 'deep_focus_day', target_count: 3,   xp_reward: 150,  duration_days: 5,  min_level_required: 5,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 140 },
+  { slug: 'energy_sage',       title: 'Energy Sage',       description: 'Log your energy 14 times',              flavor_text: 'Awareness of self is the first form of mastery.',   category: 'vitality',    difficulty: 'medium',    target_type: 'energy_logs',    target_count: 14,  xp_reward: 110,  duration_days: 7,  min_level_required: 5,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 150 },
+  { slug: 'habit_chain',       title: 'Habit Chain',       description: 'Complete all habits 7 times',           flavor_text: "Chains of habit are too light to feel until they're too heavy to break.", category: 'discipline', difficulty: 'medium', target_type: 'habits_all', target_count: 7, xp_reward: 160, duration_days: 7, min_level_required: 7, egg_reward_tier: null, loot_reward_tier: null, sort_order: 160 },
+  { slug: 'evening_sage',      title: 'Evening Sage',      description: 'Complete evening reflection 7 times',   flavor_text: 'Reflection is the engine of improvement.',          category: 'reflection',  difficulty: 'medium',    target_type: 'evening_ritual', target_count: 7,   xp_reward: 120,  duration_days: 7,  min_level_required: 5,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 170 },
+  { slug: 'two_min_master',    title: 'Two-Minute Master', description: 'Complete 20 two-minute tasks',          flavor_text: 'If it takes less than two minutes, do it now.',     category: 'discipline',  difficulty: 'medium',    target_type: 'two_min_tasks',  target_count: 20,  xp_reward: 140,  duration_days: 5,  min_level_required: 3,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 180 },
+  { slug: 'blitz_sprint',      title: 'Blitz Sprint',      description: 'Complete 10 tasks in 3 days',           flavor_text: 'Speed and focus together are unstoppable.',         category: 'discipline',  difficulty: 'medium',    target_type: 'tasks',          target_count: 10,  xp_reward: 110,  duration_days: 3,  min_level_required: 3,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 190 },
+  { slug: 'focus_block',       title: 'Focus Block',       description: 'Complete 8 Pomodoros in 3 days',        flavor_text: 'Eight sessions. Eight victories. One character.',    category: 'focus',       difficulty: 'medium',    target_type: 'pomodoros',      target_count: 8,   xp_reward: 130,  duration_days: 3,  min_level_required: 5,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 200 },
+  { slug: 'reflection_week',   title: 'Reflection Week',   description: 'Complete evening reflection 5 times',   flavor_text: 'Examine what you endure. Endure what you become.',  category: 'reflection',  difficulty: 'medium',    target_type: 'evening_ritual', target_count: 5,   xp_reward: 115,  duration_days: 5,  min_level_required: 3,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 210 },
+  { slug: 'vitality_tracker',  title: 'Vitality Tracker',  description: 'Log your energy 10 times',              flavor_text: 'The body keeps the score. Make sure you listen.',   category: 'vitality',    difficulty: 'medium',    target_type: 'energy_logs',    target_count: 10,  xp_reward: 105,  duration_days: 5,  min_level_required: 3,  egg_reward_tier: null, loot_reward_tier: null, sort_order: 220 },
+  // ── HARD (duration_days 5-14, xp 260-450, level 8-12) ──
+  { slug: 'pomodoro_knight',   title: 'Pomodoro Knight',   description: 'Complete 50 Pomodoros',                 flavor_text: 'A thousand hours of focused work changes who you are.', category: 'focus',    difficulty: 'hard',      target_type: 'pomodoros',      target_count: 50,  xp_reward: 350,  duration_days: 14, min_level_required: 8,  egg_reward_tier: 'mystery', loot_reward_tier: null,    sort_order: 310 },
+  { slug: 'iron_discipline',   title: 'Iron Discipline',   description: 'Complete all habits 14 times',          flavor_text: 'Discipline is the bridge between goals and accomplishment.', category: 'discipline', difficulty: 'hard', target_type: 'habits_all', target_count: 14, xp_reward: 300, duration_days: 14, min_level_required: 8, egg_reward_tier: 'mystery', loot_reward_tier: null, sort_order: 320 },
+  { slug: 'philosophers_day',  title: "Philosopher's Day", description: 'Complete morning ritual 10 times',      flavor_text: 'The examined life is the only one worth living.',    category: 'mastery',     difficulty: 'hard',      target_type: 'morning_ritual', target_count: 10,  xp_reward: 320,  duration_days: 10, min_level_required: 10, egg_reward_tier: null,      loot_reward_tier: 'rare',  sort_order: 330 },
+  { slug: 'night_writer',      title: 'Night Writer',      description: 'Complete evening reflection 10 times',  flavor_text: 'Every evening ended with wisdom is a victory.',     category: 'reflection',  difficulty: 'hard',      target_type: 'evening_ritual', target_count: 10,  xp_reward: 280,  duration_days: 10, min_level_required: 10, egg_reward_tier: null,      loot_reward_tier: null,    sort_order: 340 },
+  { slug: 'marathon_runner',   title: 'Marathon Runner',   description: 'Complete 100 tasks',                    flavor_text: 'Endurance is the mother of mastery.',                category: 'discipline',  difficulty: 'hard',      target_type: 'tasks',          target_count: 100, xp_reward: 400,  duration_days: 14, min_level_required: 12, egg_reward_tier: null,      loot_reward_tier: 'rare',  sort_order: 350 },
+  { slug: 'task_centurion',    title: 'Task Centurion',    description: 'Complete 75 tasks',                     flavor_text: 'Action is the foundational key to all success.',    category: 'discipline',  difficulty: 'hard',      target_type: 'tasks',          target_count: 75,  xp_reward: 350,  duration_days: 14, min_level_required: 10, egg_reward_tier: null,      loot_reward_tier: null,    sort_order: 360 },
+  { slug: 'deep_focus_master', title: 'Deep Focus Master', description: 'Complete 10 zero-interruption Pomodoros',flavor_text: 'The ability to focus is a superpower.',            category: 'focus',       difficulty: 'hard',      target_type: 'deep_focus_day', target_count: 10,  xp_reward: 380,  duration_days: 7,  min_level_required: 8,  egg_reward_tier: 'mystery', loot_reward_tier: null,    sort_order: 370 },
+  { slug: 'ritual_keeper',     title: 'Ritual Keeper',     description: 'Complete morning ritual 15 times',      flavor_text: 'Consistent rituals are the backbone of great men.',  category: 'reflection',  difficulty: 'hard',      target_type: 'morning_ritual', target_count: 15,  xp_reward: 310,  duration_days: 14, min_level_required: 9,  egg_reward_tier: null,      loot_reward_tier: 'common', sort_order: 380 },
+  { slug: 'energy_master',     title: 'Energy Master',     description: 'Log your energy 30 times',              flavor_text: 'Mastering energy is mastering life itself.',        category: 'vitality',    difficulty: 'hard',      target_type: 'energy_logs',    target_count: 30,  xp_reward: 290,  duration_days: 14, min_level_required: 8,  egg_reward_tier: null,      loot_reward_tier: null,    sort_order: 390 },
+  { slug: 'pressure_cooker',   title: 'Pressure Cooker',   description: 'Complete 20 Pomodoros in 5 days',       flavor_text: 'Pressure forges diamonds.',                          category: 'focus',       difficulty: 'hard',      target_type: 'pomodoros',      target_count: 20,  xp_reward: 320,  duration_days: 5,  min_level_required: 8,  egg_reward_tier: null,      loot_reward_tier: null,    sort_order: 400 },
+  { slug: 'habit_forge',       title: 'Habit Forge',       description: 'Complete all habits 10 times',          flavor_text: 'Steel is forged in fire. So are habits.',           category: 'discipline',  difficulty: 'hard',      target_type: 'habits_all',     target_count: 10,  xp_reward: 340,  duration_days: 10, min_level_required: 9,  egg_reward_tier: 'mystery', loot_reward_tier: null,    sort_order: 410 },
+  { slug: 'quick_mission',     title: 'Quick Mission',     description: 'Complete 15 two-minute tasks in 5 days',flavor_text: 'Small tasks, big discipline.',                      category: 'discipline',  difficulty: 'hard',      target_type: 'two_min_tasks',  target_count: 15,  xp_reward: 260,  duration_days: 5,  min_level_required: 8,  egg_reward_tier: null,      loot_reward_tier: null,    sort_order: 420 },
+  // ── LEGENDARY (duration_days 14-30, xp 750-2500, level 15-18) ──
+  { slug: 'the_unstoppable',   title: 'The Unstoppable',   description: 'Complete all habits 100 times',         flavor_text: 'You do not rise to the level of your goals. You fall to the level of your systems.', category: 'discipline', difficulty: 'legendary', target_type: 'habits_all',     target_count: 100, xp_reward: 1000, duration_days: 30, min_level_required: 15, egg_reward_tier: 'legendary', loot_reward_tier: 'epic',      sort_order: 510 },
+  { slug: 'grandmaster_focus', title: 'Grandmaster Focus', description: 'Complete 200 Pomodoros',                flavor_text: 'Two hundred sessions. Two hundred battles won.',    category: 'focus',       difficulty: 'legendary', target_type: 'pomodoros',      target_count: 200, xp_reward: 1200, duration_days: 30, min_level_required: 15, egg_reward_tier: 'mystery',   loot_reward_tier: 'legendary', sort_order: 520 },
+  { slug: 'ascendant',         title: 'Ascendant',         description: 'Complete morning ritual 30 times',      flavor_text: 'Thirty mornings given willingly. You have become the ritual.', category: 'mastery', difficulty: 'legendary', target_type: 'morning_ritual', target_count: 30, xp_reward: 900, duration_days: 30, min_level_required: 18, egg_reward_tier: 'legendary', loot_reward_tier: 'legendary', sort_order: 530 },
+  { slug: 'the_chronicler',    title: 'The Chronicler',    description: 'Complete evening reflection 30 times',  flavor_text: 'Those who write their story, own their story.',     category: 'reflection',  difficulty: 'legendary', target_type: 'evening_ritual', target_count: 30,  xp_reward: 850,  duration_days: 30, min_level_required: 15, egg_reward_tier: null,        loot_reward_tier: 'epic',      sort_order: 540 },
+  { slug: 'legendary_grind',   title: 'Legendary Grind',   description: 'Complete 100 two-minute tasks',         flavor_text: 'Five hundred fires lit. The world bends for those who endure.', category: 'legendary', difficulty: 'legendary', target_type: 'two_min_tasks', target_count: 100, xp_reward: 750, duration_days: 14, min_level_required: 18, egg_reward_tier: 'legendary', loot_reward_tier: 'legendary', sort_order: 550 },
+  { slug: 'energy_transcendent',title: 'Energy Transcendent',description: 'Log your energy 100 times',           flavor_text: 'Self-knowledge is the highest knowledge.',          category: 'vitality',    difficulty: 'legendary', target_type: 'energy_logs',    target_count: 100, xp_reward: 750,  duration_days: 30, min_level_required: 15, egg_reward_tier: null,        loot_reward_tier: 'rare',      sort_order: 560 },
+  { slug: 'the_blitz_legend',  title: 'The Blitz Legend',  description: 'Complete 300 tasks',                    flavor_text: 'Action upon action upon action. This is how legends are built.', category: 'discipline', difficulty: 'legendary', target_type: 'tasks', target_count: 300, xp_reward: 1500, duration_days: 30, min_level_required: 18, egg_reward_tier: 'legendary', loot_reward_tier: 'epic', sort_order: 570 },
+  { slug: 'iron_monk',         title: 'Iron Monk',         description: 'Complete all habits 50 times',          flavor_text: 'Discipline is not a punishment. It is a form of self-respect.', category: 'discipline', difficulty: 'legendary', target_type: 'habits_all', target_count: 50, xp_reward: 950, duration_days: 21, min_level_required: 15, egg_reward_tier: 'mystery', loot_reward_tier: 'rare', sort_order: 580 },
+] as const
+
+function seedCatalogQuests(): void {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO quest_definitions
+      (id, slug, title, description, flavor_text, category, difficulty,
+       target_type, target_count, xp_reward, duration_days, min_level_required,
+       max_level_visible, egg_reward_tier, loot_reward_tier, is_active, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1, ?)
+  `)
+
+  const insertAll = db.transaction(() => {
+    for (const q of CATALOG_QUEST_DEFINITIONS) {
+      stmt.run(
+        `qdef_${q.slug}`,
+        q.slug,
+        q.title,
+        q.description,
+        q.flavor_text,
+        q.category,
+        q.difficulty,
+        q.target_type,
+        q.target_count,
+        q.xp_reward,
+        q.duration_days,
+        q.min_level_required,
+        q.egg_reward_tier ?? null,
+        q.loot_reward_tier ?? null,
+        q.sort_order
+      )
+    }
+  })
+
+  insertAll()
 }

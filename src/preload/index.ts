@@ -12,7 +12,11 @@ const api = {
     uncomplete: (data: unknown) => ipcRenderer.invoke('habits:uncomplete', data),
     getStreak: (id: string) => ipcRenderer.invoke('habits:getStreak', id),
     getCompletions: (habitId: string, from: number, to: number) =>
-      ipcRenderer.invoke('habits:getCompletions', habitId, from, to)
+      ipcRenderer.invoke('habits:getCompletions', habitId, from, to),
+    lapsePromptStatus: () => ipcRenderer.invoke('habits:lapsePromptStatus'),
+    lapseReflect: (data: unknown) => ipcRenderer.invoke('habits:lapseReflect', data),
+    graduateTiny: (habitId: string) => ipcRenderer.invoke('habits:graduateTiny', habitId),
+    microCheckin: (data: unknown) => ipcRenderer.invoke('habits:microCheckin', data)
   },
 
   // Pomodoro
@@ -21,7 +25,10 @@ const api = {
     complete: (data: unknown) => ipcRenderer.invoke('pomodoro:complete', data),
     abandon: (id: string) => ipcRenderer.invoke('pomodoro:abandon', id),
     list: (date?: string) => ipcRenderer.invoke('pomodoro:list', date),
-    todayStats: () => ipcRenderer.invoke('pomodoro:todayStats')
+    todayStats: () => ipcRenderer.invoke('pomodoro:todayStats'),
+    listPresets: () => ipcRenderer.invoke('pomodoro:presets:list'),
+    createPreset: (data: unknown) => ipcRenderer.invoke('pomodoro:presets:create', data),
+    deletePreset: (id: string) => ipcRenderer.invoke('pomodoro:presets:delete', id)
   },
 
   // Tasks
@@ -30,7 +37,8 @@ const api = {
     create: (data: unknown) => ipcRenderer.invoke('tasks:create', data),
     update: (data: unknown) => ipcRenderer.invoke('tasks:update', data),
     complete: (id: string) => ipcRenderer.invoke('tasks:complete', id),
-    delete: (id: string) => ipcRenderer.invoke('tasks:delete', id)
+    delete: (id: string) => ipcRenderer.invoke('tasks:delete', id),
+    snoozeReminder: (taskId: string, minutes = 5) => ipcRenderer.invoke('tasks:snoozeReminder', taskId, minutes)
   },
 
   // Journal
@@ -61,6 +69,20 @@ const api = {
       ipcRenderer.invoke('analytics:addXp', source, sourceId, amount)
   },
 
+  // Quests
+  quests: {
+    list: () => ipcRenderer.invoke('quests:list'),
+    enroll: (questId: string) => ipcRenderer.invoke('quests:enroll', questId),
+    progress: (questId: string, progress: number) => ipcRenderer.invoke('quests:progress', questId, progress),
+    abandon: (questId: string) => ipcRenderer.invoke('quests:abandon', questId),
+    history: (limit?: number) => ipcRenderer.invoke('quests:history', limit),
+    refresh: () => ipcRenderer.invoke('quests:refresh'),
+    catalog: () => ipcRenderer.invoke('quests:catalog'),
+    catalogEnroll: (definitionId: string) => ipcRenderer.invoke('quests:catalog:enroll', definitionId),
+    catalogAbandon: (enrollmentId: string) => ipcRenderer.invoke('quests:catalog:abandon', enrollmentId),
+    catalogProgress: (enrollmentId: string, progress: number) => ipcRenderer.invoke('quests:catalog:progress', enrollmentId, progress)
+  },
+
   // Settings
   settings: {
     get: (key: string) => ipcRenderer.invoke('settings:get', key),
@@ -88,7 +110,13 @@ const api = {
 
   // Data export
   export: {
-    exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format)
+    exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format),
+    importData: (mode: 'replace' | 'merge') => ipcRenderer.invoke('export:importData', mode)
+  },
+
+  updater: {
+    install: () => ipcRenderer.invoke('updater:install'),
+    check: () => ipcRenderer.invoke('updater:check')
   },
 
   // Window controls
@@ -102,21 +130,36 @@ const api = {
   // Tray events (renderer listens)
   onTrayStartPomodoro: (callback: () => void) => {
     ipcRenderer.on('tray:start-pomodoro', () => callback())
-    return () => ipcRenderer.removeAllListeners('tray:start-pomodoro')
+    return () => {
+      ipcRenderer.removeAllListeners('tray:start-pomodoro')
+    }
   },
   onTrayOpenHabits: (callback: () => void) => {
     ipcRenderer.on('tray:open-habits', () => callback())
-    return () => ipcRenderer.removeAllListeners('tray:open-habits')
+    return () => {
+      ipcRenderer.removeAllListeners('tray:open-habits')
+    }
   },
 
   // Update events
   onUpdateAvailable: (callback: () => void) => {
     ipcRenderer.on('updater:update-available', () => callback())
-    return () => ipcRenderer.removeAllListeners('updater:update-available')
+    return () => {
+      ipcRenderer.removeAllListeners('updater:update-available')
+    }
   },
   onUpdateReady: (callback: () => void) => {
     ipcRenderer.on('updater:update-ready', () => callback())
-    return () => ipcRenderer.removeAllListeners('updater:update-ready')
+    return () => {
+      ipcRenderer.removeAllListeners('updater:update-ready')
+    }
+  },
+
+  // Task reminder events
+  onTaskReminder: (callback: (payload: { taskId: string; title: string; dueDate: number }) => void) => {
+    const listener = (_event: unknown, payload: { taskId: string; title: string; dueDate: number }) => callback(payload)
+    ipcRenderer.on('task:reminder', listener)
+    return () => ipcRenderer.off('task:reminder', listener)
   }
 }
 

@@ -1,18 +1,24 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, screen } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupTray } from './tray'
-import { initDatabase } from './db'
+import { getDb, initDatabase } from './db'
 import { registerAllIpcHandlers } from './ipc'
 import { setupAutoUpdater } from './updater'
-import { scheduleNotifications } from './notifications'
+import { rehydrateTaskReminders, scheduleNotifications } from './notifications'
+import { getSetting } from './db/queries/settings.queries'
 
 let mainWindow: BrowserWindow | null = null
+const appWithQuitFlag = app as typeof app & { isQuitting?: boolean }
 
 function createWindow(): BrowserWindow {
+  const { width: workAreaWidth, height: workAreaHeight } = screen.getPrimaryDisplay().workAreaSize
+  const launchWidth = Math.max(900, Math.round(workAreaWidth * 0.80))
+  const launchHeight = Math.max(600, Math.round(workAreaHeight * 0.80))
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 780,
+    width: launchWidth,
+    height: launchHeight,
     minWidth: 900,
     minHeight: 600,
     show: false,
@@ -34,7 +40,7 @@ function createWindow(): BrowserWindow {
   })
 
   mainWindow.on('close', (event) => {
-    if (!app.isQuitting) {
+    if (!appWithQuitFlag.isQuitting) {
       event.preventDefault()
       mainWindow?.hide()
     }
@@ -67,6 +73,12 @@ app.whenReady().then(() => {
   // Register IPC handlers
   registerAllIpcHandlers()
 
+  const db = getDb()
+  const startOnBoot = getSetting(db, 'start_on_boot')
+  app.setLoginItemSettings({
+    openAtLogin: startOnBoot === 'true'
+  })
+
   const win = createWindow()
 
   // Setup system tray
@@ -74,6 +86,7 @@ app.whenReady().then(() => {
 
   // Schedule notifications
   scheduleNotifications()
+  rehydrateTaskReminders()
 
   // Setup auto-updater (only in production)
   if (!is.dev) {
@@ -96,7 +109,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  ;(app as NodeJS.EventEmitter & { isQuitting?: boolean }).isQuitting = true
+  appWithQuitFlag.isQuitting = true
 })
 
 // Expose mainWindow getter for IPC handlers that need to send to renderer

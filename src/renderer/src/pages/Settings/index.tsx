@@ -10,8 +10,29 @@ export function SettingsPage() {
   const { settings, getSetting, setSetting, loadSettings, resetOnboarding } = useSettingsStore()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [showImportConfirm, setShowImportConfirm] = useState(false)
+  const [importMode, setImportMode] = useState<'replace' | 'merge'>('merge')
+  const [importing, setImporting] = useState(false)
+  const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null)
 
   useEffect(() => { loadSettings() }, [])
+
+  useEffect(() => {
+    const unsubs = [
+      window.api.onUpdateAvailable(() => {
+        setUpdateStatus('Update found. Downloading in the background...')
+      }),
+      window.api.onUpdateReady(() => {
+        setUpdateStatus('Update downloaded. Click Install update to restart and apply it.')
+      })
+    ]
+
+    return () => {
+      unsubs.forEach((unsubscribe) => unsubscribe())
+    }
+  }, [])
 
   const handleConfirmReset = async () => {
     setResetting(true)
@@ -22,6 +43,46 @@ export function SettingsPage() {
       setResetting(false)
     }
   }
+
+  const handleImport = async () => {
+    setImporting(true)
+    setImportStatus(null)
+    try {
+      const result = await window.api.export.importData(importMode) as {
+        success: boolean
+        canceled?: boolean
+        error?: string
+        totalImported?: number
+      }
+
+      if (result.canceled) {
+        setImportStatus('Import cancelled.')
+      } else if (result.success) {
+        setImportStatus(`Import complete. ${result.totalImported ?? 0} records processed.`)
+      } else {
+        setImportStatus(result.error ?? 'Import failed.')
+      }
+    } finally {
+      setImporting(false)
+      setShowImportConfirm(false)
+      void loadSettings()
+    }
+  }
+
+  const handleCheckUpdates = async () => {
+    setCheckingUpdates(true)
+    setUpdateStatus('Checking for updates...')
+    try {
+      await window.api.updater.check()
+      setUpdateStatus((current) => current ?? 'No update was immediately reported. If one exists, it will appear shortly.')
+    } catch {
+      setUpdateStatus('Update check failed. Please try again while connected to the internet.')
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
+
+  const startOnBootEnabled = getSetting('start_on_boot', 'false') === 'true'
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -61,6 +122,27 @@ export function SettingsPage() {
             value={getSetting('notification_evening_time', '21:00')}
             onChange={(e) => setSetting('notification_evening_time', e.target.value)}
           />
+        </CardContent>
+      </Card>
+
+      {/* Launch behavior */}
+      <Card>
+        <CardHeader><CardTitle>App Launch</CardTitle></CardHeader>
+        <CardContent>
+          <label className="flex items-center justify-between gap-4 rounded-xl border border-surface-500 bg-surface-800 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-white">Start when computer starts</p>
+              <p className="text-xs text-surface-400 mt-1">
+                Opens ProductivitApp automatically after login.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={startOnBootEnabled}
+              onChange={(e) => setSetting('start_on_boot', e.target.checked ? 'true' : 'false')}
+              className="h-4 w-4 rounded border-surface-400 bg-surface-900"
+            />
+          </label>
         </CardContent>
       </Card>
 
@@ -112,7 +194,7 @@ export function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>Data &amp; Privacy</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-surface-400 text-sm">Export a complete backup of all your productivity data.</p>
+          <p className="text-surface-400 text-sm">Export or import your complete productivity history.</p>
           <div className="flex flex-wrap gap-3">
             <Button
               variant="secondary"
@@ -126,7 +208,34 @@ export function SettingsPage() {
             >
               Export CSV (habits &amp; tasks)
             </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setShowImportConfirm(true)}
+            >
+              Import JSON backup
+            </Button>
           </div>
+          {importStatus && <p className="text-xs text-surface-300">{importStatus}</p>}
+        </CardContent>
+      </Card>
+
+      {/* Updates */}
+      <Card>
+        <CardHeader><CardTitle>App Updates</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-surface-400 text-sm">Keep the app up to date with the latest fixes and features.</p>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" onClick={() => void handleCheckUpdates()} loading={checkingUpdates}>
+              Check for updates
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void window.api.updater.install()}
+            >
+              Install update
+            </Button>
+          </div>
+          {updateStatus && <p className="text-xs text-surface-300">{updateStatus}</p>}
         </CardContent>
       </Card>
 
@@ -169,6 +278,47 @@ export function SettingsPage() {
               disabled={resetting}
             >
               Yes, Reset
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showImportConfirm}
+        onClose={() => !importing && setShowImportConfirm(false)}
+        title="Import JSON Backup"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-surface-300">
+            Choose how imported records should be applied when local data already exists.
+          </p>
+          <Select
+            label="Import mode"
+            value={importMode}
+            onChange={(e) => setImportMode(e.target.value as 'replace' | 'merge')}
+          >
+            <option value="merge">Merge (keep local records if IDs conflict)</option>
+            <option value="replace">Replace (clear local tracked data first)</option>
+          </Select>
+          <p className="text-xs text-amber-300/90">
+            Replace will remove existing habits, tasks, journal, pomodoros, energy logs, and XP logs before import.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowImportConfirm(false)}
+              disabled={importing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void handleImport()}
+              loading={importing}
+              disabled={importing}
+            >
+              Choose file and import
             </Button>
           </div>
         </div>

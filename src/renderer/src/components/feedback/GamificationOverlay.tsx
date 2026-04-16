@@ -50,6 +50,7 @@ export function GamificationOverlay() {
 function EvolutionUnlockedToast({ reward }: { reward: PendingReward }) {
   const className = reward.data.className as string
   const evolutionTitle = reward.data.evolutionTitle as string
+  const identityCue = reward.data.identityCue as string | undefined
 
   return (
     <motion.div
@@ -62,6 +63,7 @@ function EvolutionUnlockedToast({ reward }: { reward: PendingReward }) {
       <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[250px] shadow-2xl">
         <div className="text-[10px] uppercase tracking-wider text-emerald-200 font-semibold">Evolution Unlocked</div>
         <div className="text-sm font-bold text-white mt-1">{className} → {evolutionTitle}</div>
+        {identityCue && <div className="text-[11px] text-emerald-100/90 mt-1">{identityCue}</div>}
       </div>
     </motion.div>
   )
@@ -121,7 +123,11 @@ function FullScreenEvent({ reward, onDismiss }: { reward: PendingReward; onDismi
 }
 
 function LevelUpScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss: () => void }) {
-  const { newLevel, characterClass } = reward.data as { newLevel: number; characterClass: string }
+  const { newLevel, characterClass, identityCue } = reward.data as {
+    newLevel: number
+    characterClass: string
+    identityCue?: string
+  }
   const CLASS_ICONS: Record<string, string> = {
     'Time Mage': '⚡', 'Iron Warrior': '⚔️', 'Zen Master': '🌿',
     'Arcane Scholar': '🧙', 'Grand Tactician': '🎯', 'Apprentice': '🌱'
@@ -170,6 +176,7 @@ function LevelUpScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
           {newLevel}
         </motion.p>
         <p className="text-surface-300 mb-6">{characterClass}</p>
+        {identityCue && <p className="text-xs text-primary-200 mb-4 max-w-xs mx-auto">{identityCue}</p>}
         <Button onClick={onDismiss} size="lg" className="w-full">Continue ⚔️</Button>
       </motion.div>
     </Backdrop>

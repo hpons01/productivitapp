@@ -6,7 +6,6 @@ import { useHabitsStore } from '../../stores/habits.store'
 import { Button } from '../../components/ui/button'
 import { Input, Textarea } from '../../components/ui/input'
 import { cn } from '../../lib/utils'
-import { generateId } from '../../lib/utils'
 
 const PRESET_HABITS = [
   { name: 'Morning walk', icon: '🚶', cue: 'I wake up', color: '#10b981', category: 'fitness' },
@@ -23,6 +22,17 @@ const SCIENCE_FACTS = [
   { icon: '🧪', fact: 'Variable rewards (like XP and loot) create the strongest habit loops — just like games.' }
 ]
 
+const CORE_VALUES = [
+  { id: 'health', icon: '🫀', label: 'Health', description: 'Protect your body and energy.' },
+  { id: 'growth', icon: '🌱', label: 'Growth', description: 'Keep leveling every week.' },
+  { id: 'discipline', icon: '🛡️', label: 'Discipline', description: 'Do what matters even when hard.' },
+  { id: 'freedom', icon: '🕊️', label: 'Freedom', description: 'Build control over your time.' },
+  { id: 'family', icon: '🏠', label: 'Family', description: 'Show up for your people.' },
+  { id: 'mastery', icon: '🎯', label: 'Mastery', description: 'Train a meaningful craft.' },
+  { id: 'impact', icon: '🌍', label: 'Impact', description: 'Create value beyond yourself.' },
+  { id: 'calm', icon: '🧘', label: 'Calm', description: 'Stay grounded under pressure.' }
+]
+
 export function OnboardingPage() {
   const { setSetting, loadSettings } = useSettingsStore()
   const { create: createHabit } = useHabitsStore()
@@ -31,18 +41,37 @@ export function OnboardingPage() {
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [selectedHabits, setSelectedHabits] = useState<number[]>([])
+  const [selectedValues, setSelectedValues] = useState<string[]>([])
   const [commitment, setCommitment] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const steps = ['Welcome', 'Science', 'Habits', 'Commitment']
+  const steps = ['Welcome', 'Science', 'Habits', 'Values', 'Commitment']
+
+  const toggleValue = (valueId: string) => {
+    setSelectedValues((current) => {
+      if (current.includes(valueId)) {
+        return current.filter((id) => id !== valueId)
+      }
+
+      if (current.length >= 3) {
+        return current
+      }
+
+      return [...current, valueId]
+    })
+  }
 
   const handleFinish = async () => {
     setLoading(true)
     setError('')
     try {
+      const valuesToSave = selectedValues.length > 0 ? selectedValues : ['growth']
+
       await setSetting('user_name', name || 'Hero')
       await setSetting('commitment_statement', commitment || 'I commit to growing 1% every day.')
+      await setSetting('core_values', JSON.stringify(valuesToSave))
+      await setSetting('primary_value', valuesToSave[0])
 
       // Create selected habits
       for (const idx of selectedHabits) {
@@ -51,6 +80,10 @@ export function OnboardingPage() {
           name: h.name,
           description: null,
           cue: h.cue,
+          obstacle_plan: null,
+          tiny_mode: 0,
+          tiny_started_at: null,
+          tiny_graduated_at: null,
           category: h.category,
           frequency: 'daily',
           custom_days: null,
@@ -174,9 +207,56 @@ export function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 3: Commitment */}
+          {/* Step 3: Values */}
           {step === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
+              <div className="text-center">
+                <div className="text-4xl mb-3">🧭</div>
+                <h2 className="text-2xl font-bold text-white mb-2">Choose Your Core Values</h2>
+                <p className="text-surface-400 text-sm">Pick up to 3 values. Your dashboard will keep your goals tied to these.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {CORE_VALUES.map((value) => {
+                  const selected = selectedValues.includes(value.id)
+                  const reachedLimit = selectedValues.length >= 3 && !selected
+
+                  return (
+                    <button
+                      key={value.id}
+                      type="button"
+                      disabled={reachedLimit}
+                      onClick={() => toggleValue(value.id)}
+                      className={cn(
+                        'w-full text-left p-3 rounded-xl border transition-all disabled:opacity-50 disabled:cursor-not-allowed',
+                        selected
+                          ? 'bg-primary-600/20 border-primary-500/40 text-white'
+                          : 'bg-surface-800 border-surface-600 text-surface-200 hover:border-surface-400'
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">{value.icon} {value.label}</span>
+                        {selected && <span className="text-primary-400 text-sm">✓</span>}
+                      </div>
+                      <p className="text-xs text-surface-400 mt-1">{value.description}</p>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-surface-400 text-center">
+                {selectedValues.length}/3 selected
+              </p>
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setStep(2)}>← Back</Button>
+                <Button className="flex-1" onClick={() => setStep(4)} disabled={selectedValues.length === 0}>
+                  Continue →
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 4: Commitment */}
+          {step === 4 && (
+            <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
               <div className="text-center">
                 <div className="text-4xl mb-3">🤝</div>
                 <h2 className="text-2xl font-bold text-white mb-2">Make a Commitment</h2>
@@ -192,7 +272,7 @@ export function OnboardingPage() {
                 rows={4}
               />
               <div className="flex gap-2">
-                <Button variant="secondary" className="flex-1" onClick={() => setStep(2)}>← Back</Button>
+                <Button variant="secondary" className="flex-1" onClick={() => setStep(3)}>← Back</Button>
                 <Button
                   className="flex-1"
                   loading={loading}

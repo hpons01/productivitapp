@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Flame, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Flame, MoreVertical, Pencil, Trash2, Brain } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Modal } from '../../components/ui/modal'
@@ -26,6 +26,8 @@ function HabitForm({
   const [name, setName] = useState(initial?.name || '')
   const [cue, setCue] = useState(initial?.cue || '')
   const [description, setDescription] = useState(initial?.description || '')
+  const [obstaclePlan, setObstaclePlan] = useState(initial?.obstacle_plan || '')
+  const [tinyMode, setTinyMode] = useState(initial?.tiny_mode === 1)
   const [icon, setIcon] = useState(initial?.icon || '✨')
   const [color, setColor] = useState(initial?.color || '#7c3aed')
   const [category, setCategory] = useState(initial?.category || 'general')
@@ -100,8 +102,40 @@ function HabitForm({
         rows={2}
       />
 
+      <Input
+        label="If I feel like skipping, I will..."
+        value={obstaclePlan || ''}
+        onChange={(e) => setObstaclePlan(e.target.value)}
+        placeholder="Do a 2-minute version and restart momentum"
+      />
+
+      <div className="rounded-xl border border-surface-600 bg-surface-800/60 p-3">
+        <label className="flex items-start gap-2 text-sm text-surface-200">
+          <input
+            type="checkbox"
+            checked={tinyMode}
+            onChange={(e) => setTinyMode(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-semibold text-white">Start as Tiny Habit mode</span>
+            <span className="block text-xs text-surface-400 mt-0.5">2-minute minimum version, then graduate after one week of consistency.</span>
+          </span>
+        </label>
+      </div>
+
       <Button
-        onClick={() => onSave({ name, cue, description, icon, color, category })}
+        onClick={() => onSave({
+          name,
+          cue,
+          description,
+          obstacle_plan: obstaclePlan || null,
+          tiny_mode: tinyMode ? 1 : 0,
+          tiny_started_at: tinyMode ? (initial?.tiny_started_at ?? Date.now()) : null,
+          icon,
+          color,
+          category
+        })}
         disabled={!name.trim()}
         className="w-full"
       >
@@ -182,13 +216,175 @@ function DeleteConfirmModal({ habit, onConfirm, onCancel }: { habit: Habit; onCo
   )
 }
 
+const LAPSE_REASON_OPTIONS = [
+  { code: 'environment', label: 'Environment', hint: 'My setup or schedule made it hard.' },
+  { code: 'motivation', label: 'Motivation', hint: 'I felt low drive or emotionally drained.' },
+  { code: 'skill', label: 'Skill', hint: 'The habit felt too hard or unclear.' },
+  { code: 'memory', label: 'Memory', hint: 'I forgot or lost track during the day.' }
+] as const
+
+function LapseReflectionModal({
+  onSubmit,
+  onDismiss,
+  suggestedAction,
+  existingNote
+}: {
+  onSubmit: (reasonCode: string, note: string) => Promise<void>
+  onDismiss: () => void
+  suggestedAction: string | null
+  existingNote: string | null
+}) {
+  const [reasonCode, setReasonCode] = useState<string>('environment')
+  const [note, setNote] = useState(existingNote ?? '')
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <Modal open onClose={onDismiss} title="Streak Reflection">
+      <div className="space-y-4">
+        <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10">
+          <p className="text-sm text-amber-100 font-medium">A streak break was detected today.</p>
+          <p className="text-xs text-amber-200/80 mt-1">Quick reflection helps you restart faster and avoid repeat misses.</p>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-surface-300 uppercase tracking-wide">What most likely caused the lapse?</p>
+          <div className="grid grid-cols-1 gap-2">
+            {LAPSE_REASON_OPTIONS.map((option) => (
+              <button
+                key={option.code}
+                type="button"
+                onClick={() => setReasonCode(option.code)}
+                className={cn(
+                  'text-left rounded-xl border p-3 transition-colors',
+                  reasonCode === option.code
+                    ? 'border-primary-500/60 bg-primary-500/15 text-white'
+                    : 'border-surface-600 bg-surface-800 text-surface-200 hover:border-surface-400'
+                )}
+              >
+                <p className="text-sm font-medium">{option.label}</p>
+                <p className="text-xs text-surface-400 mt-0.5">{option.hint}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Textarea
+          label="Optional note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="One line about what happened today..."
+          rows={3}
+        />
+
+        {suggestedAction && (
+          <div className="p-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-xs text-emerald-200">
+            Suggested reset action: {suggestedAction}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <Button variant="secondary" className="flex-1" onClick={onDismiss}>Skip for now</Button>
+          <Button
+            className="flex-1"
+            loading={saving}
+            onClick={async () => {
+              setSaving(true)
+              try {
+                await onSubmit(reasonCode, note)
+              } finally {
+                setSaving(false)
+              }
+            }}
+          >
+            <Brain size={14} /> Save Reflection
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function MicroCheckinModal({
+  habit,
+  onSubmit,
+  onSkip
+}: {
+  habit: Habit
+  onSubmit: (difficulty: number, focusEffort: number) => Promise<void>
+  onSkip: () => void
+}) {
+  const [difficulty, setDifficulty] = useState('3')
+  const [focusEffort, setFocusEffort] = useState('3')
+  const [saving, setSaving] = useState(false)
+
+  return (
+    <Modal open onClose={onSkip} title="Quick Check-in">
+      <div className="space-y-4">
+        <p className="text-sm text-surface-200">
+          How did <span className="text-white font-semibold">{habit.name}</span> feel?
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <Select label="Difficulty" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+            <option value="1">1 - Very easy</option>
+            <option value="2">2 - Easy</option>
+            <option value="3">3 - Moderate</option>
+            <option value="4">4 - Hard</option>
+            <option value="5">5 - Very hard</option>
+          </Select>
+          <Select label="Focus effort" value={focusEffort} onChange={(e) => setFocusEffort(e.target.value)}>
+            <option value="1">1 - Low</option>
+            <option value="2">2 - Light</option>
+            <option value="3">3 - Good</option>
+            <option value="4">4 - High</option>
+            <option value="5">5 - Intense</option>
+          </Select>
+        </div>
+        <p className="text-xs text-surface-400">We use this to tune challenge and avoid burnout.</p>
+        <div className="flex gap-3">
+          <Button variant="secondary" className="flex-1" onClick={onSkip}>Skip</Button>
+          <Button
+            className="flex-1"
+            loading={saving}
+            onClick={async () => {
+              setSaving(true)
+              try {
+                await onSubmit(Number(difficulty), Number(focusEffort))
+              } finally {
+                setSaving(false)
+              }
+            }}
+          >
+            Save Check-in
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 export function HabitsPage() {
-  const { habits, loading, load, create, update, remove, complete, uncomplete } = useHabitsStore()
+  const {
+    habits,
+    loading,
+    load,
+    create,
+    update,
+    remove,
+    complete,
+    uncomplete,
+    lapsePrompt,
+    submitLapseReflection,
+    dismissLapsePrompt,
+    graduateTinyHabit,
+    submitMicroCheckin
+  } = useHabitsStore()
   const { pendingRewards } = useGamificationStore()
   const [showForm, setShowForm] = useState(false)
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
   const [deletingHabit, setDeletingHabit] = useState<Habit | null>(null)
   const [xpPopups, setXpPopups] = useState<Array<{ id: string; amount: number; x: number; y: number }>>([])
+  const [graduatingHabit, setGraduatingHabit] = useState<Habit | null>(null)
+  const [microCheckinHabit, setMicroCheckinHabit] = useState<Habit | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -200,6 +396,16 @@ export function HabitsPage() {
       setXpPopups((p) => [...p, { id: popId, amount: result.xpAwarded, x: rect.left + rect.width / 2, y: rect.top }])
       setTimeout(() => setXpPopups((p) => p.filter((x) => x.id !== popId)), 1500)
     }
+
+    const habit = habits.find((h) => h.id === habitId)
+    if (!habit) return
+
+    if (result.shouldSuggestGraduation) {
+      setGraduatingHabit(habit)
+      return
+    }
+
+    setMicroCheckinHabit(habit)
   }
 
   const handleEdit = async (data: Partial<Habit>) => {
@@ -310,9 +516,19 @@ export function HabitsPage() {
                             LEGENDARY
                           </span>
                         )}
+                        {habit.tiny_mode === 1 && (
+                          <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-500/40 px-1.5 py-0.5 rounded-md font-bold">
+                            TINY MODE
+                          </span>
+                        )}
                       </div>
                       {habit.cue && (
                         <p className="text-xs text-surface-400 mt-0.5 truncate">After I {habit.cue}</p>
+                      )}
+                      {habit.obstacle_plan && (
+                        <p className="text-[11px] text-amber-300/90 mt-0.5 truncate">
+                          If resistance shows up: {habit.obstacle_plan}
+                        </p>
                       )}
                     </div>
 
@@ -393,6 +609,55 @@ export function HabitsPage() {
           habit={deletingHabit}
           onConfirm={handleDelete}
           onCancel={() => setDeletingHabit(null)}
+        />
+      )}
+
+      {lapsePrompt?.brokenStreak && !lapsePrompt.alreadyReflected && (
+        <LapseReflectionModal
+          onDismiss={dismissLapsePrompt}
+          existingNote={lapsePrompt.latestReflection?.note ?? null}
+          suggestedAction={lapsePrompt.latestReflection?.suggested_action ?? null}
+          onSubmit={async (reasonCode, note) => {
+            await submitLapseReflection(reasonCode, note)
+          }}
+        />
+      )}
+
+      {graduatingHabit && (
+        <Modal open onClose={() => setGraduatingHabit(null)} title="Tiny Habit Graduation">
+          <div className="space-y-4">
+            <p className="text-sm text-surface-200">
+              You kept <span className="font-semibold text-white">{graduatingHabit.name}</span> consistent for a week.
+            </p>
+            <p className="text-xs text-surface-400">
+              Ready to graduate from tiny mode and raise your standard?
+            </p>
+            <div className="flex gap-3">
+              <Button variant="secondary" className="flex-1" onClick={() => setGraduatingHabit(null)}>
+                Keep Tiny Mode
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={async () => {
+                  await graduateTinyHabit(graduatingHabit.id)
+                  setGraduatingHabit(null)
+                }}
+              >
+                Graduate
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {microCheckinHabit && (
+        <MicroCheckinModal
+          habit={microCheckinHabit}
+          onSkip={() => setMicroCheckinHabit(null)}
+          onSubmit={async (difficulty, focusEffort) => {
+            await submitMicroCheckin(microCheckinHabit.id, difficulty, focusEffort)
+            setMicroCheckinHabit(null)
+          }}
         />
       )}
     </div>

@@ -7,11 +7,19 @@ import { startOfDay, endOfDay } from 'date-fns'
 
 const api = () => window.api
 
+function isMissingIpcHandlerError(error: unknown): boolean {
+  return error instanceof Error && /No handler registered/i.test(error.message)
+}
+
 export interface Habit {
   id: string
   name: string
   description: string | null
   cue: string | null
+  obstacle_plan: string | null
+  tiny_mode: number
+  tiny_started_at: number | null
+  tiny_graduated_at: number | null
   category: string
   frequency: string
   custom_days: string | null
@@ -27,20 +35,39 @@ export interface HabitWithStreak extends Habit {
   isLegendary: boolean
 }
 
+export interface HabitLapsePrompt {
+  brokenStreak: boolean
+  alreadyReflected: boolean
+  latestReflection: {
+    id: string
+    reason_code: string
+    note: string | null
+    suggested_action: string | null
+    created_at: number
+  } | null
+}
+
 interface HabitsState {
   habits: HabitWithStreak[]
   loading: boolean
+  lapsePrompt: HabitLapsePrompt | null
   load: () => Promise<void>
   create: (data: Omit<Habit, 'id' | 'created_at' | 'archived_at'>) => Promise<void>
   update: (id: string, data: Partial<Habit>) => Promise<void>
   remove: (id: string) => Promise<void>
-  complete: (habitId: string) => Promise<{ xpAwarded: number; streak: number; loot: boolean }>
+  complete: (habitId: string) => Promise<{ xpAwarded: number; streak: number; loot: boolean; shouldSuggestGraduation: boolean }>
   uncomplete: (habitId: string) => Promise<void>
+  refreshLapsePrompt: () => Promise<void>
+  submitLapseReflection: (reasonCode: string, note?: string) => Promise<void>
+  dismissLapsePrompt: () => void
+  graduateTinyHabit: (habitId: string) => Promise<void>
+  submitMicroCheckin: (habitId: string, difficulty: number, focusEffort: number) => Promise<void>
 }
 
 export const useHabitsStore = create<HabitsState>((set, get) => ({
   habits: [],
   loading: false,
+  lapsePrompt: null,
 
   load: async () => {
     set({ loading: true })
@@ -63,7 +90,16 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
         })
       )
 
-      set({ habits, loading: false })
+      let lapsePrompt: HabitLapsePrompt | null = null
+      try {
+        lapsePrompt = await api().habits.lapsePromptStatus()
+      } catch (error) {
+        if (!isMissingIpcHandlerError(error)) {
+          console.error('Failed to load lapse prompt status', error)
+        }
+      }
+
+      set({ habits, lapsePrompt, loading: false })
     } catch (e) {
       console.error(e)
       set({ loading: false })
@@ -133,6 +169,8 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
     })
 
     const { xpAwarded, streak } = result
+    const habitBefore = get().habits.find((h) => h.id === habitId)
+    const shouldSuggestGraduation = Boolean(habitBefore?.tiny_mode === 1 && streak >= 7)
 
     // Update local state optimistically
     set((s) => ({
@@ -174,7 +212,7 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
       triggerLootBox(isStreakMilestone(streak) ? 'streak_milestone' : 'habit')
     }
 
-    return { xpAwarded, streak, loot: triggerLoot }
+    return { xpAwarded, streak, loot: triggerLoot, shouldSuggestGraduation }
   },
 
   uncomplete: async (habitId) => {
@@ -187,5 +225,68 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
           : h
       )
     }))
+    await get().refreshLapsePrompt()
+  },
+
+  refreshLapsePrompt: async () => {
+    try {
+      const lapsePrompt = await api().habits.lapsePromptStatus()
+      set({ lapsePrompt })
+    } catch (error) {
+      if (!isMissingIpcHandlerError(error)) {
+        console.error('Failed to refresh lapse prompt', error)
+      }
+      set({ lapsePrompt: null })
+    }
+  },
+
+  submitLapseReflection: async (reasonCode, note) => {
+    try {
+      await api().habits.lapseReflect({
+        id: generateId(),
+        reasonCode,
+        note: note?.trim() ? note.trim() : null
+      })
+      await get().refreshLapsePrompt()
+    } catch (error) {
+      if (!isMissingIpcHandlerError(error)) {
+        throw error
+      }
+    }
+  },
+
+  dismissLapsePrompt: () => {
+    set((s) => {
+      if (!s.lapsePrompt) return s
+      return {
+        lapsePrompt: {
+          ...s.lapsePrompt,
+          brokenStreak: false
+        }
+      }
+    })
+  },
+
+  graduateTinyHabit: async (habitId) => {
+    const updated = await api().habits.graduateTiny(habitId)
+    set((s) => ({
+      habits: s.habits.map((h) => (h.id === habitId ? { ...h, ...updated } : h))
+    }))
+  },
+
+  submitMicroCheckin: async (habitId, difficulty, focusEffort) => {
+    try {
+      await api().habits.microCheckin({
+        id: generateId(),
+        habitId,
+        completedAt: Date.now(),
+        difficulty,
+        focusEffort
+      })
+    } catch (error) {
+      if (!isMissingIpcHandlerError(error)) {
+        throw error
+      }
+    }
   }
 }))

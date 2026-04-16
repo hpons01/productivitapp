@@ -2,7 +2,7 @@ import { autoUpdater } from 'electron-updater'
 import { BrowserWindow } from 'electron'
 
 export function setupAutoUpdater(mainWindow: BrowserWindow): void {
-  autoUpdater.autoDownload = false
+  autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('update-available', () => {
@@ -23,6 +23,10 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
       // Silently fail if no network
     })
   }, 3000)
+}
+
+export async function checkForUpdates(): Promise<void> {
+  await autoUpdater.checkForUpdates()
 }
 
 export function installUpdate(): void {

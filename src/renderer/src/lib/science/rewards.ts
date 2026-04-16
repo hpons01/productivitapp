@@ -31,7 +31,11 @@ export const STREAK_MILESTONES = [3, 7, 14, 21, 30, 60, 66, 100, 365]
 /** Should a surprise reward trigger? */
 export function shouldReward(context: keyof typeof REWARD_PROBABILITY | string, evolutionTier = 0): boolean {
   const baseProb = REWARD_PROBABILITY[context] ?? REWARD_PROBABILITY.default
-  const tierBonus = baseProb >= 1 ? 0 : Math.max(0, evolutionTier) * 0.01
+  if (baseProb >= 1) {
+    return true
+  }
+
+  const tierBonus = Math.max(0, evolutionTier) * 0.01
   const prob = Math.min(0.35, baseProb + tierBonus)
   return Math.random() < prob
 }

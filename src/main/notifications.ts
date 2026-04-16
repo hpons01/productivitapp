@@ -1,5 +1,7 @@
-import { Notification, app } from 'electron'
+import { BrowserWindow, Notification } from 'electron'
 import { getDb } from './db'
+import { listOpenScheduledTasks } from './db/queries/tasks.queries'
+import { listActiveHabitObstaclePlans } from './db/queries/habits.queries'
 
 interface ScheduledNotification {
   id: string
@@ -10,6 +12,20 @@ interface ScheduledNotification {
 }
 
 const scheduledNotifications = new Map<string, ScheduledNotification>()
+const TASK_REMINDER_OFFSET_MS = 5 * 60 * 1000
+const MAX_TIMEOUT_MS = 2147483647
+
+function getTaskReminderId(taskId: string): string {
+  return `task-reminder-${taskId}`
+}
+
+function emitTaskReminder(taskId: string, title: string, dueDate: number): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('task:reminder', { taskId, title, dueDate })
+    }
+  }
+}
 
 export function sendNotification(title: string, body: string): void {
   if (Notification.isSupported()) {
@@ -62,12 +78,99 @@ export function scheduleNotifications(): void {
   }
 }
 
-function scheduleDailyNotifications(settings: Record<string, string>): void {
-  const now = new Date()
+export function scheduleTaskReminder(taskId: string, title: string, dueDate: number | null): void {
+  const notificationId = getTaskReminderId(taskId)
+  cancelNotification(notificationId)
 
+  if (!dueDate) return
+
+  const now = Date.now()
+  if (dueDate <= now) return
+
+  const reminderAt = dueDate - TASK_REMINDER_OFFSET_MS
+  const effectiveAt = reminderAt <= now ? now + 500 : reminderAt
+
+  const delay = effectiveAt - now
+  if (delay > MAX_TIMEOUT_MS) {
+    const timeout = setTimeout(() => {
+      scheduleTaskReminder(taskId, title, dueDate)
+    }, MAX_TIMEOUT_MS)
+
+    scheduledNotifications.set(notificationId, {
+      id: notificationId,
+      title,
+      body: 'Checkpoint for long-range reminder',
+      scheduledAt: effectiveAt,
+      timeout
+    })
+    return
+  }
+
+  const timeout = setTimeout(() => {
+    sendNotification('⏰ Task starting soon', `${title} starts in 5 minutes.`)
+    emitTaskReminder(taskId, title, dueDate)
+    scheduledNotifications.delete(notificationId)
+  }, delay)
+
+  scheduledNotifications.set(notificationId, {
+    id: notificationId,
+    title: '⏰ Task starting soon',
+    body: `${title} starts in 5 minutes.`,
+    scheduledAt: effectiveAt,
+    timeout
+  })
+}
+
+export function cancelTaskReminder(taskId: string): void {
+  cancelNotification(getTaskReminderId(taskId))
+}
+
+export function snoozeTaskReminder(
+  taskId: string,
+  title: string,
+  dueDate: number | null,
+  snoozeMins = 5
+): void {
+  const notificationId = getTaskReminderId(taskId)
+  cancelNotification(notificationId)
+
+  const atMs = Date.now() + snoozeMins * 60 * 1000
+  const timeout = setTimeout(() => {
+    sendNotification('😴 Snoozed task reminder', `${title} is still waiting for you.`)
+    emitTaskReminder(taskId, title, dueDate ?? atMs)
+    scheduledNotifications.delete(notificationId)
+  }, Math.min(snoozeMins * 60 * 1000, 2147483647))
+
+  scheduledNotifications.set(notificationId, {
+    id: notificationId,
+    title: '😴 Snoozed task reminder',
+    body: `${title} is still waiting for you.`,
+    scheduledAt: atMs,
+    timeout
+  })
+}
+
+export function rehydrateTaskReminders(): void {
+  try {
+    const db = getDb()
+    const tasks = listOpenScheduledTasks(db)
+    for (const task of tasks) {
+      scheduleTaskReminder(task.id, task.title, task.due_date)
+    }
+  } catch {
+    // DB may not be ready yet; startup sequence will retry on next launch.
+  }
+}
+
+function scheduleDailyNotifications(settings: Record<string, string>): void {
   // Morning ritual reminder
   const morningTime = settings['notification_morning_time'] || '07:00'
-  scheduleDailyAt('morning-ritual', '🌅 Morning Ritual', "Time to set your intentions for today!", morningTime)
+  scheduleDailyAt(
+    'morning-ritual',
+    '🌅 Morning Ritual',
+    buildMorningRitualReminderBody(),
+    morningTime
+  )
 
   // Evening reflection reminder
   const eveningTime = settings['notification_evening_time'] || '21:00'
@@ -75,6 +178,23 @@ function scheduleDailyNotifications(settings: Record<string, string>): void {
 
   // Streak warning (8pm if not active)
   scheduleDailyAt('streak-warning', '🔥 Streak at Risk!', "Don't forget to check in with your habits today.", '20:00')
+}
+
+function buildMorningRitualReminderBody(): string {
+  const defaultBody = 'Time to set your intentions for today!'
+
+  try {
+    const db = getDb()
+    const plans = listActiveHabitObstaclePlans(db, 2)
+    if (plans.length === 0) {
+      return defaultBody
+    }
+
+    const lines = plans.map((plan) => `${plan.name}: ${plan.obstacle_plan}`)
+    return `Plan for resistance: ${lines.join(' | ')}`
+  } catch {
+    return defaultBody
+  }
 }
 
 function scheduleDailyAt(id: string, title: string, body: string, timeStr: string): void {

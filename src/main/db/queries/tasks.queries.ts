@@ -47,8 +47,20 @@ export function completeTask(db: Database.Database, id: string): Task {
   return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task
 }
 
+export function getTaskById(db: Database.Database, id: string): Task | undefined {
+  return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined
+}
+
 export function deleteTask(db: Database.Database, id: string): void {
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id)
+}
+
+export function listOpenScheduledTasks(db: Database.Database): Task[] {
+  return db
+    .prepare(
+      'SELECT * FROM tasks WHERE completed_at IS NULL AND due_date IS NOT NULL ORDER BY due_date ASC'
+    )
+    .all() as Task[]
 }
 
 export function getTodayCompletedTaskCount(db: Database.Database): number {

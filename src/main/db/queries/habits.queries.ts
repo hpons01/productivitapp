@@ -6,6 +6,10 @@ export interface Habit {
   name: string
   description: string | null
   cue: string | null
+  obstacle_plan: string | null
+  tiny_mode: number
+  tiny_started_at: number | null
+  tiny_graduated_at: number | null
   category: string
   frequency: string
   custom_days: string | null
@@ -23,12 +27,34 @@ export interface HabitCompletion {
   xp_awarded: number
 }
 
+export interface HabitLapseReflection {
+  id: string
+  lapse_date: number
+  reason_code: string
+  note: string | null
+  suggested_action: string | null
+  created_at: number
+}
+
+export interface HabitMicroCheckin {
+  id: string
+  habit_id: string
+  completed_at: number
+  difficulty: number
+  focus_effort: number
+  created_at: number
+}
+
 type CreateHabitInput = {
   id: string
   name: string
   created_at: number
   description?: string | null
   cue?: string | null
+  obstacle_plan?: string | null
+  tiny_mode?: number
+  tiny_started_at?: number | null
+  tiny_graduated_at?: number | null
   category?: string
   frequency?: string
   custom_days?: string | null
@@ -48,6 +74,10 @@ export function createHabit(db: Database.Database, data: CreateHabitInput): Habi
   const payload = {
     description: null,
     cue: null,
+    obstacle_plan: null,
+    tiny_mode: 0,
+    tiny_started_at: null,
+    tiny_graduated_at: null,
     category: 'general',
     frequency: 'daily',
     color: '#7c3aed',
@@ -57,8 +87,8 @@ export function createHabit(db: Database.Database, data: CreateHabitInput): Habi
   }
 
   db.prepare(`
-    INSERT INTO habits (id, name, description, cue, category, frequency, custom_days, color, icon, created_at)
-    VALUES (@id, @name, @description, @cue, @category, @frequency, @custom_days, @color, @icon, @created_at)
+    INSERT INTO habits (id, name, description, cue, obstacle_plan, tiny_mode, tiny_started_at, tiny_graduated_at, category, frequency, custom_days, color, icon, created_at)
+    VALUES (@id, @name, @description, @cue, @obstacle_plan, @tiny_mode, @tiny_started_at, @tiny_graduated_at, @category, @frequency, @custom_days, @color, @icon, @created_at)
   `).run(payload)
   return db.prepare('SELECT * FROM habits WHERE id = ?').get(payload.id) as Habit
 }
@@ -186,4 +216,69 @@ export function getTodayCompletedCount(db: Database.Database): number {
     )
     .get(dayStart, dayEnd) as { count: number }
   return result.count
+}
+
+export function graduateTinyHabit(db: Database.Database, habitId: string): Habit {
+  db.prepare(`
+    UPDATE habits
+    SET tiny_mode = 0,
+        tiny_graduated_at = ?
+    WHERE id = ?
+  `).run(Date.now(), habitId)
+
+  return db.prepare('SELECT * FROM habits WHERE id = ?').get(habitId) as Habit
+}
+
+export function listActiveHabitObstaclePlans(
+  db: Database.Database,
+  limit = 3
+): Array<{ name: string; obstacle_plan: string }> {
+  return db
+    .prepare(
+      `SELECT name, obstacle_plan
+       FROM habits
+       WHERE archived_at IS NULL
+         AND obstacle_plan IS NOT NULL
+         AND TRIM(obstacle_plan) <> ''
+       ORDER BY created_at ASC
+       LIMIT ?`
+    )
+    .all(limit) as Array<{ name: string; obstacle_plan: string }>
+}
+
+export function createHabitLapseReflection(
+  db: Database.Database,
+  reflection: HabitLapseReflection
+): HabitLapseReflection {
+  db.prepare(`
+    INSERT INTO habit_lapse_reflections (id, lapse_date, reason_code, note, suggested_action, created_at)
+    VALUES (@id, @lapse_date, @reason_code, @note, @suggested_action, @created_at)
+  `).run(reflection)
+
+  return db.prepare('SELECT * FROM habit_lapse_reflections WHERE id = ?').get(reflection.id) as HabitLapseReflection
+}
+
+export function getHabitLapseReflectionsForDate(
+  db: Database.Database,
+  date: number
+): HabitLapseReflection[] {
+  const dayStart = startOfDay(new Date(date)).getTime()
+  const dayEnd = endOfDay(new Date(date)).getTime()
+  return db
+    .prepare(
+      'SELECT * FROM habit_lapse_reflections WHERE lapse_date >= ? AND lapse_date <= ? ORDER BY created_at DESC'
+    )
+    .all(dayStart, dayEnd) as HabitLapseReflection[]
+}
+
+export function createHabitMicroCheckin(
+  db: Database.Database,
+  checkin: HabitMicroCheckin
+): HabitMicroCheckin {
+  db.prepare(`
+    INSERT INTO habit_micro_checkins (id, habit_id, completed_at, difficulty, focus_effort, created_at)
+    VALUES (@id, @habit_id, @completed_at, @difficulty, @focus_effort, @created_at)
+  `).run(checkin)
+
+  return db.prepare('SELECT * FROM habit_micro_checkins WHERE id = ?').get(checkin.id) as HabitMicroCheckin
 }
