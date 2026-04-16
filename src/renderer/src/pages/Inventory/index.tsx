@@ -91,10 +91,10 @@ export function InventoryPage() {
     if (item.type === 'power_up') {
       try {
         const pu = JSON.parse(activePowerupRaw)
-        const currentPowerupType = getPowerupTypeFromName(payload.name)
+        const payloadPowerupType = getPowerupTypeFromName(payload.name)
         const expired = pu.expires_at !== null && Date.now() > pu.expires_at
         const depleted = pu.uses_left !== null && pu.uses_left <= 0
-        if (!expired && !depleted && pu.type !== undefined && pu.type === currentPowerupType) return 'active'
+        if (!expired && !depleted && pu.type !== undefined && pu.type === payloadPowerupType) return 'active'
       } catch {}
       return item.used_at ? 'used' : 'available'
     }
@@ -118,7 +118,9 @@ export function InventoryPage() {
         setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
       }
       await activateLootItem({ type: item.type, name: payloadName }, setSetting)
-    } catch {}
+    } catch (error) {
+      console.error('Failed to activate loot item', error)
+    }
     finally {
       setActivating(null)
     }
