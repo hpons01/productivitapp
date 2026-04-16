@@ -13,6 +13,7 @@ export interface DailyQuestItem {
   status: QuestStatus
   xp_reward: number
   egg_reward_tier: string | null
+  focus_reward: number
   deadline_at: number | null
   sanction_xp: number
 }
@@ -41,6 +42,7 @@ export interface CatalogQuestItem {
   target_count: number
   xp_reward: number
   scaled_xp_reward: number
+  focus_reward: number
   duration_days: number
   min_level_required: number
   egg_reward_tier: string | null

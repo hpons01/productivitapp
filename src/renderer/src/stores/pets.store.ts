@@ -83,34 +83,59 @@ export const usePetsStore = create<PetsState>((set, get) => ({
         success: boolean
         pet?: PetInstance
         egg?: EggInstance
+        isDuplicate?: boolean
+        focusAwarded?: number
       }
 
-      if (result.success && result.pet) {
-        // Push egg_hatch pending reward to the gamification overlay
-        const rewardId = `egg_hatch_${Date.now()}`
-        useGamificationStore.getState().dismissReward('__noop__') // ensure store is accessible
-        useGamificationStore.setState((s) => ({
-          pendingRewards: [
-            ...s.pendingRewards,
-            {
-              id: rewardId,
-              type: 'egg_hatch' as const,
-              data: {
-                eggId,
-                petDefinitionId: result.pet!.definition_id,
-                petName: result.pet!.name,
-                rarity: result.pet!.rarity,
-                petIcon: result.pet!.icon,
-                flavorText: result.pet!.flavor_text,
-                bonusSource: result.pet!.boosted_source,
-                bonusRate: result.pet!.bonus_rate
+      if (result.success) {
+        if (result.isDuplicate && result.focusAwarded && result.focusAwarded > 0) {
+          // Duplicate pet — award Focus instead of showing egg hatch
+          const focusId = `focus_dup_${Date.now()}`
+          useGamificationStore.setState((s) => ({
+            pendingRewards: [
+              ...s.pendingRewards,
+              {
+                id: focusId,
+                type: 'focus_earned' as const,
+                data: { amount: result.focusAwarded }
               }
-            }
-          ]
-        }))
+            ]
+          }))
+          setTimeout(() => useGamificationStore.getState().dismissReward(focusId), 2200)
 
-        // Reload pets list to show the new pet
-        await get().load()
+          // Refresh Focus balance in shop store
+          const { useShopStore } = await import('./shop.store')
+          void useShopStore.getState().refreshBalance()
+
+          // Reload eggs list (egg is now hatched)
+          await get().load()
+        } else if (result.pet) {
+          // Normal hatch — show full egg hatch screen
+          const rewardId = `egg_hatch_${Date.now()}`
+          useGamificationStore.getState().dismissReward('__noop__') // ensure store is accessible
+          useGamificationStore.setState((s) => ({
+            pendingRewards: [
+              ...s.pendingRewards,
+              {
+                id: rewardId,
+                type: 'egg_hatch' as const,
+                data: {
+                  eggId,
+                  petDefinitionId: result.pet!.definition_id,
+                  petName: result.pet!.name,
+                  rarity: result.pet!.rarity,
+                  petIcon: result.pet!.icon,
+                  flavorText: result.pet!.flavor_text,
+                  bonusSource: result.pet!.boosted_source,
+                  bonusRate: result.pet!.bonus_rate
+                }
+              }
+            ]
+          }))
+
+          // Reload pets list to show the new pet
+          await get().load()
+        }
       }
     } catch (e) {
       console.error('Failed to hatch egg', e)

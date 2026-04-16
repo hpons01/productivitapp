@@ -43,7 +43,7 @@ export function QuestCard({ quest, activeCount, busyId, onEnroll, onAbandon }: Q
   const isActive = quest.status === 'enrolled' || quest.status === 'active'
   const canEnroll = quest.status === 'available' && activeCount < 3
   const sanctionPreview = Math.max(20, Math.min(250, Math.round(quest.xp_reward * 0.75)))
-  const rewardBadges = buildQuestRewardBadges({ eggRewardTier: quest.egg_reward_tier })
+  const rewardBadges = buildQuestRewardBadges({ eggRewardTier: quest.egg_reward_tier, focusReward: quest.focus_reward })
 
   return (
     <Card>
@@ -125,7 +125,7 @@ export function QuestCard({ quest, activeCount, busyId, onEnroll, onAbandon }: Q
             Start <span className="text-white font-semibold">{quest.description}</span> now?
           </p>
           <p className="text-xs text-surface-400">
-            You can keep up to 3 daily quests active at once. This quest gives <span className="text-amber-300 font-semibold">+{quest.xp_reward} XP</span> on completion.
+            You can keep up to 3 daily quests active at once. This quest gives <span className="text-amber-300 font-semibold">+{quest.xp_reward} XP</span>{quest.focus_reward > 0 && <span> and <span className="text-cyan-300 font-semibold">+{quest.focus_reward} Focus 💎</span></span>} on completion.
           </p>
           <div className="flex gap-3">
             <Button variant="secondary" className="flex-1" onClick={() => setConfirmEnrollOpen(false)}>

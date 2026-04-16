@@ -56,41 +56,51 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
   const diffStyle = DIFFICULTY_STYLES[quest.difficulty]
   const rewardBadges = buildQuestRewardBadges({
     eggRewardTier: quest.egg_reward_tier,
-    lootRewardTier: quest.loot_reward_tier
+    lootRewardTier: quest.loot_reward_tier,
+    focusReward: quest.focus_reward
   })
 
   return (
-    <Card className={cn('relative overflow-hidden', quest.is_locked && 'opacity-60')}>
+    <Card className={cn('relative overflow-hidden', quest.is_locked && 'opacity-60', isCompleted && 'opacity-50')}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="shrink-0">{CATEGORY_ICONS[quest.category]}</span>
-            <CardTitle className="text-sm font-semibold text-white truncate">{quest.title}</CardTitle>
+            <CardTitle className={cn('text-sm font-semibold truncate', isCompleted ? 'text-surface-400 line-through decoration-surface-500' : 'text-white')}>
+              {quest.title}
+            </CardTitle>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={cn('text-[10px] uppercase tracking-wide px-2 py-1 rounded-md border font-semibold', diffStyle.badge)}>
-              {DIFFICULTY_LABELS[quest.difficulty]}
-            </span>
+            {!isCompleted && (
+              <span className={cn('text-[10px] uppercase tracking-wide px-2 py-1 rounded-md border font-semibold', diffStyle.badge)}>
+                {DIFFICULTY_LABELS[quest.difficulty]}
+              </span>
+            )}
             {isCompleted && (
-              <CheckCircle2 size={16} className="text-emerald-400" />
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-2 py-1 rounded-md border font-semibold text-emerald-400 border-emerald-500/40 bg-emerald-500/10">
+                <CheckCircle2 size={11} />
+                Done
+              </span>
             )}
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
-        <p className="text-xs text-surface-400">{quest.description}</p>
+        <p className="text-xs text-surface-500">{quest.description}</p>
 
-        <QuestRewardBadges rewards={rewardBadges} />
+        {!isCompleted && <QuestRewardBadges rewards={rewardBadges} />}
 
         {quest.flavor_text && !isActive && !isCompleted && (
           <p className="text-[11px] text-surface-500 italic">"{quest.flavor_text}"</p>
         )}
 
-        <div className="flex items-center gap-3 text-xs text-surface-300 flex-wrap">
-          <span className="inline-flex items-center gap-1">
-            <Trophy size={12} /> +{quest.scaled_xp_reward} XP
-          </span>
+        <div className="flex items-center gap-3 text-xs text-surface-500 flex-wrap">
+          {!isCompleted && (
+            <span className="inline-flex items-center gap-1 text-surface-300">
+              <Trophy size={12} /> +{quest.scaled_xp_reward} XP
+            </span>
+          )}
           {!isActive && !isCompleted && (
             <span className="text-surface-200 border border-surface-500 bg-surface-600/30 rounded px-1.5 py-0.5 font-medium">
               {quest.duration_days}d window
@@ -110,7 +120,7 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
             <span className="text-red-400">-{enrollment.sanction_xp} XP penalty</span>
           )}
           {isCompleted && enrollment?.completed_at && (
-            <span className="text-emerald-400">
+            <span className="text-emerald-500/70">
               Completed {new Date(enrollment.completed_at).toLocaleDateString()}
             </span>
           )}
@@ -178,7 +188,7 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
             Enroll in <span className="text-white font-semibold">{quest.title}</span>?
           </p>
           <p className="text-xs text-surface-400">
-            Time window: <span className="text-surface-200 font-semibold">{quest.duration_days} days</span>. Completion reward: <span className="text-amber-300 font-semibold">+{quest.scaled_xp_reward} XP</span>.
+            Time window: <span className="text-surface-200 font-semibold">{quest.duration_days} days</span>. Completion reward: <span className="text-amber-300 font-semibold">+{quest.scaled_xp_reward} XP</span>{quest.focus_reward > 0 && <span> + <span className="text-cyan-300 font-semibold">+{quest.focus_reward} Focus 💎</span></span>}.
           </p>
           <div className="flex gap-3">
             <Button variant="secondary" className="flex-1" onClick={() => setConfirmEnrollOpen(false)}>

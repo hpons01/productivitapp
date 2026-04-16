@@ -13,6 +13,7 @@ import { sendNotification } from '../../notifications'
 import { getEquippedPet, awardPetXP, awardEgg } from './pets.queries'
 import { getPetMultiplier, ALL_PET_DEFINITIONS } from '../../domain/pets'
 import { logEvent } from './eventlog.queries'
+import { awardFocus } from './shop.queries'
 
 const SELECTED_CLASS_KEY = 'selected_character_class'
 
@@ -170,7 +171,7 @@ export function getTotalXP(db: Database.Database): number {
   return result.total
 }
 
-export function unlockBadge(db: Database.Database, code: string): { unlocked: boolean; badge: { code: string; name: string; icon: string; rarity: string; xp_value: number } | null } {
+export function unlockBadge(db: Database.Database, code: string): { unlocked: boolean; badge: { code: string; name: string; icon: string; rarity: string; xp_value: number; focus_awarded?: number } | null } {
   const badge = db.prepare('SELECT * FROM badges WHERE code = ?').get(code) as {
     id: string
     code: string
@@ -189,7 +190,11 @@ export function unlockBadge(db: Database.Database, code: string): { unlocked: bo
   // Award XP for the badge
   awardXP(db, 'badge', badge.id, badge.xp_value)
 
-  return { unlocked: true, badge: { code: badge.code, name: badge.name, icon: badge.icon, rarity: badge.rarity, xp_value: badge.xp_value } }
+  // Award Focus proportional to badge XP (at least 1)
+  const focusAmount = Math.max(1, Math.floor(badge.xp_value / 10))
+  awardFocus(db, 'badge_unlock', `badge_focus_${badge.id}`, focusAmount)
+
+  return { unlocked: true, badge: { code: badge.code, name: badge.name, icon: badge.icon, rarity: badge.rarity, xp_value: badge.xp_value, focus_awarded: focusAmount } }
 }
 
 export function getBadges(db: Database.Database): Array<{
@@ -416,10 +421,16 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
       const hasEggReward = q.eggReward || Math.random() < 0.25
       const eggRewardTier = hasEggReward ? 'mystery' : null
 
+      // Assign Focus reward based on difficulty
+      const focusReward =
+        q.difficulty === 'hard' ? 25 :
+        q.difficulty === 'medium' ? 15 :
+        10
+
       db.prepare(`
-        INSERT INTO daily_quests (id, date, quest_type, description, target, progress, completed, xp_reward, egg_reward_tier)
-        VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
-      `).run(id, Date.now(), q.type, q.description, q.target, q.xp, eggRewardTier)
+        INSERT INTO daily_quests (id, date, quest_type, description, target, progress, completed, xp_reward, egg_reward_tier, focus_reward)
+        VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
+      `).run(id, Date.now(), q.type, q.description, q.target, q.xp, eggRewardTier, focusReward)
     }
   }
 

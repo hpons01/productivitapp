@@ -109,6 +109,14 @@ const api = {
     getEquipped: () => ipcRenderer.invoke('pets:getEquipped')
   },
 
+  // Shop / Focus currency
+  shop: {
+    focusBalance: () => ipcRenderer.invoke('shop:focusBalance'),
+    dailyShop: (dateSeed: string) => ipcRenderer.invoke('shop:dailyShop', dateSeed),
+    purchase: (itemId: string, dateSeed: string) => ipcRenderer.invoke('shop:purchase', itemId, dateSeed),
+    focusLog: (limit?: number) => ipcRenderer.invoke('shop:focusLog', limit)
+  },
+
   // Data export
   export: {
     exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format),
@@ -161,6 +169,13 @@ const api = {
     const listener = (_event: unknown, payload: { taskId: string; title: string; dueDate: number }) => callback(payload)
     ipcRenderer.on('task:reminder', listener)
     return () => ipcRenderer.off('task:reminder', listener)
+  },
+
+  // Quest completion events
+  onQuestCompleted: (callback: (payload: { title: string; xpAwarded: number; focusAwarded: number }) => void) => {
+    const listener = (_event: unknown, payload: { title: string; xpAwarded: number; focusAwarded: number }) => callback(payload)
+    ipcRenderer.on('quest:completed', listener)
+    return () => ipcRenderer.off('quest:completed', listener)
   }
 }
 

@@ -5,6 +5,7 @@ import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { cancelTaskReminder, scheduleTaskReminder, snoozeTaskReminder } from '../notifications'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+import { emitQuestCompletions } from './quest-notifications'
 
 export function registerTasksIpc(): void {
   ipcMain.handle('tasks:list', () => {
@@ -48,9 +49,9 @@ export function registerTasksIpc(): void {
     } catch {}
 
     // Enrolled quest progress updates.
-    incrementQuestProgressByType(db, 'tasks', 1)
+    emitQuestCompletions(incrementQuestProgressByType(db, 'tasks', 1), 'tasks')
     if (task.estimated_mins && task.estimated_mins <= 2) {
-      incrementQuestProgressByType(db, 'two_min_tasks', 1)
+      emitQuestCompletions(incrementQuestProgressByType(db, 'two_min_tasks', 1), 'two_min_tasks')
     }
 
     return {

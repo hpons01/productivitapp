@@ -19,6 +19,8 @@ export function GamificationOverlay() {
   const xpPopups = pendingRewards.filter((r) => r.type === 'xp_popup')
   const classToasts = pendingRewards.filter((r) => r.type === 'class_changed')
   const evolutionToasts = pendingRewards.filter((r) => r.type === 'evolution_unlocked')
+  const focusPopups = pendingRewards.filter((r) => r.type === 'focus_earned')
+  const questCompletedToasts = pendingRewards.filter((r) => r.type === 'quest_completed')
 
   return (
     <>
@@ -31,6 +33,12 @@ export function GamificationOverlay() {
       ))}
       {evolutionToasts.map((r) => (
         <EvolutionUnlockedToast key={r.id} reward={r} />
+      ))}
+      {focusPopups.map((r) => (
+        <FocusEarnedPopup key={r.id} reward={r} />
+      ))}
+      {questCompletedToasts.map((r) => (
+        <QuestCompletedToast key={r.id} reward={r} />
       ))}
 
       {/* Full-screen events */}
@@ -347,7 +355,43 @@ function Particles() {
   )
 }
 
-function playSound(type: 'levelup' | 'badge'): void {
+function QuestCompletedToast({ reward }: { reward: PendingReward }) {
+  const title = reward.data.title as string
+  const xpAwarded = reward.data.xpAwarded as number
+  const focusAwarded = reward.data.focusAwarded as number
+
+  useEffect(() => {
+    playSound('quest')
+  }, [])
+
+  return (
+    <motion.div
+      className="fixed top-20 right-8 z-50 pointer-events-none"
+      initial={{ opacity: 0, x: 40, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 40, scale: 0.95 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+    >
+      <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-xl px-4 py-3 backdrop-blur-sm min-w-[260px] shadow-2xl">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-base">✅</span>
+          <div className="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Quest Complete!</div>
+        </div>
+        <div className="text-sm font-bold text-white leading-snug">{title}</div>
+        <div className="flex items-center gap-3 mt-1">
+          {xpAwarded > 0 && (
+            <span className="text-xs text-amber-300 font-semibold">+{xpAwarded} XP</span>
+          )}
+          {focusAwarded > 0 && (
+            <span className="text-xs text-cyan-300 font-semibold">+{focusAwarded} Focus 💎</span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+function playSound(type: 'levelup' | 'badge' | 'quest'): void {
   // Gate on user preference
   if (localStorage.getItem('soundEnabled') === 'false') return
 
@@ -369,6 +413,16 @@ function playSound(type: 'levelup' | 'badge'): void {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.8)
+    } else if (type === 'quest') {
+      // Victory fanfare: ascending triad C5 → E5 → G5 → C6
+      const notes = [523.25, 659.25, 783.99, 1046.5]
+      notes.forEach((freq, i) => {
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.1)
+      })
+      gain.gain.setValueAtTime(0.2, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.55)
     } else {
       // Short chime for badge/loot
       osc.frequency.setValueAtTime(880, ctx.currentTime)
@@ -384,4 +438,20 @@ function playSound(type: 'levelup' | 'badge'): void {
   } catch {
     // AudioContext may be blocked in certain environments; fail silently
   }
+}
+
+function FocusEarnedPopup({ reward }: { reward: PendingReward }) {
+  const amount = reward.data.amount as number
+  return (
+    <motion.div
+      className="fixed bottom-36 right-8 z-50 pointer-events-none"
+      initial={{ opacity: 1, y: 0, scale: 1 }}
+      animate={{ opacity: 0, y: -60, scale: 1.1 }}
+      transition={{ duration: 1.8, ease: 'easeOut' }}
+    >
+      <div className="bg-cyan-500/20 border border-cyan-500/40 rounded-xl px-4 py-2 font-bold text-cyan-400 text-sm backdrop-blur-sm shadow-lg">
+        +{amount} Focus 💎
+      </div>
+    </motion.div>
+  )
 }

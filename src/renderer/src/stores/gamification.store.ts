@@ -37,7 +37,7 @@ function resolveIdentityCue(coreValuesRaw: string | null, fallback: string): str
 
 export interface PendingReward {
   id: string
-  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked' | 'egg_hatch'
+  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked' | 'egg_hatch' | 'focus_earned' | 'quest_completed'
   data: Record<string, unknown>
 }
 
@@ -72,6 +72,7 @@ interface GamificationState {
   setCharacterClass: (classId: string) => Promise<void>
   loadCharacterClassConfig: () => Promise<void>
   triggerLootBox: (context?: string) => void
+  triggerQuestCompleted: (title: string, xpAwarded: number, focusAwarded?: number) => void
   dismissReward: (id: string) => void
   refreshFromDB: () => Promise<void>
 }
@@ -225,12 +226,28 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       const result = await api().analytics.unlockBadge(code)
       if (result.unlocked && result.badge) {
         const id = `badge_${code}_${Date.now()}`
+        const rewardsToAdd: PendingReward[] = [
+          { id, type: 'badge_unlock', data: { badge: result.badge } }
+        ]
+
+        // If Focus was awarded alongside this badge, show a Focus popup
+        if (result.badge.focus_awarded && result.badge.focus_awarded > 0) {
+          const focusId = `focus_badge_${code}_${Date.now()}`
+          rewardsToAdd.push({
+            id: focusId,
+            type: 'focus_earned',
+            data: { amount: result.badge.focus_awarded }
+          })
+          // Refresh shop store balance
+          const { useShopStore } = await import('./shop.store')
+          void useShopStore.getState().refreshBalance()
+
+          setTimeout(() => get().dismissReward(focusId), 2200)
+        }
+
         set((s) => ({
           unlockedBadges: new Set([...s.unlockedBadges, code]),
-          pendingRewards: [
-            ...s.pendingRewards,
-            { id, type: 'badge_unlock', data: { badge: result.badge } }
-          ]
+          pendingRewards: [...s.pendingRewards, ...rewardsToAdd]
         }))
 
         // XP is already awarded in the unlock handler on the main process.
@@ -284,6 +301,26 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
     if (loot.type === 'xp_boost' && loot.value) {
       get().addXP('loot', loot.value, false)
     }
+  },
+
+  triggerQuestCompleted: (title: string, xpAwarded: number, focusAwarded = 0) => {
+    const id = `quest_completed_${Date.now()}`
+    const rewardsToAdd: PendingReward[] = [
+      { id, type: 'quest_completed', data: { title, xpAwarded, focusAwarded } }
+    ]
+
+    if (focusAwarded > 0) {
+      const focusId = `focus_quest_${Date.now()}`
+      rewardsToAdd.push({ id: focusId, type: 'focus_earned', data: { amount: focusAwarded } })
+      setTimeout(() => get().dismissReward(focusId), 2200)
+      // Refresh shop balance so Focus total stays current
+      void import('./shop.store').then(({ useShopStore }) => {
+        void useShopStore.getState().refreshBalance()
+      })
+    }
+
+    set((s) => ({ pendingRewards: [...s.pendingRewards, ...rewardsToAdd] }))
+    setTimeout(() => get().dismissReward(id), 3500)
   },
 
   dismissReward: (id: string) => {

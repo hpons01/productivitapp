@@ -10,7 +10,8 @@ import {
   Settings,
   Trophy,
   Package,
-  Heart
+  Heart,
+  ShoppingBag
 } from 'lucide-react'
 import { useGamificationStore } from '../../stores/gamification.store'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
@@ -27,6 +28,7 @@ const coreNavItems = [
 
 const rpgNavItems = [
   { to: '/quests', icon: ScrollText, label: 'Quests' },
+  { to: '/shop', icon: ShoppingBag, label: 'Shop' },
   { to: '/analytics', icon: Trophy, label: 'Profile' },
   { to: '/inventory', icon: Package, label: 'Loot' },
   { to: '/pets', icon: Heart, label: 'Pets' }

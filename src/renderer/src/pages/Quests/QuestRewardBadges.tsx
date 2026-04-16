@@ -21,6 +21,7 @@ export interface QuestRewardBadgeItem {
 interface BuildQuestRewardBadgesOptions {
   eggRewardTier?: string | null
   lootRewardTier?: string | null
+  focusReward?: number
   extraRewards?: QuestRewardBadgeItem[]
 }
 
@@ -32,6 +33,7 @@ function formatTierLabel(tier: string | null | undefined): string {
 export function buildQuestRewardBadges({
   eggRewardTier,
   lootRewardTier,
+  focusReward,
   extraRewards = []
 }: BuildQuestRewardBadgesOptions): QuestRewardBadgeItem[] {
   const rewards: QuestRewardBadgeItem[] = []
@@ -49,6 +51,14 @@ export function buildQuestRewardBadges({
       key: 'loot-reward',
       label: `Loot reward (${formatTierLabel(lootRewardTier)})`,
       variant: lootRewardTier as RewardBadgeVariant
+    })
+  }
+
+  if (focusReward && focusReward > 0) {
+    rewards.push({
+      key: 'focus-reward',
+      label: `+${focusReward} Focus 💎`,
+      variant: 'primary'
     })
   }
 

@@ -18,6 +18,7 @@ export function initDatabase(): void {
   db.pragma('foreign_keys = ON')
 
   runMigrations()
+  ensurePetEggForeignKeySchema()
   ensureClassXpColumns()
   ensurePetQuestColumns()
   ensureQuestLifecycleSchema()
@@ -28,11 +29,13 @@ export function initDatabase(): void {
   ensureTinyHabitColumns()
   ensureHabitMicroCheckinSchema()
   ensureEventLogSchema()
+  ensureShopSchema()   // must run before seedCatalogQuests so focus_reward column exists
   ensureDefaultSettings()
   seedBadges()
   seedPetDefinitions()
   seedCatalogQuests()
 }
+
 
 export function getDb(): Database.Database {
   if (!db) {
@@ -337,6 +340,144 @@ function ensureHabitMicroCheckinSchema(): void {
   `)
 }
 
+function ensureShopSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS focus_log (
+      id          TEXT PRIMARY KEY,
+      type        TEXT NOT NULL,
+      source      TEXT NOT NULL,
+      source_id   TEXT,
+      amount      INTEGER NOT NULL,
+      balance     INTEGER NOT NULL,
+      logged_at   INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_focus_log_time ON focus_log(logged_at DESC);
+
+    CREATE TABLE IF NOT EXISTS shop_purchases (
+      id           TEXT PRIMARY KEY,
+      date_seed    TEXT NOT NULL,
+      item_id      TEXT NOT NULL,
+      item_type    TEXT NOT NULL,
+      focus_cost   INTEGER NOT NULL,
+      purchased_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_shop_purchases_date_item
+      ON shop_purchases(date_seed, item_id);
+  `)
+
+  const dqCols = (db.prepare('PRAGMA table_info(daily_quests)').all() as Array<{ name: string }>).map(c => c.name)
+  if (!dqCols.includes('focus_reward')) {
+    db.exec('ALTER TABLE daily_quests ADD COLUMN focus_reward INTEGER NOT NULL DEFAULT 0')
+  }
+
+  const qdCols = (db.prepare('PRAGMA table_info(quest_definitions)').all() as Array<{ name: string }>).map(c => c.name)
+  if (!qdCols.includes('focus_reward')) {
+    db.exec('ALTER TABLE quest_definitions ADD COLUMN focus_reward INTEGER NOT NULL DEFAULT 0')
+    // Back-fill focus_reward for any existing quest definitions
+    backfillCatalogQuestFocusRewards()
+  }
+}
+
+function backfillCatalogQuestFocusRewards(): void {
+  const focusRewards: Record<string, number> = {
+    first_blood: 5, quick_start: 5, morning_person: 8, quick_wins: 8, energy_scout: 5,
+    habit_seed: 10, task_starter: 8, evening_closer: 8, focus_spark: 8, energy_check: 8,
+    week_warrior: 25, ritual_master: 20, task_blitz: 30, deep_diver: 35, energy_sage: 22,
+    habit_chain: 35, evening_sage: 25, two_min_master: 28, blitz_sprint: 22, focus_block: 28,
+    reflection_week: 22, vitality_tracker: 20,
+    pomodoro_knight: 80, iron_discipline: 70, philosophers_day: 75, night_writer: 65,
+    marathon_runner: 90, task_centurion: 80, deep_focus_master: 85, ritual_keeper: 72,
+    energy_master: 68, pressure_cooker: 75, habit_forge: 78, quick_mission: 60,
+    the_unstoppable: 200, grandmaster_focus: 250, ascendant: 220, the_chronicler: 180,
+    legendary_grind: 175, energy_transcendent: 175, the_blitz_legend: 300, iron_monk: 210,
+  }
+  const stmt = db.prepare('UPDATE quest_definitions SET focus_reward = ? WHERE slug = ?')
+  const updateAll = db.transaction(() => {
+    for (const [slug, amount] of Object.entries(focusRewards)) {
+      stmt.run(amount, slug)
+    }
+  })
+  updateAll()
+}
+
+function ensurePetEggForeignKeySchema(): void {
+  const hasPetEggsTable = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table' AND name = 'pet_eggs'
+  `).get() as { name: string } | undefined
+  if (!hasPetEggsTable) return
+
+  const hasPetsTable = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table' AND name = 'pets'
+  `).get() as { name: string } | undefined
+  if (!hasPetsTable) return
+
+  const foreignKeys = db.prepare('PRAGMA foreign_key_list(pet_eggs)').all() as Array<{
+    from: string
+    table: string
+  }>
+  const petIdForeignKey = foreignKeys.find((row) => row.from === 'pet_id')
+  if (petIdForeignKey?.table === 'pets') return
+
+  const enforceForeignKeys = Number(db.pragma('foreign_keys', { simple: true })) === 1
+  db.pragma('foreign_keys = OFF')
+
+  try {
+    const tx = db.transaction(() => {
+      // Re-link historical eggs to pet instances via the owning pet record.
+      db.exec(`
+        UPDATE pet_eggs
+        SET pet_id = (
+          SELECT p.id
+          FROM pets p
+          WHERE p.egg_id = pet_eggs.id
+          LIMIT 1
+        )
+        WHERE hatched_at IS NOT NULL
+      `)
+
+      db.prepare('UPDATE pet_eggs SET pet_id = NULL WHERE hatched_at IS NULL').run()
+
+      db.exec(`
+        CREATE TABLE pet_eggs_new (
+          id              TEXT PRIMARY KEY,
+          tier            TEXT NOT NULL,
+          source_quest_id TEXT,
+          earned_at       INTEGER NOT NULL,
+          hatched_at      INTEGER,
+          pet_id          TEXT REFERENCES pets(id)
+        )
+      `)
+
+      db.exec(`
+        INSERT INTO pet_eggs_new (id, tier, source_quest_id, earned_at, hatched_at, pet_id)
+        SELECT id, tier, source_quest_id, earned_at, hatched_at, pet_id
+        FROM pet_eggs
+      `)
+
+      const oldCount = (db.prepare('SELECT COUNT(*) as n FROM pet_eggs').get() as { n: number }).n
+      const newCount = (db.prepare('SELECT COUNT(*) as n FROM pet_eggs_new').get() as { n: number }).n
+      if (oldCount !== newCount) {
+        throw new Error(`[DB] pet_eggs migration failed: row count mismatch (${oldCount} vs ${newCount})`)
+      }
+
+      db.exec('DROP TABLE pet_eggs')
+      db.exec('ALTER TABLE pet_eggs_new RENAME TO pet_eggs')
+      db.exec('CREATE INDEX IF NOT EXISTS idx_eggs_earned ON pet_eggs(earned_at)')
+
+      const fkViolations = db.prepare('PRAGMA foreign_key_check').all() as unknown[]
+      if (fkViolations.length > 0) {
+        throw new Error(`[DB] pet_eggs migration failed: foreign key violations (${fkViolations.length})`)
+      }
+    })
+
+    tx()
+  } finally {
+    db.pragma(`foreign_keys = ${enforceForeignKeys ? 'ON' : 'OFF'}`)
+  }
+}
+
 const INITIAL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS habits (
   id          TEXT PRIMARY KEY,
@@ -549,7 +690,7 @@ CREATE TABLE IF NOT EXISTS pet_eggs (
   source_quest_id TEXT,
   earned_at       INTEGER NOT NULL,
   hatched_at      INTEGER,
-  pet_id          TEXT REFERENCES pet_definitions(id)
+  pet_id          TEXT REFERENCES pets(id)
 );
 CREATE INDEX IF NOT EXISTS idx_eggs_earned ON pet_eggs(earned_at);
 
@@ -729,13 +870,30 @@ const CATALOG_QUEST_DEFINITIONS = [
   { slug: 'iron_monk',         title: 'Iron Monk',         description: 'Complete all habits 50 times',          flavor_text: 'Discipline is not a punishment. It is a form of self-respect.', category: 'discipline', difficulty: 'legendary', target_type: 'habits_all', target_count: 50, xp_reward: 950, duration_days: 21, min_level_required: 15, egg_reward_tier: 'mystery', loot_reward_tier: 'rare', sort_order: 580 },
 ] as const
 
+const CATALOG_FOCUS_REWARDS: Record<string, number> = {
+  // easy
+  first_blood: 5, quick_start: 5, morning_person: 8, quick_wins: 8, energy_scout: 5,
+  habit_seed: 10, task_starter: 8, evening_closer: 8, focus_spark: 8, energy_check: 8,
+  // medium
+  week_warrior: 25, ritual_master: 20, task_blitz: 30, deep_diver: 35, energy_sage: 22,
+  habit_chain: 35, evening_sage: 25, two_min_master: 28, blitz_sprint: 22, focus_block: 28,
+  reflection_week: 22, vitality_tracker: 20,
+  // hard
+  pomodoro_knight: 80, iron_discipline: 70, philosophers_day: 75, night_writer: 65,
+  marathon_runner: 90, task_centurion: 80, deep_focus_master: 85, ritual_keeper: 72,
+  energy_master: 68, pressure_cooker: 75, habit_forge: 78, quick_mission: 60,
+  // legendary
+  the_unstoppable: 200, grandmaster_focus: 250, ascendant: 220, the_chronicler: 180,
+  legendary_grind: 175, energy_transcendent: 175, the_blitz_legend: 300, iron_monk: 210,
+}
+
 function seedCatalogQuests(): void {
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO quest_definitions
       (id, slug, title, description, flavor_text, category, difficulty,
        target_type, target_count, xp_reward, duration_days, min_level_required,
-       max_level_visible, egg_reward_tier, loot_reward_tier, is_active, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1, ?)
+       max_level_visible, egg_reward_tier, loot_reward_tier, is_active, sort_order, focus_reward)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1, ?, ?)
   `)
 
   const insertAll = db.transaction(() => {
@@ -755,7 +913,8 @@ function seedCatalogQuests(): void {
         q.min_level_required,
         q.egg_reward_tier ?? null,
         q.loot_reward_tier ?? null,
-        q.sort_order
+        q.sort_order,
+        CATALOG_FOCUS_REWARDS[q.slug] ?? 0
       )
     }
   })

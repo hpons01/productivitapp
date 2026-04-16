@@ -6,6 +6,7 @@ import {
   getPetMultiplier,
   rollPetRarity
 } from '../../domain/pets'
+import { awardFocus } from './shop.queries'
 
 export interface PetRow {
   id: string
@@ -54,8 +55,10 @@ export interface PetXpResult {
 }
 
 export interface HatchResult {
-  pet: PetWithDefinition
+  pet: PetWithDefinition | null
   egg: EggRow
+  isDuplicate: boolean
+  focusAwarded: number
 }
 
 /** Returns the equipped pet joined with its definition, or null */
@@ -146,9 +149,18 @@ export function unequipAll(db: Database.Database): void {
   db.prepare('UPDATE pets SET equipped = 0').run()
 }
 
+const DUPLICATE_PET_FOCUS: Record<string, number> = {
+  common: 50,
+  uncommon: 100,
+  rare: 150,
+  epic: 250,
+  legendary: 400
+}
+
 /**
- * Hatches an egg: rolls rarity at open time,
- * creates a pets row, marks the egg as hatched.
+ * Hatches an egg: rolls rarity at open time.
+ * If the player already owns a pet of the rolled definition, awards Focus instead
+ * of creating a duplicate. Otherwise, creates a new pets row and marks the egg hatched.
  */
 export function hatchEgg(db: Database.Database, eggId: string): HatchResult | null {
   const egg = db.prepare('SELECT * FROM pet_eggs WHERE id = ? AND hatched_at IS NULL').get(eggId) as EggRow | undefined
@@ -159,16 +171,38 @@ export function hatchEgg(db: Database.Database, eggId: string): HatchResult | nu
   if (defs.length === 0) return null
 
   const chosenDef = defs[Math.floor(Math.random() * defs.length)]
-
-  const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
   const now = Date.now()
+
+  // Check for duplicate: does the player already own this definition?
+  const existing = db
+    .prepare('SELECT COUNT(*) as n FROM pets WHERE definition_id = ?')
+    .get(chosenDef.id) as { n: number }
+  const isDuplicate = existing.n > 0
+
+  if (isDuplicate) {
+    const focusAmount = DUPLICATE_PET_FOCUS[chosenDef.rarity] ?? 50
+
+    const tx = db.transaction(() => {
+      // Mark egg as hatched with pet_id = NULL (duplicate outcome)
+      db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = NULL WHERE id = ?')
+        .run(chosenDef.rarity, now, eggId)
+      awardFocus(db, 'duplicate_pet', `dup_pet_${eggId}`, focusAmount)
+    })
+    tx()
+
+    const updatedEgg = db.prepare('SELECT * FROM pet_eggs WHERE id = ?').get(eggId) as EggRow
+    return { pet: null, egg: updatedEgg, isDuplicate: true, focusAwarded: focusAmount }
+  }
+
+  // Non-duplicate: create the pet
+  const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
 
   db.prepare(`
     INSERT INTO pets (id, definition_id, egg_id, name, total_xp, level, obtained_at, equipped)
     VALUES (?, ?, ?, ?, 0, 1, ?, 0)
-  `).run(petId, chosenDef.id, eggId, chosenDef.name)
+  `).run(petId, chosenDef.id, eggId, chosenDef.name, now)
 
-  db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = ? WHERE id = ?').run(chosenDef.rarity, now, chosenDef.id, eggId)
+  db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = ? WHERE id = ?').run(chosenDef.rarity, now, petId, eggId)
 
   const updatedEgg = db.prepare('SELECT * FROM pet_eggs WHERE id = ?').get(eggId) as EggRow
   const newPet = db.prepare(`
@@ -178,7 +212,7 @@ export function hatchEgg(db: Database.Database, eggId: string): HatchResult | nu
     WHERE p.id = ?
   `).get(petId) as PetWithDefinition
 
-  return { pet: newPet, egg: updatedEgg }
+  return { pet: newPet, egg: updatedEgg, isDuplicate: false, focusAwarded: 0 }
 }
 
 /** Awards a mystery egg to the player from a completed quest */

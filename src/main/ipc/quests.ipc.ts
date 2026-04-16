@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import { getDb } from '../db'
 import {
   abandonQuest,
@@ -14,6 +14,16 @@ import {
   syncExpiredCatalogEnrollments
 } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+
+function toTitleCase(value: string): string {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function notifyQuestCompleted(title: string, xpAwarded: number, focusAwarded: number): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('quest:completed', { title, xpAwarded, focusAwarded })
+  }
+}
 
 export function registerQuestsIpc(): void {
   ipcMain.handle('quests:list', () => {
@@ -56,6 +66,11 @@ export function registerQuestsIpc(): void {
       target: result.target,
       status: result.status
     })
+    if (result.status === 'completed') {
+      const questRow = db.prepare('SELECT quest_type FROM daily_quests WHERE id = ?').get(questId) as { quest_type: string } | undefined
+      const title = questRow ? toTitleCase(questRow.quest_type) : 'Quest'
+      notifyQuestCompleted(title, result.completionXpAwarded, result.focusAwarded)
+    }
     return result
   })
 
@@ -135,6 +150,14 @@ export function registerQuestsIpc(): void {
       target: result.target,
       status: result.status
     })
+    if (result.status === 'completed') {
+      const defRow = db.prepare(`
+        SELECT qd.title FROM catalog_enrollments ce
+        JOIN quest_definitions qd ON qd.id = ce.definition_id
+        WHERE ce.id = ?
+      `).get(enrollmentId) as { title: string } | undefined
+      notifyQuestCompleted(defRow?.title ?? 'Quest', result.completionXpAwarded, result.focusAwarded)
+    }
     return result
   })
 }

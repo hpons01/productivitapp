@@ -19,6 +19,7 @@ import { awardXP, damageBoss, updateStreakRecoveryQuest, hasBrokenStreakToday } 
 import { getSetting, setSetting } from '../db/queries/settings.queries'
 import { setQuestProgressByType, incrementCatalogProgressByType, decrementCatalogProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+import { emitQuestCompletions } from './quest-notifications'
 
 function getTotalDailyHabits(db: ReturnType<typeof getDb>): number {
   return (
@@ -81,8 +82,8 @@ export function registerHabitsIpc(): void {
     updateStreakRecoveryQuest(db, completedToday)
 
     // Enrolled quest progress updates (new lifecycle engine).
-    setQuestProgressByType(db, 'streak_recovery', completedToday)
-    setQuestProgressByType(db, 'habits_all', completedToday >= required ? 1 : 0)
+    emitQuestCompletions(setQuestProgressByType(db, 'streak_recovery', completedToday), 'streak_recovery')
+    emitQuestCompletions(setQuestProgressByType(db, 'habits_all', completedToday >= required ? 1 : 0), 'habits_all')
 
     // Catalog habits_all should count once per day when crossing from incomplete -> complete.
     if (completedBefore < required && completedToday >= required) {

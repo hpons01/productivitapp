@@ -41,13 +41,14 @@ export function CatalogTab({ quests, loading, busyId, onEnroll, onAbandon }: Cat
       return catMatch && diffMatch
     })
 
-    // Sort: active/enrolled first, then by sort order (locked last-ish is handled by opacity in card)
-    return [...result].sort((a, b) => {
-      const aActive = a.enrollment?.status === 'enrolled' || a.enrollment?.status === 'active' ? 0 : 1
-      const bActive = b.enrollment?.status === 'enrolled' || b.enrollment?.status === 'active' ? 0 : 1
-      if (aActive !== bActive) return aActive - bActive
-      return 0
-    })
+    // Sort: active/enrolled first, completed last, rest in between
+    const rank = (q: CatalogQuestItem) => {
+      const s = q.enrollment?.status
+      if (s === 'enrolled' || s === 'active') return 0
+      if (s === 'completed') return 2
+      return 1
+    }
+    return [...result].sort((a, b) => rank(a) - rank(b))
   }, [quests, categoryFilter, difficultyFilter])
 
   const enrolledCount = useMemo(

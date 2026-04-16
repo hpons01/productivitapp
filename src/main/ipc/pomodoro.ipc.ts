@@ -15,6 +15,7 @@ import { getSetting, setSetting } from '../db/queries/settings.queries'
 import { sendNotification } from '../notifications'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+import { emitQuestCompletions } from './quest-notifications'
 
 export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:start', (_event, data) => {
@@ -68,14 +69,16 @@ export function registerPomodoroIpc(): void {
 
     // Enrolled quest progress updates should never block session completion.
     try {
-      incrementQuestProgressByType(db, 'pomodoros', 1)
+      const r = incrementQuestProgressByType(db, 'pomodoros', 1)
+      emitQuestCompletions(r, 'pomodoros')
     } catch (error) {
       console.error('Failed to update pomodoros quest progress', error)
     }
 
     if (new Date().getHours() < 12) {
       try {
-        incrementQuestProgressByType(db, 'pomodoros_morning', 1)
+        const r = incrementQuestProgressByType(db, 'pomodoros_morning', 1)
+        emitQuestCompletions(r, 'pomodoros_morning')
       } catch (error) {
         console.error('Failed to update morning pomodoro quest progress', error)
       }
@@ -83,14 +86,16 @@ export function registerPomodoroIpc(): void {
 
     if (interruptions === 0) {
       try {
-        incrementQuestProgressByType(db, 'deep_focus_day', 1)
+        const r = incrementQuestProgressByType(db, 'deep_focus_day', 1)
+        emitQuestCompletions(r, 'deep_focus_day')
       } catch (error) {
         console.error('Failed to update deep focus quest progress', error)
       }
     }
 
     try {
-      incrementQuestProgressByType(db, 'egg_hatch_prep', 1)
+      const r = incrementQuestProgressByType(db, 'egg_hatch_prep', 1)
+      emitQuestCompletions(r, 'egg_hatch_prep')
     } catch (error) {
       console.error('Failed to update egg hatch prep quest progress', error)
     }

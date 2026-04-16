@@ -12,6 +12,7 @@ import { SettingsPage } from './pages/Settings'
 import { InventoryPage } from './pages/Inventory'
 import { PetsPage } from './pages/Pets'
 import { QuestsPage } from './pages/Quests'
+import { ShopPage } from './pages/Shop'
 import { OnboardingPage } from './pages/Onboarding'
 import { GamificationOverlay } from './components/feedback/GamificationOverlay'
 import { Button } from './components/ui/button'
@@ -47,7 +48,7 @@ function playTaskReminderSound(): void {
 
 export default function App() {
   const { settings, initialized, loadSettings } = useSettingsStore()
-  const { initialize } = useGamificationStore()
+  const { initialize, triggerQuestCompleted } = useGamificationStore()
   const [taskReminder, setTaskReminder] = useState<{ taskId: string; title: string; dueDate: number } | null>(null)
   const [updateState, setUpdateState] = useState<'available' | 'ready' | null>(null)
   const [installingUpdate, setInstallingUpdate] = useState(false)
@@ -76,6 +77,16 @@ export default function App() {
       unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    const unsubscribe = window.api.onQuestCompleted((payload) => {
+      triggerQuestCompleted(payload.title, payload.xpAwarded, payload.focusAwarded)
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [triggerQuestCompleted])
 
   useEffect(() => {
     const unsubs = [
@@ -196,6 +207,7 @@ export default function App() {
           <Route path="journal" element={<JournalPage />} />
           <Route path="energy" element={<EnergyPage />} />
           <Route path="quests" element={<QuestsPage />} />
+          <Route path="shop" element={<ShopPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="pets" element={<PetsPage />} />

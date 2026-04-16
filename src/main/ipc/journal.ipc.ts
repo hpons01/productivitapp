@@ -4,6 +4,7 @@ import { saveJournalEntry, getTodayEntry, listEntries } from '../db/queries/jour
 import { awardXP } from '../db/queries/gamification.queries'
 import { setQuestProgressByType, incrementCatalogProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+import { emitQuestCompletions } from './quest-notifications'
 
 export function registerJournalIpc(): void {
   ipcMain.handle('journal:save', (_event, data) => {
@@ -27,11 +28,11 @@ export function registerJournalIpc(): void {
     })
 
     if (data.type === 'morning' && !hadEntryToday) {
-      setQuestProgressByType(db, 'morning_ritual', 1)
+      emitQuestCompletions(setQuestProgressByType(db, 'morning_ritual', 1), 'morning_ritual')
       incrementCatalogProgressByType(db, 'morning_ritual', 1)
     }
     if (data.type === 'evening' && !hadEntryToday) {
-      setQuestProgressByType(db, 'evening_ritual', 1)
+      emitQuestCompletions(setQuestProgressByType(db, 'evening_ritual', 1), 'evening_ritual')
       incrementCatalogProgressByType(db, 'evening_ritual', 1)
     }
 

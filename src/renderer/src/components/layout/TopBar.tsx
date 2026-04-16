@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { Minus, Square, X } from 'lucide-react'
 import { useGamificationStore } from '../../stores/gamification.store'
 import { useSettingsStore } from '../../stores/settings.store'
+import { useShopStore } from '../../stores/shop.store'
 import { cn } from '../../lib/utils'
 
 const CLASS_ICONS: Record<string, string> = {
@@ -20,6 +21,7 @@ export function TopBar() {
   const isWindows = navigator.userAgent.includes('Windows')
   const { level, totalXP, characterClass } = useGamificationStore()
   const equippedTitle = useSettingsStore((s) => s.getSetting('equipped_title', ''))
+  const { focusBalance } = useShopStore()
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000)
@@ -77,6 +79,11 @@ export function TopBar() {
         <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
           <span className="text-xs text-amber-400 font-bold">{totalXP.toLocaleString()}</span>
           <span className="text-[10px] text-amber-500/60">XP</span>
+        </div>
+
+        <div className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+          <span className="text-xs text-cyan-400 font-bold">{focusBalance.toLocaleString()}</span>
+          <span className="text-[10px] text-cyan-500/60">💎</span>
         </div>
       </div>
 

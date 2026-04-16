@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import { endOfDay, endOfWeek, startOfDay } from 'date-fns'
 import { awardXP, getOrCreateDailyQuests } from './gamification.queries'
 import { awardEgg } from './pets.queries'
+import { awardFocus } from './shop.queries'
 
 export type QuestStatus = 'available' | 'enrolled' | 'active' | 'completed' | 'failed' | 'expired' | 'abandoned'
 export type QuestTimeWindowType = 'daily' | 'weekly' | 'custom'
@@ -16,6 +17,7 @@ export interface QuestProgressResult {
   target: number
   milestoneXpAwarded: number
   completionXpAwarded: number
+  focusAwarded: number
   penaltyApplied: number
 }
 
@@ -89,6 +91,7 @@ interface QuestRow {
   progress: number
   completed: number
   xp_reward: number
+  focus_reward: number
   egg_reward_tier: string | null
   status: QuestStatus
   time_window_type: QuestTimeWindowType
@@ -355,6 +358,7 @@ export function abandonQuest(db: Database.Database, questId: string): QuestProgr
     target: row.target,
     milestoneXpAwarded: 0,
     completionXpAwarded: 0,
+    focusAwarded: 0,
     penaltyApplied: row.sanction_xp
   }
 }
@@ -384,6 +388,7 @@ export function recordQuestProgress(db: Database.Database, questId: string, prog
         target: quest.target,
         milestoneXpAwarded: 0,
         completionXpAwarded: 0,
+        focusAwarded: 0,
         penaltyApplied: penalty
       }
       return
@@ -430,6 +435,19 @@ export function recordQuestProgress(db: Database.Database, questId: string, prog
         }
       }
 
+      // Award Focus if this quest has a focus_reward
+      let focusAwarded = 0
+      if (quest.focus_reward > 0) {
+        const focusSourceId = `quest_focus_${quest.id}`
+        const alreadyAwarded = db
+          .prepare('SELECT COUNT(*) as n FROM focus_log WHERE source_id = ?')
+          .get(focusSourceId) as { n: number }
+        if (alreadyAwarded.n === 0) {
+          awardFocus(db, 'quest_completion', focusSourceId, quest.focus_reward)
+          focusAwarded = quest.focus_reward
+        }
+      }
+
       db.prepare(`
         UPDATE daily_quests
         SET
@@ -458,6 +476,7 @@ export function recordQuestProgress(db: Database.Database, questId: string, prog
         target: quest.target,
         milestoneXpAwarded,
         completionXpAwarded,
+        focusAwarded,
         penaltyApplied: 0
       }
       return
@@ -489,6 +508,7 @@ export function recordQuestProgress(db: Database.Database, questId: string, prog
       target: quest.target,
       milestoneXpAwarded,
       completionXpAwarded: 0,
+      focusAwarded: 0,
       penaltyApplied: 0
     }
 
@@ -768,7 +788,7 @@ export function recordCatalogQuestProgress(
 
   const tx = db.transaction(() => {
     const enrollment = db.prepare(`
-      SELECT ce.*, qd.target_count, qd.xp_reward, qd.egg_reward_tier, qd.difficulty
+      SELECT ce.*, qd.target_count, qd.xp_reward, qd.egg_reward_tier, qd.difficulty, qd.focus_reward
       FROM catalog_enrollments ce
       JOIN quest_definitions qd ON qd.id = ce.definition_id
       WHERE ce.id = ?
@@ -777,6 +797,7 @@ export function recordCatalogQuestProgress(
       xp_reward: number
       egg_reward_tier: string | null
       difficulty: QuestDifficulty
+      focus_reward: number
     }) | undefined
 
     if (!enrollment) throw new Error('Catalog enrollment not found.')
@@ -789,6 +810,7 @@ export function recordCatalogQuestProgress(
         target: enrollment.target_count,
         milestoneXpAwarded: 0,
         completionXpAwarded: 0,
+        focusAwarded: 0,
         penaltyApplied: 0
       }
       return
@@ -811,6 +833,7 @@ export function recordCatalogQuestProgress(
         target: enrollment.target_count,
         milestoneXpAwarded: 0,
         completionXpAwarded: 0,
+        focusAwarded: 0,
         penaltyApplied: penalty
       }
       return
@@ -855,6 +878,19 @@ export function recordCatalogQuestProgress(
         }
       }
 
+      // Award Focus if this quest definition has a focus_reward
+      let focusAwarded = 0
+      if (enrollment.focus_reward > 0) {
+        const focusSourceId = `catalog_focus_${enrollment.id}`
+        const alreadyAwarded = db
+          .prepare('SELECT COUNT(*) as n FROM focus_log WHERE source_id = ?')
+          .get(focusSourceId) as { n: number }
+        if (alreadyAwarded.n === 0) {
+          awardFocus(db, 'quest_completion', focusSourceId, enrollment.focus_reward)
+          focusAwarded = enrollment.focus_reward
+        }
+      }
+
       db.prepare(`
         UPDATE catalog_enrollments
         SET status = 'completed', progress = ?, milestones_awarded = ?,
@@ -870,6 +906,7 @@ export function recordCatalogQuestProgress(
         target: enrollment.target_count,
         milestoneXpAwarded,
         completionXpAwarded,
+        focusAwarded,
         penaltyApplied: 0
       }
       return
@@ -891,6 +928,7 @@ export function recordCatalogQuestProgress(
       target: enrollment.target_count,
       milestoneXpAwarded,
       completionXpAwarded: 0,
+      focusAwarded: 0,
       penaltyApplied: 0
     }
   })
