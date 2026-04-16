@@ -28,6 +28,9 @@ export function registerPomodoroIpc(): void {
     const db = getDb()
     const { id, interruptions = 0 } = data
 
+    const session = db.prepare('SELECT duration_mins FROM pomodoro_sessions WHERE id = ?').get(id) as { duration_mins: number } | undefined
+    const durationMins = Math.max(1, Number(session?.duration_mins ?? 25))
+
     // Check for active power-up multiplier
     let powerupBonus = 1
     const rawPowerup = getSetting(db, 'active_powerup')
@@ -45,11 +48,14 @@ export function registerPomodoroIpc(): void {
       } catch {}
     }
 
-    // XP: base 30 + bonus for zero interruptions, scaled by active power-up
-    const baseXP = Math.round((interruptions === 0 ? 40 : 30) * powerupBonus)
+    // XP scales linearly from 40 XP per 25 minutes, then applies a 20% interruption penalty.
+    const durationXP = (durationMins / 25) * 40
+    const interruptedXP = interruptions > 0 ? durationXP * 0.8 : durationXP
+    const baseXP = Math.round(interruptedXP * powerupBonus)
     const xpAward = awardXP(db, 'pomodoro', id, baseXP)
-    const session = completeSession(db, id, Date.now(), interruptions, xpAward.finalAmount)
+    const completedSession = completeSession(db, id, Date.now(), interruptions, xpAward.finalAmount)
     logEvent(db, 'pomodoro_completed', 'pomodoro', id, {
+      durationMins,
       interruptions,
       baseXP,
       xpAwarded: xpAward.finalAmount
@@ -93,7 +99,7 @@ export function registerPomodoroIpc(): void {
     sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a well-deserved break.')
 
     return {
-      ...session,
+      ...completedSession,
       xpAwarded: xpAward.finalAmount,
       baseXP: xpAward.baseAmount,
       multiplier: xpAward.multiplier

@@ -7,8 +7,9 @@ export const XP_REWARDS = {
   HABIT_BASE: 15,
   HABIT_STREAK_PER_DAY: 2, // Up to 50 bonus
   HABIT_STREAK_MAX_BONUS: 50,
-  POMODORO_BASE: 30,
-  POMODORO_CLEAN: 10, // Zero interruptions bonus
+  POMODORO_BASE: 40,
+  POMODORO_BASE_DURATION_MINS: 25,
+  POMODORO_INTERRUPTION_PENALTY: 0.2,
   MORNING_RITUAL: 25,
   EVENING_REFLECTION: 20,
   TASK_NORMAL: 10,
@@ -42,10 +43,10 @@ export function habitXP(streak: number): number {
 }
 
 /** Calculate pomodoro XP */
-export function pomodoroXP(interruptions: number): number {
-  return interruptions === 0
-    ? XP_REWARDS.POMODORO_BASE + XP_REWARDS.POMODORO_CLEAN
-    : XP_REWARDS.POMODORO_BASE
+export function pomodoroXP(durationMins: number, interruptions = 0): number {
+  const baseXP = (Math.max(1, durationMins) / XP_REWARDS.POMODORO_BASE_DURATION_MINS) * XP_REWARDS.POMODORO_BASE
+  const penalty = interruptions > 0 ? 1 - XP_REWARDS.POMODORO_INTERRUPTION_PENALTY : 1
+  return Math.round(baseXP * penalty)
 }
 
 /** Progress to next level (0–1) */
