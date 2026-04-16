@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSettingsStore } from '../../stores/settings.store'
 import { useHabitsStore } from '../../stores/habits.store'
+import { useGamificationStore } from '../../stores/gamification.store'
 import { Button } from '../../components/ui/button'
 import { Input, Textarea } from '../../components/ui/input'
+import { Modal } from '../../components/ui/modal'
 import { cn } from '../../lib/utils'
 
 const PRESET_HABITS = [
@@ -36,6 +38,7 @@ const CORE_VALUES = [
 export function OnboardingPage() {
   const { setSetting, loadSettings } = useSettingsStore()
   const { create: createHabit } = useHabitsStore()
+  const { refreshFromDB, loadCharacterClassConfig } = useGamificationStore()
   const navigate = useNavigate()
 
   const [step, setStep] = useState(0)
@@ -44,6 +47,9 @@ export function OnboardingPage() {
   const [selectedValues, setSelectedValues] = useState<string[]>([])
   const [commitment, setCommitment] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showImportConfirm, setShowImportConfirm] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importStatus, setImportStatus] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const steps = ['Welcome', 'Science', 'Habits', 'Values', 'Commitment']
@@ -103,6 +109,39 @@ export function OnboardingPage() {
     }
   }
 
+  const handleImportAndSkip = async () => {
+    setImporting(true)
+    setImportStatus(null)
+
+    try {
+      const result = await window.api.export.importData('replace') as {
+        success: boolean
+        canceled?: boolean
+        error?: string
+      }
+
+      if (result.canceled) {
+        setImportStatus('Import cancelled.')
+        return
+      }
+
+      if (!result.success) {
+        setImportStatus(result.error ?? 'Import failed.')
+        return
+      }
+
+      await setSetting('onboarding_completed', 'true')
+      await Promise.all([loadSettings(), refreshFromDB(), loadCharacterClassConfig()])
+      navigate('/')
+    } catch (e) {
+      console.error('Failed to import onboarding backup', e)
+      setImportStatus('Import failed. Please try again.')
+    } finally {
+      setImporting(false)
+      setShowImportConfirm(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-surface-900 flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
@@ -141,6 +180,18 @@ export function OnboardingPage() {
               <Button size="lg" className="w-full" onClick={() => setStep(1)}>
                 Begin Your Journey →
               </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                className="w-full"
+                onClick={() => setShowImportConfirm(true)}
+              >
+                Restore from JSON backup
+              </Button>
+              <p className="text-xs text-surface-400">
+                Returning user? Restore your backup and skip onboarding.
+              </p>
+              {importStatus && <p className="text-xs text-surface-300">{importStatus}</p>}
             </motion.div>
           )}
 
@@ -286,6 +337,39 @@ export function OnboardingPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <Modal
+          open={showImportConfirm}
+          onClose={() => !importing && setShowImportConfirm(false)}
+          title="Restore from JSON Backup"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-surface-300">
+              Restore data from a previous ProductivitApp backup file and skip onboarding.
+            </p>
+            <p className="text-xs text-amber-300/90">
+              This uses replace mode and will overwrite existing tracked data in this app profile.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setShowImportConfirm(false)}
+                disabled={importing}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => void handleImportAndSkip()}
+                loading={importing}
+                disabled={importing}
+              >
+                Choose file and restore
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   )
