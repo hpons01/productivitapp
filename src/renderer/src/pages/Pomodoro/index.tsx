@@ -162,7 +162,7 @@ export function PomodoroPage() {
 
           {/* SVG Ring Timer */}
           <div className="relative w-64 h-64">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 240 240">
+            <svg className="w-full h-full -rotate-90 overflow-visible" viewBox="0 0 240 240" overflow="visible">
               {/* Track */}
               <circle cx="120" cy="120" r="110" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
               {/* Progress */}

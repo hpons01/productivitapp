@@ -90,10 +90,14 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
   tick: () => {
     const { status, timeLeft } = get()
-    if (status !== 'running') return
+    if (status !== 'running' && status !== 'break') return
 
     if (timeLeft <= 1) {
-      get().complete()
+      if (status === 'running') {
+        get().complete()
+      } else {
+        get().endBreak()
+      }
     } else {
       set({ timeLeft: timeLeft - 1 })
     }
