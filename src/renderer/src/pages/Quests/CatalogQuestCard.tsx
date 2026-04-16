@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button'
 import { Modal } from '../../components/ui/modal'
 import { cn } from '../../lib/utils'
 import { CatalogQuestItem, QuestDifficulty, QuestCategory, formatRemaining } from './questTypes'
+import { QuestRewardBadges, buildQuestRewardBadges } from './QuestRewardBadges'
 
 const DIFFICULTY_STYLES: Record<QuestDifficulty, { badge: string; bar: string }> = {
   easy: { badge: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10', bar: 'bg-emerald-400' },
@@ -53,6 +54,10 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
     : 0
 
   const diffStyle = DIFFICULTY_STYLES[quest.difficulty]
+  const rewardBadges = buildQuestRewardBadges({
+    eggRewardTier: quest.egg_reward_tier,
+    lootRewardTier: quest.loot_reward_tier
+  })
 
   return (
     <Card className={cn('relative overflow-hidden', quest.is_locked && 'opacity-60')}>
@@ -61,12 +66,6 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
           <div className="flex items-center gap-2 min-w-0">
             <span className="shrink-0">{CATEGORY_ICONS[quest.category]}</span>
             <CardTitle className="text-sm font-semibold text-white truncate">{quest.title}</CardTitle>
-            {quest.egg_reward_tier && (
-              <span className="text-sm shrink-0" title="Egg reward">🥚</span>
-            )}
-            {quest.loot_reward_tier && (
-              <span className="text-sm shrink-0" title="Loot reward">✨</span>
-            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className={cn('text-[10px] uppercase tracking-wide px-2 py-1 rounded-md border font-semibold', diffStyle.badge)}>
@@ -81,6 +80,8 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
 
       <CardContent className="space-y-3">
         <p className="text-xs text-surface-400">{quest.description}</p>
+
+        <QuestRewardBadges rewards={rewardBadges} />
 
         {quest.flavor_text && !isActive && !isCompleted && (
           <p className="text-[11px] text-surface-500 italic">"{quest.flavor_text}"</p>

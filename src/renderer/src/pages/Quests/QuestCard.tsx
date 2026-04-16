@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button'
 import { Modal } from '../../components/ui/modal'
 import { cn } from '../../lib/utils'
 import { DailyQuestItem, QuestStatus, formatRemaining } from './questTypes'
+import { QuestRewardBadges, buildQuestRewardBadges } from './QuestRewardBadges'
 
 const STATUS_LABELS: Record<QuestStatus, string> = {
   available: 'Available',
@@ -42,17 +43,13 @@ export function QuestCard({ quest, activeCount, busyId, onEnroll, onAbandon }: Q
   const isActive = quest.status === 'enrolled' || quest.status === 'active'
   const canEnroll = quest.status === 'available' && activeCount < 3
   const sanctionPreview = Math.max(20, Math.min(250, Math.round(quest.xp_reward * 0.75)))
+  const rewardBadges = buildQuestRewardBadges({ eggRewardTier: quest.egg_reward_tier })
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <CardTitle className="text-sm font-semibold text-white truncate">{quest.description}</CardTitle>
-            {quest.egg_reward_tier && (
-              <span className="text-sm shrink-0" title="Egg reward">🥚</span>
-            )}
-          </div>
+          <CardTitle className="text-sm font-semibold text-white truncate">{quest.description}</CardTitle>
           <span
             className={cn(
               'text-[10px] uppercase tracking-wide px-2 py-1 rounded-md border font-semibold shrink-0',
@@ -64,6 +61,8 @@ export function QuestCard({ quest, activeCount, busyId, onEnroll, onAbandon }: Q
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        <QuestRewardBadges rewards={rewardBadges} />
+
         <div className="flex items-center gap-4 text-xs text-surface-300 flex-wrap">
           <span className="inline-flex items-center gap-1">
             <Swords size={12} /> {quest.progress}/{quest.target}
