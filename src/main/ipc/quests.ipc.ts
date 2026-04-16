@@ -111,8 +111,8 @@ export function registerQuestsIpc(): void {
     const current = db
       .prepare(`
         SELECT e.progress, e.status, d.target_count as target
-        FROM catalog_quest_enrollments e
-        JOIN catalog_quest_definitions d ON d.id = e.definition_id
+        FROM catalog_enrollments e
+        JOIN quest_definitions d ON d.id = e.definition_id
         WHERE e.id = ?
       `)
       .get(enrollmentId) as { progress: number; status: string; target: number } | undefined
