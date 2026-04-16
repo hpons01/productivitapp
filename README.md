@@ -227,6 +227,8 @@ Migrations run automatically on startup. Schema includes:
 3. Set up GitHub Actions (`.github/workflows/release.yml`) — see Next Steps
 4. electron-updater will auto-detect new releases on app start
 
+For the complete operator runbook, see `RELEASE_PROCESS.md`.
+
 ### Manual distribution
 
 After `npm run package`, distribute the files in `dist/`:

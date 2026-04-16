@@ -110,7 +110,13 @@ const api = {
 
   // Data export
   export: {
-    exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format)
+    exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format),
+    importData: (mode: 'replace' | 'merge') => ipcRenderer.invoke('export:importData', mode)
+  },
+
+  updater: {
+    install: () => ipcRenderer.invoke('updater:install'),
+    check: () => ipcRenderer.invoke('updater:check')
   },
 
   // Window controls

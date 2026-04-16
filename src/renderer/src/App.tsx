@@ -49,6 +49,8 @@ export default function App() {
   const { settings, initialized, loadSettings } = useSettingsStore()
   const { initialize } = useGamificationStore()
   const [taskReminder, setTaskReminder] = useState<{ taskId: string; title: string; dueDate: number } | null>(null)
+  const [updateState, setUpdateState] = useState<'available' | 'ready' | null>(null)
+  const [installingUpdate, setInstallingUpdate] = useState(false)
 
   useEffect(() => {
     void loadSettings()
@@ -70,6 +72,17 @@ export default function App() {
 
     return () => {
       unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    const unsubs = [
+      window.api.onUpdateAvailable(() => setUpdateState('available')),
+      window.api.onUpdateReady(() => setUpdateState('ready'))
+    ]
+
+    return () => {
+      unsubs.forEach((unsubscribe) => unsubscribe())
     }
   }, [])
 
@@ -109,6 +122,53 @@ export default function App() {
             >
               Dismiss
             </Button>
+          </div>
+        </div>
+      )}
+      {updateState && (
+        <div className="fixed left-1/2 top-4 z-[70] w-[min(94vw,560px)] -translate-x-1/2 rounded-2xl border border-primary-500/30 bg-surface-800/95 p-4 shadow-2xl shadow-black/35 backdrop-blur">
+          <p className="text-sm font-semibold text-white">
+            {updateState === 'available'
+              ? 'Update found. Downloading now...'
+              : 'Update ready to install'}
+          </p>
+          <p className="mt-1 text-xs text-surface-300">
+            {updateState === 'available'
+              ? 'Keep using the app while the update downloads in background.'
+              : 'Install now to restart ProductivitApp with the latest version.'}
+          </p>
+          <div className="mt-3 flex justify-end gap-2">
+            {updateState === 'ready' ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setUpdateState(null)}
+                  disabled={installingUpdate}
+                >
+                  Later
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    setInstallingUpdate(true)
+                    try {
+                      await window.api.updater.install()
+                    } finally {
+                      setInstallingUpdate(false)
+                    }
+                  }}
+                  loading={installingUpdate}
+                  disabled={installingUpdate}
+                >
+                  Install and restart
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="secondary" onClick={() => setUpdateState(null)}>
+                Hide
+              </Button>
+            )}
           </div>
         </div>
       )}

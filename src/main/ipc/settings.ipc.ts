@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import { getDb } from '../db'
 import { getSetting, setSetting, getAllSettings } from '../db/queries/settings.queries'
 import { scheduleNotifications } from '../notifications'
@@ -12,6 +12,12 @@ export function registerSettingsIpc(): void {
   ipcMain.handle('settings:set', (_event, key: string, value: string) => {
     const db = getDb()
     setSetting(db, key, value)
+
+    if (key === 'start_on_boot') {
+      app.setLoginItemSettings({
+        openAtLogin: value === 'true'
+      })
+    }
 
     // Re-schedule notifications if notification settings changed
     if (key.startsWith('notification_')) {

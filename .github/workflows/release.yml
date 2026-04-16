@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: Release Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify release build
+        run: npm run release:verify
+
+      - name: Build and publish Windows artifacts
+        run: npm run package:publish:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-linux:
+    name: Release Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify release build
+        run: npm run release:verify
+
+      - name: Build and publish Linux artifacts
+        run: npm run package:publish:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
