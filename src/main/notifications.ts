@@ -91,16 +91,26 @@ export function scheduleTaskReminder(taskId: string, title: string, dueDate: num
   const effectiveAt = reminderAt <= now ? now + 500 : reminderAt
 
   const delay = effectiveAt - now
-  const timeout = setTimeout(() => {
-    if (effectiveAt - Date.now() > MAX_TIMEOUT_MS) {
+  if (delay > MAX_TIMEOUT_MS) {
+    const timeout = setTimeout(() => {
       scheduleTaskReminder(taskId, title, dueDate)
-      return
-    }
+    }, MAX_TIMEOUT_MS)
 
+    scheduledNotifications.set(notificationId, {
+      id: notificationId,
+      title,
+      body: 'Checkpoint for long-range reminder',
+      scheduledAt: effectiveAt,
+      timeout
+    })
+    return
+  }
+
+  const timeout = setTimeout(() => {
     sendNotification('⏰ Task starting soon', `${title} starts in 5 minutes.`)
     emitTaskReminder(taskId, title, dueDate)
     scheduledNotifications.delete(notificationId)
-  }, Math.min(delay, MAX_TIMEOUT_MS))
+  }, delay)
 
   scheduledNotifications.set(notificationId, {
     id: notificationId,
