@@ -94,7 +94,8 @@ const api = {
   // Loot inventory
   loot: {
     list: () => ipcRenderer.invoke('loot:list'),
-    activate: (id: string) => ipcRenderer.invoke('loot:activate', id)
+    activate: (id: string) => ipcRenderer.invoke('loot:activate', id),
+    save: (item: unknown) => ipcRenderer.invoke('loot:save', item)
   },
 
   // Pets

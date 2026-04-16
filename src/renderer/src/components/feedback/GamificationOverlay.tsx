@@ -226,15 +226,36 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
 
   useEffect(() => { playSound('badge') }, [])
 
+  async function handleClaim() {
+    if (opened.current) return
+    opened.current = true
+    try {
+      const result = await window.api.loot.save({
+        id: reward.id,
+        type: loot.type,
+        tier: loot.tier,
+        payload: JSON.stringify({ name: loot.name, description: loot.description, value: loot.value })
+      }) as { success?: boolean; error?: string }
+
+      if (!result?.success) {
+        throw new Error(result?.error ?? 'Failed to persist loot reward')
+      }
+
+      onDismiss()
+    } catch (error) {
+      opened.current = false
+      console.error('Failed to save claimed loot reward', error)
+    }
+  }
+
   return (
-    <Backdrop onClick={onDismiss}>
+    <Backdrop>
       <motion.div
         className="text-center max-w-xs mx-auto px-6"
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.8, opacity: 0 }}
         transition={{ type: 'spring', damping: 12 }}
-        onClick={(e) => e.stopPropagation()}
       >
         <p className="text-surface-400 uppercase tracking-widest text-xs mb-4 font-bold">Surprise Reward!</p>
 
@@ -254,7 +275,7 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
         </div>
         <h2 className="text-xl font-black text-white mb-1">{loot.name}</h2>
         <p className="text-surface-400 text-sm mb-6">{loot.description}</p>
-        <Button onClick={onDismiss} className="w-full">Claim! 🎁</Button>
+        <Button onClick={handleClaim} className="w-full">Claim! 🎁</Button>
       </motion.div>
     </Backdrop>
   )

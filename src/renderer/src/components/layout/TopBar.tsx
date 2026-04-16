@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { Minus, Square, X } from 'lucide-react'
 import { useGamificationStore } from '../../stores/gamification.store'
+import { useSettingsStore } from '../../stores/settings.store'
 import { cn } from '../../lib/utils'
 
 const CLASS_ICONS: Record<string, string> = {
@@ -18,6 +19,7 @@ export function TopBar() {
   const [isMaximized, setIsMaximized] = useState(false)
   const isWindows = navigator.userAgent.includes('Windows')
   const { level, totalXP, characterClass } = useGamificationStore()
+  const equippedTitle = useSettingsStore((s) => s.getSetting('equipped_title', ''))
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000)
@@ -56,6 +58,9 @@ export function TopBar() {
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-amber-400 font-bold">{CLASS_ICONS[characterClass]}</span>
           <span className="text-xs text-surface-400 font-medium">{characterClass}</span>
+          {equippedTitle && (
+            <span className="text-[10px] text-surface-500 italic">· {equippedTitle}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

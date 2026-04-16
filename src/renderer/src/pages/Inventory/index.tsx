@@ -3,13 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Package, Zap, Sparkles } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
-import { TIER_COLORS, type LootTier } from '../../lib/science/rewards'
+import { TIER_COLORS, type LootTier, type LootItem as RewardLootItem } from '../../lib/science/rewards'
 import { cn } from '../../lib/utils'
 import { format } from 'date-fns'
+import { useSettingsStore } from '../../stores/settings.store'
+import { activateLootItem, getPowerupTypeFromName, getThemeKeyFromLootName } from '../../lib/loot-activation'
 
 interface LootItem {
   id: string
-  type: string
+  type: RewardLootItem['type']
   tier: LootTier
   payload: string
   earned_at: number
@@ -53,6 +55,12 @@ export function InventoryPage() {
   const [activating, setActivating] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'available' | 'used'>('all')
 
+  const { getSetting, setSetting } = useSettingsStore()
+  const equippedTitle = getSetting('equipped_title', '')
+  const activeTheme = getSetting('theme', 'dark')
+  const activeAccent = getSetting('active_accent', 'default')
+  const activePowerupRaw = getSetting('active_powerup', '')
+
   useEffect(() => {
     loadInventory()
   }, [])
@@ -65,26 +73,67 @@ export function InventoryPage() {
     setLoading(false)
   }
 
-  async function handleActivate(item: LootItem) {
-    setActivating(item.id)
-    try {
-      await window.api.loot.activate(item.id)
-      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
-    } catch {}
-    setActivating(null)
-  }
-
   function parsePayload(raw: string): ParsedPayload {
     try { return JSON.parse(raw) } catch { return {} }
   }
 
+  function getItemStatus(item: LootItem, payload: ParsedPayload): 'equipped' | 'active' | 'used' | 'available' {
+    if (item.type === 'title') {
+      return payload.name === equippedTitle ? 'equipped' : 'available'
+    }
+    if (item.type === 'theme') {
+      const key = getThemeKeyFromLootName(payload.name)
+      return key === activeTheme ? 'equipped' : 'available'
+    }
+    if (item.type === 'cosmetic') {
+      return activeAccent === 'bronze' ? 'equipped' : 'available'
+    }
+    if (item.type === 'power_up') {
+      try {
+        const pu = JSON.parse(activePowerupRaw)
+        const payloadPowerupType = getPowerupTypeFromName(payload.name)
+        const expired = pu.expires_at !== null && Date.now() > pu.expires_at
+        const depleted = pu.uses_left !== null && pu.uses_left <= 0
+        if (!expired && !depleted && pu.type !== undefined && pu.type === payloadPowerupType) return 'active'
+      } catch {}
+      return item.used_at ? 'used' : 'available'
+    }
+    return item.used_at ? 'used' : 'available'
+  }
+
+  async function handleActivate(item: LootItem) {
+    setActivating(item.id)
+    try {
+      const payload = parsePayload(item.payload)
+      const payloadName = typeof payload.name === 'string' && payload.name.trim() ? payload.name : undefined
+      const requiresName = item.type === 'title' || item.type === 'theme' || item.type === 'power_up'
+      if (requiresName && !payloadName) {
+        console.error('Cannot activate loot item: payload is missing required name', item)
+        return
+      }
+
+      const isPersistent = ['title', 'theme', 'cosmetic'].includes(item.type)
+      if (!isPersistent) {
+        await window.api.loot.activate(item.id)
+        setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
+      }
+      await activateLootItem({ type: item.type, name: payloadName }, setSetting)
+    } catch (error) {
+      console.error('Failed to activate loot item', error)
+    }
+    finally {
+      setActivating(null)
+    }
+  }
+
   const filtered = items.filter((i) => {
-    if (filter === 'available') return !i.used_at
-    if (filter === 'used') return !!i.used_at
+    const status = getItemStatus(i, parsePayload(i.payload))
+    if (filter === 'available') return status !== 'used'
+    if (filter === 'used') return status === 'used'
     return true
   })
 
-  const availableCount = items.filter((i) => !i.used_at).length
+  const availableCount = items.filter((i) => getItemStatus(i, parsePayload(i.payload)) !== 'used').length
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -144,7 +193,8 @@ export function InventoryPage() {
             {filtered.map((item) => {
               const payload = parsePayload(item.payload)
               const colors = TIER_COLORS[item.tier] || TIER_COLORS.common
-              const isUsed = !!item.used_at
+              const status = getItemStatus(item, payload)
+              const isPersistent = ['title', 'theme', 'cosmetic'].includes(item.type)
 
               return (
                 <motion.div
@@ -159,12 +209,12 @@ export function InventoryPage() {
                       'border transition-all',
                       colors.border,
                       colors.bg,
-                      isUsed && 'opacity-40',
-                      !isUsed && colors.glow && `shadow-lg ${colors.glow}`
+                      !isPersistent && status === 'used' && 'opacity-40',
+                      (status === 'equipped' || status === 'active' || status === 'available') && colors.glow && `shadow-lg ${colors.glow}`
                     )}
                   >
                     <CardContent className="p-4 flex items-center gap-4">
-                      {/* Tier icon */}
+                      {/* Type icon */}
                       <div className={cn(
                         'w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 border',
                         colors.border, colors.bg
@@ -181,28 +231,38 @@ export function InventoryPage() {
                           <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-md border', colors.text, colors.border, colors.bg)}>
                             {TIER_ICONS[item.tier]} {TIER_LABELS[item.tier]}
                           </span>
-                          {isUsed && (
-                            <span className="text-[10px] text-surface-500 bg-surface-700 px-1.5 py-0.5 rounded-md">
-                              Used
-                            </span>
-                          )}
                         </div>
                         <p className="text-xs text-surface-400 mt-0.5">
                           {payload.description || 'A mysterious reward'}
                         </p>
                         <p className="text-[10px] text-surface-600 mt-0.5">
                           Earned {format(new Date(item.earned_at), 'MMM d, yyyy')}
-                          {isUsed && item.used_at && ` · Used ${format(new Date(item.used_at), 'MMM d')}`}
+                          {!isPersistent && status === 'used' && item.used_at && ` · Used ${format(new Date(item.used_at), 'MMM d')}`}
                         </p>
                       </div>
 
-                      {/* Action */}
-                      {!isUsed && (
+                      {/* Action / Status */}
+                      {status === 'equipped' && (
+                        <span className="text-[10px] text-primary-400 font-semibold border border-primary-500/30 bg-primary-500/10 px-2 py-0.5 rounded-md shrink-0">
+                          Equipped ✓
+                        </span>
+                      )}
+                      {status === 'active' && (
+                        <span className="text-[10px] text-emerald-400 font-semibold border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded-md shrink-0">
+                          Active ⚡
+                        </span>
+                      )}
+                      {status === 'used' && (
+                        <span className="text-[10px] text-surface-500 bg-surface-700 px-1.5 py-0.5 rounded-md shrink-0">
+                          Used
+                        </span>
+                      )}
+                      {status === 'available' && (
                         <Button
                           size="sm"
                           variant={item.tier === 'legendary' ? 'amber' : 'secondary'}
                           loading={activating === item.id}
-                          onClick={() => handleActivate(item)}
+                          onClick={() => void handleActivate(item)}
                           className="shrink-0"
                         >
                           {item.type === 'xp_boost' ? (

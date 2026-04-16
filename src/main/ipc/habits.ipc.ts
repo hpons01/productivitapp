@@ -16,6 +16,7 @@ import {
   createHabitMicroCheckin
 } from '../db/queries/habits.queries'
 import { awardXP, damageBoss, updateStreakRecoveryQuest, hasBrokenStreakToday } from '../db/queries/gamification.queries'
+import { getSetting, setSetting } from '../db/queries/settings.queries'
 import { setQuestProgressByType, incrementCatalogProgressByType, decrementCatalogProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
 
@@ -130,9 +131,24 @@ export function registerHabitsIpc(): void {
 
   ipcMain.handle('habits:lapsePromptStatus', () => {
     const db = getDb()
-    const brokenStreak = hasBrokenStreakToday(db)
-    const reflections = getHabitLapseReflectionsForDate(db, Date.now())
+    const rawBroken = hasBrokenStreakToday(db)
 
+    // Streak Shield: absorb one streak break
+    let brokenStreak = rawBroken
+    if (rawBroken) {
+      const rawPowerup = getSetting(db, 'active_powerup')
+      if (rawPowerup) {
+        try {
+          const pu = JSON.parse(rawPowerup) as { type: string; uses_left: number | null }
+          if (pu.type === 'streak_shield' && pu.uses_left !== null && pu.uses_left > 0) {
+            setSetting(db, 'active_powerup', JSON.stringify({ ...pu, uses_left: 0 }))
+            brokenStreak = false
+          }
+        } catch {}
+      }
+    }
+
+    const reflections = getHabitLapseReflectionsForDate(db, Date.now())
     return {
       brokenStreak,
       alreadyReflected: reflections.length > 0,
