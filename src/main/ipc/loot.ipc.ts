@@ -23,4 +23,12 @@ export function registerLootIpc(): void {
     db.prepare('UPDATE loot_inventory SET used_at = ? WHERE id = ?').run(Date.now(), id)
     return { success: true }
   })
+
+  ipcMain.handle('loot:save', (_event, item: { id: string; type: string; tier: string; payload: string }) => {
+    const db = getDb()
+    db.prepare(
+      'INSERT OR IGNORE INTO loot_inventory (id, type, tier, payload, earned_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(item.id, item.type, item.tier, item.payload, Date.now())
+    return { success: true }
+  })
 }
