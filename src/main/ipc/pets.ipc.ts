@@ -37,7 +37,13 @@ export function registerPetsIpc(): void {
     const db = getDb()
     const result = hatchEgg(db, eggId)
     if (!result) return { success: false, error: 'Egg not found or already hatched' }
-    return { success: true, pet: result.pet, egg: result.egg }
+    return {
+      success: true,
+      pet: result.pet,
+      egg: result.egg,
+      isDuplicate: result.isDuplicate,
+      focusAwarded: result.focusAwarded
+    }
   })
 
   ipcMain.handle('pets:rename', (_event, petId: string, name: string) => {

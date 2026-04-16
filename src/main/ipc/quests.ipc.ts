@@ -14,6 +14,7 @@ import {
   syncExpiredCatalogEnrollments
 } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+import { emitQuestCompleted } from './quest-notifications'
 
 export function registerQuestsIpc(): void {
   ipcMain.handle('quests:list', () => {
@@ -46,6 +47,7 @@ export function registerQuestsIpc(): void {
         target: current.target,
         milestoneXpAwarded: 0,
         completionXpAwarded: 0,
+        focusAwarded: 0,
         penaltyApplied: 0
       }
     }
@@ -56,6 +58,13 @@ export function registerQuestsIpc(): void {
       target: result.target,
       status: result.status
     })
+    if (result.status === 'completed') {
+      const questRow = db.prepare('SELECT quest_type FROM daily_quests WHERE id = ?').get(questId) as { quest_type: string } | undefined
+      const title = questRow
+        ? questRow.quest_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        : 'Quest'
+      emitQuestCompleted(title, result.completionXpAwarded, result.focusAwarded)
+    }
     return result
   })
 
@@ -125,6 +134,7 @@ export function registerQuestsIpc(): void {
         target: current.target,
         milestoneXpAwarded: 0,
         completionXpAwarded: 0,
+        focusAwarded: 0,
         penaltyApplied: 0
       }
     }
@@ -135,6 +145,14 @@ export function registerQuestsIpc(): void {
       target: result.target,
       status: result.status
     })
+    if (result.status === 'completed') {
+      const defRow = db.prepare(`
+        SELECT qd.title FROM catalog_enrollments ce
+        JOIN quest_definitions qd ON qd.id = ce.definition_id
+        WHERE ce.id = ?
+      `).get(enrollmentId) as { title: string } | undefined
+      emitQuestCompleted(defRow?.title ?? 'Quest', result.completionXpAwarded, result.focusAwarded)
+    }
     return result
   })
 }

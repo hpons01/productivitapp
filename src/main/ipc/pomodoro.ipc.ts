@@ -15,6 +15,7 @@ import { getSetting, setSetting } from '../db/queries/settings.queries'
 import { sendNotification } from '../notifications'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+import { emitQuestCompletions } from './quest-notifications'
 
 export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:start', (_event, data) => {
@@ -27,6 +28,9 @@ export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:complete', (_event, data) => {
     const db = getDb()
     const { id, interruptions = 0 } = data
+
+    const session = db.prepare('SELECT duration_mins FROM pomodoro_sessions WHERE id = ?').get(id) as { duration_mins: number } | undefined
+    const durationMins = Math.max(1, Number(session?.duration_mins ?? 25))
 
     // Check for active power-up multiplier
     let powerupBonus = 1
@@ -45,11 +49,14 @@ export function registerPomodoroIpc(): void {
       } catch {}
     }
 
-    // XP: base 30 + bonus for zero interruptions, scaled by active power-up
-    const baseXP = Math.round((interruptions === 0 ? 40 : 30) * powerupBonus)
+    // XP scales linearly from 40 XP per 25 minutes, then applies a 20% interruption penalty.
+    const durationXP = (durationMins / 25) * 40
+    const interruptedXP = interruptions > 0 ? durationXP * 0.8 : durationXP
+    const baseXP = Math.round(interruptedXP * powerupBonus)
     const xpAward = awardXP(db, 'pomodoro', id, baseXP)
-    const session = completeSession(db, id, Date.now(), interruptions, xpAward.finalAmount)
+    const completedSession = completeSession(db, id, Date.now(), interruptions, xpAward.finalAmount)
     logEvent(db, 'pomodoro_completed', 'pomodoro', id, {
+      durationMins,
       interruptions,
       baseXP,
       xpAwarded: xpAward.finalAmount
@@ -62,14 +69,16 @@ export function registerPomodoroIpc(): void {
 
     // Enrolled quest progress updates should never block session completion.
     try {
-      incrementQuestProgressByType(db, 'pomodoros', 1)
+      const r = incrementQuestProgressByType(db, 'pomodoros', 1)
+      emitQuestCompletions(r, 'pomodoros')
     } catch (error) {
       console.error('Failed to update pomodoros quest progress', error)
     }
 
     if (new Date().getHours() < 12) {
       try {
-        incrementQuestProgressByType(db, 'pomodoros_morning', 1)
+        const r = incrementQuestProgressByType(db, 'pomodoros_morning', 1)
+        emitQuestCompletions(r, 'pomodoros_morning')
       } catch (error) {
         console.error('Failed to update morning pomodoro quest progress', error)
       }
@@ -77,14 +86,16 @@ export function registerPomodoroIpc(): void {
 
     if (interruptions === 0) {
       try {
-        incrementQuestProgressByType(db, 'deep_focus_day', 1)
+        const r = incrementQuestProgressByType(db, 'deep_focus_day', 1)
+        emitQuestCompletions(r, 'deep_focus_day')
       } catch (error) {
         console.error('Failed to update deep focus quest progress', error)
       }
     }
 
     try {
-      incrementQuestProgressByType(db, 'egg_hatch_prep', 1)
+      const r = incrementQuestProgressByType(db, 'egg_hatch_prep', 1)
+      emitQuestCompletions(r, 'egg_hatch_prep')
     } catch (error) {
       console.error('Failed to update egg hatch prep quest progress', error)
     }
@@ -93,7 +104,7 @@ export function registerPomodoroIpc(): void {
     sendNotification('🍅 Pomodoro Complete!', 'Great work! Time for a well-deserved break.')
 
     return {
-      ...session,
+      ...completedSession,
       xpAwarded: xpAward.finalAmount,
       baseXP: xpAward.baseAmount,
       multiplier: xpAward.multiplier

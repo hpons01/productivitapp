@@ -11,6 +11,7 @@ import { registerWindowIpc } from './window.ipc'
 import { registerPetsIpc } from './pets.ipc'
 import { registerQuestsIpc } from './quests.ipc'
 import { registerUpdaterIpc } from './updater.ipc'
+import { registerShopIpc } from './shop.ipc'
 
 export function registerAllIpcHandlers(): void {
   registerHabitsIpc()
@@ -26,4 +27,5 @@ export function registerAllIpcHandlers(): void {
   registerPetsIpc()
   registerQuestsIpc()
   registerUpdaterIpc()
+  registerShopIpc()
 }

@@ -4,13 +4,14 @@ import { logEnergy, getEnergyRange, getLatestEnergy } from '../db/queries/energy
 import { awardXP } from '../db/queries/gamification.queries'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
+import { emitQuestCompletions } from './quest-notifications'
 
 export function registerEnergyIpc(): void {
   ipcMain.handle('energy:log', (_event, data) => {
     const db = getDb()
     const log = logEnergy(db, data)
     const xpAward = awardXP(db, 'energy', log.id, 5)
-    incrementQuestProgressByType(db, 'energy_logs', 1)
+    emitQuestCompletions(incrementQuestProgressByType(db, 'energy_logs', 1), 'energy_logs')
     logEvent(db, 'energy_logged', 'energy', log.id, {
       energy: log.energy,
       mood: log.mood,

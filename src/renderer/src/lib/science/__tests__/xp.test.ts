@@ -105,13 +105,18 @@ describe('habitXP', () => {
 })
 
 describe('pomodoroXP', () => {
-  it('awards clean bonus for 0 interruptions', () => {
-    expect(pomodoroXP(0)).toBe(XP_REWARDS.POMODORO_BASE + XP_REWARDS.POMODORO_CLEAN)
+  it('awards 40 XP for a 25 minute session with no interruptions', () => {
+    expect(pomodoroXP(25)).toBe(XP_REWARDS.POMODORO_BASE)
   })
 
-  it('awards base only when there are interruptions', () => {
-    expect(pomodoroXP(1)).toBe(XP_REWARDS.POMODORO_BASE)
-    expect(pomodoroXP(5)).toBe(XP_REWARDS.POMODORO_BASE)
+  it('scales linearly with duration', () => {
+    expect(pomodoroXP(12.5)).toBe(20)
+    expect(pomodoroXP(50)).toBe(80)
+  })
+
+  it('applies a 20% penalty when there are interruptions', () => {
+    expect(pomodoroXP(25, 1)).toBe(32)
+    expect(pomodoroXP(50, 3)).toBe(64)
   })
 })
 
