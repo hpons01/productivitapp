@@ -58,10 +58,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    // Apply theme to html element
     const theme = settings['theme'] || 'dark'
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-    document.documentElement.classList.toggle('light', theme === 'light')
+    const accent = settings['active_accent'] || 'default'
+    const html = document.documentElement
+    html.classList.remove('light', 'ocean', 'void', 'golden')
+    if (theme !== 'dark') html.classList.add(theme)
+    html.classList.toggle('accent-bronze', accent === 'bronze')
   }, [settings])
 
   useEffect(() => {
