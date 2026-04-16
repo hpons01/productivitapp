@@ -397,15 +397,15 @@ export function HabitsPage() {
       setTimeout(() => setXpPopups((p) => p.filter((x) => x.id !== popId)), 1500)
     }
 
+    const habit = habits.find((h) => h.id === habitId)
+    if (!habit) return
+
     if (result.shouldSuggestGraduation) {
-      const habit = habits.find((h) => h.id === habitId)
-      if (habit) setGraduatingHabit(habit)
+      setGraduatingHabit(habit)
+      return
     }
 
-    const habit = habits.find((h) => h.id === habitId)
-    if (habit) {
-      setMicroCheckinHabit(habit)
-    }
+    setMicroCheckinHabit(habit)
   }
 
   const handleEdit = async (data: Partial<Habit>) => {
