@@ -13,6 +13,7 @@ interface ScheduledNotification {
 
 const scheduledNotifications = new Map<string, ScheduledNotification>()
 const TASK_REMINDER_OFFSET_MS = 5 * 60 * 1000
+const MAX_TIMEOUT_MS = 2147483647
 
 function getTaskReminderId(taskId: string): string {
   return `task-reminder-${taskId}`
@@ -91,10 +92,15 @@ export function scheduleTaskReminder(taskId: string, title: string, dueDate: num
 
   const delay = effectiveAt - now
   const timeout = setTimeout(() => {
+    if (effectiveAt - Date.now() > MAX_TIMEOUT_MS) {
+      scheduleTaskReminder(taskId, title, dueDate)
+      return
+    }
+
     sendNotification('⏰ Task starting soon', `${title} starts in 5 minutes.`)
     emitTaskReminder(taskId, title, dueDate)
     scheduledNotifications.delete(notificationId)
-  }, Math.min(delay, 2147483647))
+  }, Math.min(delay, MAX_TIMEOUT_MS))
 
   scheduledNotifications.set(notificationId, {
     id: notificationId,
