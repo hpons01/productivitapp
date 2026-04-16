@@ -30,6 +30,8 @@ export function registerShopIpc(): void {
   })
 
   ipcMain.handle('shop:focusLog', (_event, limit = 50) => {
-    return getFocusLog(getDb(), Number(limit))
+    const parsedLimit = Number(limit)
+    const safeLimit = Number.isInteger(parsedLimit) ? Math.max(1, Math.min(500, parsedLimit)) : 50
+    return getFocusLog(getDb(), safeLimit)
   })
 }

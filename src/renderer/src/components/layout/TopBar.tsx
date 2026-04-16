@@ -21,12 +21,16 @@ export function TopBar() {
   const isWindows = navigator.userAgent.includes('Windows')
   const { level, totalXP, characterClass } = useGamificationStore()
   const equippedTitle = useSettingsStore((s) => s.getSetting('equipped_title', ''))
-  const { focusBalance } = useShopStore()
+  const { focusBalance, refreshBalance } = useShopStore()
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    void refreshBalance()
+  }, [refreshBalance])
 
   useEffect(() => {
     if (!isWindows) return

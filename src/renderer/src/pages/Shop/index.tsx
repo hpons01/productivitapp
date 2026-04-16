@@ -59,15 +59,18 @@ function ShopItemCard({ item, focusBalance, isPurchased, isPurchasing, onBuy }: 
   const canAfford = focusBalance >= item.focusCost
 
   function handleClick() {
-    if (isPurchased || isPurchasing) return
+    if (isPurchased || isPurchasing || !canAfford) return
 
-    if (item.focusCost >= 200 || confirming) {
-      setConfirming(false)
-      onBuy(item)
-    } else {
+    const requiresConfirmation = item.focusCost >= 200
+
+    if (requiresConfirmation && !confirming) {
       setConfirming(true)
       setTimeout(() => setConfirming(false), 3000)
+      return
     }
+
+    setConfirming(false)
+    onBuy(item)
   }
 
   function getButtonLabel() {
@@ -114,7 +117,7 @@ function ShopItemCard({ item, focusBalance, isPurchased, isPurchasing, onBuy }: 
         variant={isPurchased ? 'secondary' : confirming ? 'amber' : canAfford ? 'primary' : 'secondary'}
         className="w-full"
         onClick={handleClick}
-        disabled={isPurchased || isPurchasing || (!confirming && !canAfford)}
+        disabled={isPurchased || isPurchasing || !canAfford}
         loading={isPurchasing}
       >
         {getButtonLabel()}
