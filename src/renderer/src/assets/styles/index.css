@@ -1,13 +1,74 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Runtime-themable color tokens */
+  --color-primary: var(--app-primary);
+  --color-primary-50: color-mix(in srgb, var(--app-primary) 15%, white);
+  --color-primary-100: color-mix(in srgb, var(--app-primary) 25%, white);
+  --color-primary-200: color-mix(in srgb, var(--app-primary) 35%, white);
+  --color-primary-300: color-mix(in srgb, var(--app-primary) 50%, white);
+  --color-primary-400: color-mix(in srgb, var(--app-primary) 65%, white);
+  --color-primary-500: color-mix(in srgb, var(--app-primary) 80%, white);
+  --color-primary-600: var(--app-primary);
+  --color-primary-700: color-mix(in srgb, var(--app-primary) 85%, black);
+  --color-primary-800: color-mix(in srgb, var(--app-primary) 70%, black);
+  --color-primary-900: color-mix(in srgb, var(--app-primary) 55%, black);
+
+  --color-amber-400: color-mix(in srgb, var(--app-amber) 70%, white);
+  --color-amber-500: var(--app-amber);
+  --color-amber-600: color-mix(in srgb, var(--app-amber) 80%, black);
+
+  --color-surface-400: var(--app-surface-400);
+  --color-surface-500: var(--app-surface-500);
+  --color-surface-600: var(--app-surface-600);
+  --color-surface-700: var(--app-surface-700);
+  --color-surface-800: var(--app-surface-800);
+  --color-surface-900: var(--app-surface-900);
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Animations */
+  --animate-float-up: floatUp 1.2s ease-out forwards;
+  --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
+  --animate-shake: shake 0.5s ease-in-out;
+  --animate-bounce-in: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(124, 58, 237, 0.4); }
+  50%       { box-shadow: 0 0 24px rgba(124, 58, 237, 0.8); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-8px); }
+  75%       { transform: translateX(8px); }
+}
+@keyframes bounceIn {
+  0%   { opacity: 0; transform: scale(0.3); }
+  50%  { opacity: 1; transform: scale(1.05); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
 
 @layer base {
   :root {
-    --app-bg: #0f0f1a;
-    --app-surface: #16162a;
-    --app-card: #1e1e35;
-    --app-border: #2d2d4a;
+    --app-surface-900: #0f0f1a;
+    --app-surface-800: #16162a;
+    --app-surface-700: #1e1e35;
+    --app-surface-600: #25253d;
+    --app-surface-500: #2d2d4a;
+    --app-surface-400: #7777b8;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
     --app-primary: #7c3aed;
     --app-primary-glow: rgba(124, 58, 237, 0.35);
     --app-amber: #f59e0b;
@@ -15,24 +76,50 @@
     --app-muted: #8888aa;
     --app-success: #10b981;
     --app-danger: #ef4444;
-    --scrollbar-color: #2d2d4a;
+    --scrollbar-color: var(--app-surface-500);
   }
 
   .light {
-    --app-bg: #f8f7ff;
-    --app-surface: #ffffff;
-    --app-card: #ffffff;
-    --app-border: #e5e5f0;
+    --app-surface-900: #f8f7ff;
+    --app-surface-800: #ffffff;
+    --app-surface-700: #ffffff;
+    --app-surface-600: #ece8f6;
+    --app-surface-500: #d9d2e8;
+    --app-surface-400: #7d7697;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
+    --app-primary: #5b3df5;
+    --app-primary-glow: rgba(91, 61, 245, 0.24);
+    --app-amber: #c98017;
     --app-text: #1a1a2e;
     --app-muted: #6b6b8a;
-    --scrollbar-color: #d5d5e8;
+    --scrollbar-color: var(--app-surface-500);
+  }
+
+  /* Many screens use hardcoded text-white utilities; remap for readable light mode. */
+  .light .text-white,
+  .light .text-white\/90,
+  .light .text-white\/80,
+  .light .text-white\/70,
+  .light .text-white\/60 {
+    color: var(--app-text) !important;
   }
 
   .ocean {
-    --app-bg: #061a20;
-    --app-surface: #0b2430;
-    --app-card: #0e2e3c;
-    --app-border: #1a4a5a;
+    --app-surface-900: #061a20;
+    --app-surface-800: #0b2430;
+    --app-surface-700: #0e2e3c;
+    --app-surface-600: #134457;
+    --app-surface-500: #1a4a5a;
+    --app-surface-400: #72aebd;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
     --app-primary: #0891b2;
     --app-primary-glow: rgba(8, 145, 178, 0.35);
     --app-amber: #06b6d4;
@@ -40,14 +127,21 @@
     --app-muted: #6baab8;
     --app-success: #10b981;
     --app-danger: #ef4444;
-    --scrollbar-color: #1a4a5a;
+    --scrollbar-color: var(--app-surface-500);
   }
 
   .void {
-    --app-bg: #000000;
-    --app-surface: #080808;
-    --app-card: #0f0f0f;
-    --app-border: #1c1c1c;
+    --app-surface-900: #000000;
+    --app-surface-800: #080808;
+    --app-surface-700: #0f0f0f;
+    --app-surface-600: #151515;
+    --app-surface-500: #1c1c1c;
+    --app-surface-400: #5a5a5a;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
     --app-primary: #9333ea;
     --app-primary-glow: rgba(147, 51, 234, 0.30);
     --app-amber: #a855f7;
@@ -55,14 +149,21 @@
     --app-muted: #555555;
     --app-success: #10b981;
     --app-danger: #ef4444;
-    --scrollbar-color: #1c1c1c;
+    --scrollbar-color: var(--app-surface-500);
   }
 
   .golden {
-    --app-bg: #0f0a00;
-    --app-surface: #1a1200;
-    --app-card: #211700;
-    --app-border: #3d2e00;
+    --app-surface-900: #0f0a00;
+    --app-surface-800: #1a1200;
+    --app-surface-700: #211700;
+    --app-surface-600: #2d2100;
+    --app-surface-500: #3d2e00;
+    --app-surface-400: #92713a;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
     --app-primary: #d97706;
     --app-primary-glow: rgba(217, 119, 6, 0.40);
     --app-amber: #f59e0b;
@@ -70,13 +171,45 @@
     --app-muted: #92713a;
     --app-success: #10b981;
     --app-danger: #ef4444;
-    --scrollbar-color: #3d2e00;
+    --scrollbar-color: var(--app-surface-500);
+  }
+
+  .ember {
+    --app-surface-900: #120b07;
+    --app-surface-800: #1b110b;
+    --app-surface-700: #25170f;
+    --app-surface-600: #321d12;
+    --app-surface-500: #4a2b18;
+    --app-surface-400: #b59172;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
+    --app-primary: #f97316;
+    --app-primary-glow: rgba(249, 115, 22, 0.35);
+    --app-amber: #f59e0b;
+    --app-text: #ffe9d5;
+    --app-muted: #c2a182;
+    --app-success: #22c55e;
+    --app-danger: #ef4444;
+    --scrollbar-color: var(--app-surface-500);
   }
 
   /* Bronze accent: overrides --app-primary on any base theme */
   .accent-bronze {
     --app-primary: #cd7f32;
     --app-primary-glow: rgba(205, 127, 50, 0.35);
+  }
+
+  .accent-silver {
+    --app-primary: #c3ccd8;
+    --app-primary-glow: rgba(195, 204, 216, 0.35);
+  }
+
+  .accent-gold {
+    --app-primary: #e3b341;
+    --app-primary-glow: rgba(227, 179, 65, 0.35);
   }
 
   * {
@@ -115,6 +248,15 @@
     outline: 2px solid var(--app-primary);
     outline-offset: 2px;
     border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 

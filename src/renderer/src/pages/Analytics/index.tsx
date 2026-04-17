@@ -1,17 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Progress } from '../../components/ui/progress'
 import { Textarea } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
+import { Modal } from '../../components/ui/modal'
 import { useGamificationStore } from '../../stores/gamification.store'
 import { useSettingsStore } from '../../stores/settings.store'
 import { levelFromXP, xpForLevel } from '../../lib/science/xp'
 import { TIER_COLORS } from '../../lib/science/rewards'
 import { SOURCE_LABELS } from '../../lib/constants/classes'
 import { cn } from '../../lib/utils'
-import { format, parseISO } from 'date-fns'
+import {
+  eachDayOfInterval,
+  endOfMonth,
+  endOfYear,
+  format,
+  startOfDay,
+  startOfMonth,
+  startOfYear,
+  subDays
+} from 'date-fns'
 
 const api = () => window.api
 
@@ -37,11 +47,368 @@ type RecentBonus = {
   loggedAt: number
 }
 
+type Badge = {
+  code: string
+  name: string
+  description: string
+  icon: string
+  rarity: string
+  xp_value: number
+  unlocked_at: number | null
+}
+
+type HeatmapDay = {
+  date: string
+  count: number
+}
+
+type HeatmapRenderableDay = HeatmapDay & {
+  label: string
+}
+
+type MonthHeatmapRow = {
+  label: string
+  days: HeatmapRenderableDay[]
+}
+
+function buildHeatmapDays(
+  start: Date,
+  end: Date,
+  countByDate: Map<string, number>
+): HeatmapRenderableDay[] {
+  return eachDayOfInterval({ start, end }).map((day) => {
+    const date = format(day, 'yyyy-MM-dd')
+    return {
+      date,
+      count: countByDate.get(date) || 0,
+      label: format(day, 'MMM d, yyyy')
+    }
+  })
+}
+
+function chunkHeatmapDays(days: HeatmapRenderableDay[]): Array<Array<HeatmapRenderableDay>> {
+  const grouped: Array<Array<HeatmapRenderableDay>> = []
+  for (let i = 0; i < days.length; i += 7) {
+    grouped.push(days.slice(i, i + 7))
+  }
+  return grouped
+}
+
+function buildYearMonthRows(year: number, countByDate: Map<string, number>): MonthHeatmapRow[] {
+  return Array.from({ length: 12 }, (_, monthIndex) => {
+    const monthStart = startOfMonth(new Date(year, monthIndex, 1))
+    const monthEnd = endOfMonth(monthStart)
+    return {
+      label: format(monthStart, 'MMM'),
+      days: buildHeatmapDays(monthStart, monthEnd, countByDate)
+    }
+  })
+}
+
+function heatColor(count: number, maxCount: number): string {
+  if (count === 0) return 'var(--app-border)'
+  const intensity = count / maxCount
+  if (intensity < 0.25) return '#312e81'
+  if (intensity < 0.5) return '#4c1d95'
+  if (intensity < 0.75) return '#6d28d9'
+  return '#7c3aed'
+}
+
+const HeatmapGrid = memo(function HeatmapGrid({
+  loading,
+  days,
+  maxCount,
+  cellClassName = 'w-3 h-3'
+}: {
+  loading: boolean
+  days: HeatmapRenderableDay[]
+  maxCount: number
+  cellClassName?: string
+}) {
+  const weeks = useMemo(() => chunkHeatmapDays(days), [days])
+
+  if (loading) {
+    return <div className="h-20 flex items-center justify-center text-surface-400 text-sm">Loading heatmap...</div>
+  }
+
+  return (
+    <TooltipPrimitive.Provider delayDuration={200}>
+      <div className="overflow-x-auto">
+        <div className="flex flex-col gap-1">
+          {weeks.map((week, wi) => (
+            <div key={wi} className="flex gap-1 min-w-max">
+              {week.map((day) => (
+                <TooltipPrimitive.Root key={day.date}>
+                  <TooltipPrimitive.Trigger asChild>
+                    <div
+                      className={cn(cellClassName, 'rounded-sm transition-colors cursor-default')}
+                      style={{
+                        backgroundColor: heatColor(day.count, maxCount),
+                        border: day.count === 0 ? '1px solid rgba(255,255,255,0.15)' : 'none'
+                      }}
+                    />
+                  </TooltipPrimitive.Trigger>
+                  <TooltipPrimitive.Portal>
+                    <TooltipPrimitive.Content
+                      side="top"
+                      sideOffset={4}
+                      className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-white shadow-xl select-none animate-in fade-in-0 zoom-in-95"
+                    >
+                      <span className="font-semibold">{day.label}</span>
+                      <span className="text-surface-300 ml-1.5">
+                        {day.count === 0 ? 'No habits' : `${day.count} habit${day.count !== 1 ? 's' : ''}`}
+                      </span>
+                      <TooltipPrimitive.Arrow className="fill-surface-700" />
+                    </TooltipPrimitive.Content>
+                  </TooltipPrimitive.Portal>
+                </TooltipPrimitive.Root>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </TooltipPrimitive.Provider>
+  )
+})
+
+const YearHeatmapRows = memo(function YearHeatmapRows({
+  loading,
+  rows,
+  maxCount
+}: {
+  loading: boolean
+  rows: MonthHeatmapRow[]
+  maxCount: number
+}) {
+  if (loading) {
+    return <div className="h-20 flex items-center justify-center text-surface-400 text-sm">Loading heatmap...</div>
+  }
+
+  return (
+    <TooltipPrimitive.Provider delayDuration={200}>
+      <div className="overflow-x-auto">
+        <div className="space-y-1.5 min-w-max">
+          {rows.map((row) => (
+            <div key={row.label} className="flex items-center gap-2">
+              <span className="w-10 shrink-0 text-[11px] text-surface-400 font-medium">{row.label}</span>
+              <div className="flex gap-1">
+                {row.days.map((day) => (
+                  <TooltipPrimitive.Root key={day.date}>
+                    <TooltipPrimitive.Trigger asChild>
+                      <div
+                        className="w-4 h-4 rounded-sm transition-colors cursor-default"
+                        style={{
+                          backgroundColor: heatColor(day.count, maxCount),
+                          border: day.count === 0 ? '1px solid rgba(255,255,255,0.15)' : 'none'
+                        }}
+                      />
+                    </TooltipPrimitive.Trigger>
+                    <TooltipPrimitive.Portal>
+                      <TooltipPrimitive.Content
+                        side="top"
+                        sideOffset={4}
+                        className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-white shadow-xl select-none animate-in fade-in-0 zoom-in-95"
+                      >
+                        <span className="font-semibold">{day.label}</span>
+                        <span className="text-surface-300 ml-1.5">
+                          {day.count === 0 ? 'No habits' : `${day.count} habit${day.count !== 1 ? 's' : ''}`}
+                        </span>
+                        <TooltipPrimitive.Arrow className="fill-surface-700" />
+                      </TooltipPrimitive.Content>
+                    </TooltipPrimitive.Portal>
+                  </TooltipPrimitive.Root>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </TooltipPrimitive.Provider>
+  )
+})
+
+const HabitHeatmapCard = memo(function HabitHeatmapCard({ loading, heatmap }: { loading: boolean; heatmap: HeatmapDay[] }) {
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [detailMode, setDetailMode] = useState<'month' | 'year'>('month')
+
+  const maxCount = useMemo(() => Math.max(...heatmap.map((d) => d.count), 1), [heatmap])
+  const countByDate = useMemo(() => new Map(heatmap.map((d) => [d.date, d.count])), [heatmap])
+
+  const today = startOfDay(new Date())
+  const currentYear = today.getFullYear()
+  const last14Days = buildHeatmapDays(subDays(today, 13), today, countByDate)
+  const currentMonthDays = buildHeatmapDays(startOfMonth(today), endOfMonth(today), countByDate)
+  const currentYearDays = buildHeatmapDays(startOfYear(today), endOfYear(today), countByDate)
+  const currentYearMonthRows = useMemo(() => buildYearMonthRows(currentYear, countByDate), [currentYear, countByDate])
+
+  const detailDays = detailMode === 'month' ? currentMonthDays : currentYearDays
+  const detailLabel = detailMode === 'month' ? format(today, 'MMMM yyyy') : `${currentYear}`
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Habit Heatmap — Last 14 Days</CardTitle>
+            <Button variant="secondary" size="sm" onClick={() => setDetailsOpen(true)}>
+              Open Calendar
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <HeatmapGrid loading={loading} days={last14Days} maxCount={maxCount} cellClassName="w-4 h-4" />
+          <p className="text-xs text-surface-400">Showing the last 14 days up to today.</p>
+        </CardContent>
+      </Card>
+
+      <Modal
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="Habit Heatmap"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="inline-flex rounded-xl border border-surface-500/40 bg-surface-800/60 p-1">
+              <button
+                type="button"
+                onClick={() => setDetailMode('month')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
+                  detailMode === 'month' ? 'bg-primary-600 text-white' : 'text-surface-300 hover:text-white'
+                )}
+              >
+                Current Month
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailMode('year')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
+                  detailMode === 'year' ? 'bg-primary-600 text-white' : 'text-surface-300 hover:text-white'
+                )}
+              >
+                Full Year
+              </button>
+            </div>
+            <span className="text-xs text-surface-400">{detailLabel}</span>
+          </div>
+
+          {detailMode === 'year' ? (
+            <YearHeatmapRows loading={loading} rows={currentYearMonthRows} maxCount={maxCount} />
+          ) : (
+            <HeatmapGrid loading={loading} days={detailDays} maxCount={maxCount} />
+          )}
+        </div>
+      </Modal>
+    </>
+  )
+})
+
+const TrophyRoomCard = memo(function TrophyRoomCard({ badges }: { badges: Badge[] }) {
+  const [selectedBadgeCode, setSelectedBadgeCode] = useState<string | null>(null)
+
+  const unlockedCount = badges.filter((b) => b.unlocked_at).length
+  const totalBadges = badges.length
+  const sortedBadges = useMemo(
+    () =>
+      [...badges].sort((a, b) => {
+        if (a.unlocked_at && !b.unlocked_at) return -1
+        if (!a.unlocked_at && b.unlocked_at) return 1
+        return RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
+      }),
+    [badges]
+  )
+  const selectedBadge = badges.find((badge) => badge.code === selectedBadgeCode && !!badge.unlocked_at) || null
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Trophy Room</CardTitle>
+          <span className="text-xs text-amber-400 font-bold">{unlockedCount}/{totalBadges} unlocked</span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {sortedBadges.map((badge) => {
+            const colors = TIER_COLORS[badge.rarity as keyof typeof TIER_COLORS] || TIER_COLORS.common
+            const isUnlocked = !!badge.unlocked_at
+            const isSecret = badge.name === '???'
+
+            const content = (
+              <>
+                <div className="text-2xl mb-1">{isSecret && !isUnlocked ? '❓' : badge.icon}</div>
+                <div className={cn('text-xs font-semibold', isUnlocked ? colors.text : 'text-surface-500')}>
+                  {isSecret && !isUnlocked ? '???' : badge.name}
+                </div>
+                {isUnlocked && (
+                  <div className="text-[10px] text-surface-500 mt-0.5">
+                    +{badge.xp_value} XP
+                  </div>
+                )}
+              </>
+            )
+
+            const badgeClasses = cn(
+              'p-3 rounded-xl border text-center transition-all',
+              isUnlocked ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md' : 'cursor-default',
+              selectedBadgeCode === badge.code && isUnlocked && 'ring-2 ring-amber-300/60',
+              isUnlocked ? [colors.bg, `border-${badge.rarity === 'legendary' ? 'amber' : badge.rarity === 'epic' ? 'purple' : badge.rarity === 'rare' ? 'blue' : badge.rarity === 'uncommon' ? 'emerald' : 'gray'}-500/30`] : 'bg-surface-800/40 border-surface-600/20 opacity-40 grayscale'
+            )
+
+            if (!isUnlocked) {
+              return (
+                <div key={badge.code} className={badgeClasses}>
+                  {content}
+                </div>
+              )
+            }
+
+            return (
+              <button
+                key={badge.code}
+                type="button"
+                onClick={() => setSelectedBadgeCode(badge.code)}
+                className={badgeClasses}
+              >
+                {content}
+              </button>
+            )
+          })}
+        </div>
+
+        <Modal
+          open={!!selectedBadge}
+          onClose={() => setSelectedBadgeCode(null)}
+          title={selectedBadge ? `${selectedBadge.icon} ${selectedBadge.name}` : undefined}
+          size="sm"
+        >
+          {selectedBadge && (
+            <div className="space-y-3">
+              <div className="text-[11px] text-amber-200/80 uppercase tracking-wide">{selectedBadge.rarity}</div>
+              <p className="text-sm text-surface-100">{selectedBadge.description}</p>
+              <div className="text-xs text-surface-300">
+                Reward: <span className="font-semibold text-amber-200">+{selectedBadge.xp_value} XP</span>
+              </div>
+              {selectedBadge.unlocked_at && (
+                <div className="text-xs text-surface-400">
+                  Achieved on {format(new Date(selectedBadge.unlocked_at), 'MMM d, yyyy')}
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+      </CardContent>
+    </Card>
+  )
+})
+
 export function AnalyticsPage() {
   const gami = useGamificationStore()
   const { getSetting, setSetting } = useSettingsStore()
-  const [badges, setBadges] = useState<Array<{ code: string; name: string; description: string; icon: string; rarity: string; xp_value: number; unlocked_at: number | null }>>([])
-  const [heatmap, setHeatmap] = useState<Array<{ date: string; count: number }>>([])
+  const [badges, setBadges] = useState<Badge[]>([])
+  const [heatmap, setHeatmap] = useState<HeatmapDay[]>([])
   const [loading, setLoading] = useState(true)
   const [switchingClass, setSwitchingClass] = useState<string | null>(null)
   const [classProgress, setClassProgress] = useState<Record<string, ClassProgress>>({})
@@ -49,7 +416,8 @@ export function AnalyticsPage() {
   const [savingCommitment, setSavingCommitment] = useState(false)
 
   const defaultCommitment = 'I commit to growing 1% every day.'
-  const [commitmentDraft, setCommitmentDraft] = useState(getSetting('commitment_statement', defaultCommitment))
+  const commitmentSetting = getSetting('commitment_statement', defaultCommitment)
+  const [commitmentDraft, setCommitmentDraft] = useState(commitmentSetting)
 
   async function loadClassProgress() {
     const payload = await api().analytics.classProgress()
@@ -62,21 +430,23 @@ export function AnalyticsPage() {
   }
 
   useEffect(() => {
+    const currentYear = new Date().getFullYear()
     Promise.all([
       api().analytics.badges(),
-      api().analytics.heatmap(new Date().getFullYear()),
+      api().analytics.heatmap(currentYear),
+      api().analytics.heatmap(currentYear - 1),
       gami.loadCharacterClassConfig(),
       loadClassProgress()
-    ]).then(([b, h]) => {
+    ]).then(([b, currentYearHeatmap, previousYearHeatmap]) => {
       setBadges(b || [])
-      setHeatmap(h || [])
+      setHeatmap([...(previousYearHeatmap || []), ...(currentYearHeatmap || [])])
       setLoading(false)
     })
   }, [])
 
   useEffect(() => {
-    setCommitmentDraft(getSetting('commitment_statement', defaultCommitment))
-  }, [getSetting('commitment_statement', defaultCommitment)])
+    setCommitmentDraft(commitmentSetting)
+  }, [commitmentSetting])
 
   const radarData = [
     { subject: 'Focus', value: gami.focusPower },
@@ -97,9 +467,6 @@ export function AnalyticsPage() {
   const xpNext = xpForLevel(xpProgress + 1)
   const progressPct = Math.min(100, ((gami.totalXP - xpCurrent) / (xpNext - xpCurrent)) * 100)
 
-  const unlockedCount = badges.filter((b) => b.unlocked_at).length
-  const totalBadges = badges.length
-
   const classBonusLabel = gami.classBonusSource ? SOURCE_LABELS[gami.classBonusSource] || gami.classBonusSource : 'No active class bonus'
   const classEvolutionRemaining = gami.classEvolutionNextXp
     ? Math.max(0, gami.classEvolutionNextXp - gami.classMasteryXp)
@@ -110,24 +477,6 @@ export function AnalyticsPage() {
   }, [gami.classBonusSource, gami.classBonusMultiplier])
   const selectedClass = gami.classOptions.find((c) => c.id === gami.selectedClassId)
   const selectedClassProgress = selectedClass ? classProgress[selectedClass.id] : undefined
-
-  const weeks: Array<typeof heatmap> = []
-  if (heatmap.length > 0) {
-    for (let i = 0; i < heatmap.length; i += 7) {
-      weeks.push(heatmap.slice(i, i + 7))
-    }
-  }
-
-  const maxCount = Math.max(...heatmap.map((d) => d.count), 1)
-
-  function heatColor(count: number): string {
-    if (count === 0) return '#1e1e35'
-    const intensity = count / maxCount
-    if (intensity < 0.25) return '#312e81'
-    if (intensity < 0.5) return '#4c1d95'
-    if (intensity < 0.75) return '#6d28d9'
-    return '#7c3aed'
-  }
 
   async function onSelectClass(classId: string) {
     if (classId === gami.selectedClassId || switchingClass) return
@@ -403,94 +752,9 @@ export function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Habit Heatmap — {new Date().getFullYear()}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="h-20 flex items-center justify-center text-surface-400 text-sm">Loading heatmap...</div>
-          ) : (
-            <TooltipPrimitive.Provider delayDuration={200}>
-              <div className="overflow-x-auto">
-                <div className="flex gap-1">
-                  {weeks.map((week, wi) => (
-                    <div key={wi} className="flex flex-col gap-1">
-                      {week.map((day) => (
-                        <TooltipPrimitive.Root key={day.date}>
-                          <TooltipPrimitive.Trigger asChild>
-                            <div
-                              className="w-3 h-3 rounded-sm transition-colors cursor-default"
-                              style={{ backgroundColor: heatColor(day.count) }}
-                            />
-                          </TooltipPrimitive.Trigger>
-                          <TooltipPrimitive.Portal>
-                            <TooltipPrimitive.Content
-                              side="top"
-                              sideOffset={4}
-                              className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-white shadow-xl select-none animate-in fade-in-0 zoom-in-95"
-                            >
-                              <span className="font-semibold">{format(parseISO(day.date), 'MMM d, yyyy')}</span>
-                              <span className="text-surface-300 ml-1.5">
-                                {day.count === 0 ? 'No habits' : `${day.count} habit${day.count !== 1 ? 's' : ''}`}
-                              </span>
-                              <TooltipPrimitive.Arrow className="fill-surface-700" />
-                            </TooltipPrimitive.Content>
-                          </TooltipPrimitive.Portal>
-                        </TooltipPrimitive.Root>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </TooltipPrimitive.Provider>
-          )}
-        </CardContent>
-      </Card>
+      <HabitHeatmapCard loading={loading} heatmap={heatmap} />
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Trophy Room</CardTitle>
-            <span className="text-xs text-amber-400 font-bold">{unlockedCount}/{totalBadges} unlocked</span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {badges
-              .sort((a, b) => {
-                if (a.unlocked_at && !b.unlocked_at) return -1
-                if (!a.unlocked_at && b.unlocked_at) return 1
-                return RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)
-              })
-              .map((badge) => {
-                const colors = TIER_COLORS[badge.rarity as keyof typeof TIER_COLORS] || TIER_COLORS.common
-                const isUnlocked = !!badge.unlocked_at
-                const isSecret = badge.name === '???'
-
-                return (
-                  <div
-                    key={badge.code}
-                    className={cn(
-                      'p-3 rounded-xl border text-center transition-all',
-                      isUnlocked ? [colors.bg, `border-${badge.rarity === 'legendary' ? 'amber' : badge.rarity === 'epic' ? 'purple' : badge.rarity === 'rare' ? 'blue' : badge.rarity === 'uncommon' ? 'emerald' : 'gray'}-500/30`] : 'bg-surface-800/40 border-surface-600/20 opacity-40 grayscale'
-                    )}
-                  >
-                    <div className="text-2xl mb-1">{isSecret && !isUnlocked ? '❓' : badge.icon}</div>
-                    <div className={cn('text-xs font-semibold', isUnlocked ? colors.text : 'text-surface-500')}>
-                      {isSecret && !isUnlocked ? '???' : badge.name}
-                    </div>
-                    {isUnlocked && (
-                      <div className="text-[10px] text-surface-500 mt-0.5">
-                        +{badge.xp_value} XP
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-          </div>
-        </CardContent>
-      </Card>
+      <TrophyRoomCard badges={badges} />
     </div>
   )
 }

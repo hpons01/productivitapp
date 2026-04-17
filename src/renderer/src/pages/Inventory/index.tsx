@@ -7,7 +7,7 @@ import { TIER_COLORS, type LootTier, type LootItem as RewardLootItem } from '../
 import { cn } from '../../lib/utils'
 import { format } from 'date-fns'
 import { useSettingsStore } from '../../stores/settings.store'
-import { activateLootItem, getPowerupTypeFromName, getThemeKeyFromLootName } from '../../lib/loot-activation'
+import { activateLootItem, getAccentKeyFromLootName, getPowerupTypeFromName, getThemeKeyFromLootName } from '../../lib/loot-activation'
 
 interface LootItem {
   id: string
@@ -86,7 +86,8 @@ export function InventoryPage() {
       return key === activeTheme ? 'equipped' : 'available'
     }
     if (item.type === 'cosmetic') {
-      return activeAccent === 'bronze' ? 'equipped' : 'available'
+      const key = getAccentKeyFromLootName(payload.name)
+      return key !== undefined && key === activeAccent ? 'equipped' : 'available'
     }
     if (item.type === 'power_up') {
       try {
@@ -117,7 +118,7 @@ export function InventoryPage() {
         await window.api.loot.activate(item.id)
         setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
       }
-      await activateLootItem({ type: item.type, name: payloadName }, setSetting)
+      await activateLootItem({ type: item.type, name: payloadName }, setSetting, getSetting)
     } catch (error) {
       console.error('Failed to activate loot item', error)
     }

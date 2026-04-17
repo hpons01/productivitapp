@@ -111,7 +111,9 @@ function ensureDefaultSettings(): void {
   const defaults: Record<string, string> = {
     onboarding_completed: 'false',
     theme: 'dark',
-    selected_character_class: 'apprentice'
+    selected_character_class: 'apprentice',
+    unlocked_themes: JSON.stringify(['dark', 'light']),
+    unlocked_accents: JSON.stringify(['default'])
   }
 
   const stmt = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)')

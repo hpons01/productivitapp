@@ -18,6 +18,7 @@ export interface PomodoroPreset {
 interface PomodoroState {
   status: TimerStatus
   timeLeft: number // seconds
+  lastTickAt: number | null
   duration: number // minutes
   breakDuration: number // minutes
   currentSessionId: string | null
@@ -47,6 +48,7 @@ interface PomodoroState {
 export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   status: 'idle',
   timeLeft: 25 * 60,
+  lastTickAt: null,
   duration: 25,
   breakDuration: 5,
   currentSessionId: null,
@@ -72,6 +74,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     set({
       status: 'running',
       timeLeft: duration * 60,
+      lastTickAt: Date.now(),
       currentSessionId: sessionId,
       sessionLabel: label,
       interruptions: 0,
@@ -82,25 +85,37 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   pause: () => {
     set((s) => ({
       status: 'paused',
+      lastTickAt: null,
       interruptions: s.interruptions + 1
     }))
   },
 
-  resume: () => set({ status: 'running' }),
+  resume: () => set({ status: 'running', lastTickAt: Date.now() }),
 
   tick: () => {
-    const { status, timeLeft } = get()
+    const { status, timeLeft, lastTickAt } = get()
     if (status !== 'running' && status !== 'break') return
 
-    if (timeLeft <= 1) {
+    const now = Date.now()
+    const baseline = lastTickAt ?? now
+    const elapsedSeconds = Math.floor((now - baseline) / 1000)
+
+    if (elapsedSeconds <= 0) return
+
+    if (timeLeft <= elapsedSeconds) {
+      set({ timeLeft: 0, lastTickAt: now })
       if (status === 'running') {
         get().complete()
       } else {
         get().endBreak()
       }
-    } else {
-      set({ timeLeft: timeLeft - 1 })
+      return
     }
+
+    set({
+      timeLeft: timeLeft - elapsedSeconds,
+      lastTickAt: baseline + elapsedSeconds * 1000
+    })
   },
 
   complete: async () => {
@@ -109,7 +124,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
     await api().pomodoro.complete({ id: currentSessionId, interruptions })
 
-    set({ status: 'completed', timeLeft: 0 })
+    set({ status: 'completed', timeLeft: 0, lastTickAt: null })
 
     try {
       const { refreshFromDB, triggerLootBox, checkAndUnlockBadges } = useGamificationStore.getState()
@@ -148,15 +163,15 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     if (currentSessionId) {
       await api().pomodoro.abandon(currentSessionId)
     }
-    set({ status: 'idle', timeLeft: get().duration * 60, currentSessionId: null })
+    set({ status: 'idle', timeLeft: get().duration * 60, lastTickAt: null, currentSessionId: null })
   },
 
   startBreak: () => {
-    set((s) => ({ status: 'break', timeLeft: s.breakDuration * 60 }))
+    set((s) => ({ status: 'break', timeLeft: s.breakDuration * 60, lastTickAt: Date.now() }))
   },
 
   endBreak: () => {
-    set((s) => ({ status: 'idle', timeLeft: s.duration * 60, currentSessionId: null }))
+    set((s) => ({ status: 'idle', timeLeft: s.duration * 60, lastTickAt: null, currentSessionId: null }))
   },
 
   setLabel: (label) => set({ sessionLabel: label }),
@@ -211,6 +226,6 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   },
 
   applyPreset: (workMins, breakMins) => {
-    set({ duration: workMins, breakDuration: breakMins, timeLeft: workMins * 60 })
+    set({ duration: workMins, breakDuration: breakMins, timeLeft: workMins * 60, lastTickAt: null })
   }
 }))

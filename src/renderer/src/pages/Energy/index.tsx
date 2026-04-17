@@ -76,7 +76,7 @@ export function EnergyPage() {
                   key={value}
                   onClick={() => setSelectedEnergy(value)}
                   className={cn(
-                    'flex flex-col items-center gap-1 p-3 rounded-xl transition-all',
+                    'flex flex-col items-center gap-1 p-3 rounded-xl transition-all cursor-pointer',
                     selectedEnergy === value
                       ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-105'
                       : 'bg-surface-800 hover:bg-surface-700'
@@ -97,7 +97,7 @@ export function EnergyPage() {
                   key={val}
                   onClick={() => setSelectedMood(val as number)}
                   className={cn(
-                    'text-2xl p-2 rounded-xl transition-all',
+                    'text-2xl p-2 rounded-xl transition-all cursor-pointer',
                     selectedMood === val ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-110' : 'hover:bg-surface-700'
                   )}
                 >

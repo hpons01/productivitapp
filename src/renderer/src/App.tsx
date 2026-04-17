@@ -62,9 +62,22 @@ export default function App() {
     const theme = settings['theme'] || 'dark'
     const accent = settings['active_accent'] || 'default'
     const html = document.documentElement
-    html.classList.remove('dark', 'light', 'ocean', 'void', 'golden')
+
+    const themeClasses = ['dark', 'light', 'ocean', 'void', 'golden', 'ember']
+    const accentClassMap: Record<string, string> = {
+      bronze: 'accent-bronze',
+      silver: 'accent-silver',
+      gold: 'accent-gold'
+    }
+
+    html.classList.remove(...themeClasses)
+    html.classList.remove('accent-bronze', 'accent-silver', 'accent-gold')
     html.classList.add(theme)
-    html.classList.toggle('accent-bronze', accent === 'bronze')
+
+    const accentClass = accentClassMap[accent]
+    if (accentClass) {
+      html.classList.add(accentClass)
+    }
   }, [settings])
 
   useEffect(() => {

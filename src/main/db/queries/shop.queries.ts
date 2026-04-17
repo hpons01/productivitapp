@@ -27,6 +27,31 @@ export interface ShopPurchaseResult {
   item?: ShopItem
 }
 
+function parseUnlockedSetting(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((entry): entry is string => typeof entry === 'string')
+  } catch {
+    return []
+  }
+}
+
+function appendUnlockedSetting(
+  db: Database.Database,
+  key: 'unlocked_themes' | 'unlocked_accents',
+  value: string
+): void {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined
+  const unlocked = parseUnlockedSetting(row?.value ?? '[]')
+
+  if (!unlocked.includes(value)) {
+    unlocked.push(value)
+  }
+
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, JSON.stringify(unlocked))
+}
+
 // ── Balance ───────────────────────────────────────────────────────────────────
 
 export function getFocusBalance(db: Database.Database): number {
@@ -138,8 +163,10 @@ export function purchaseShopItem(
     if (item.type === 'cosmetic') {
       if (item.cosmeticType === 'theme') {
         db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('theme', item.cosmeticValue!)
+        appendUnlockedSetting(db, 'unlocked_themes', item.cosmeticValue!)
       } else if (item.cosmeticType === 'accent') {
         db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('active_accent', item.cosmeticValue!)
+        appendUnlockedSetting(db, 'unlocked_accents', item.cosmeticValue!)
       } else if (item.cosmeticType === 'title') {
         db.prepare(`
           INSERT OR IGNORE INTO loot_inventory (id, type, tier, payload, earned_at)

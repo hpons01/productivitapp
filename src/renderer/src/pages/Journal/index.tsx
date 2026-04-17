@@ -108,7 +108,7 @@ function MorningRitual() {
                   key={value}
                   onClick={() => setEnergyLevel(value)}
                   className={cn(
-                    'flex flex-col items-center gap-1 p-3 rounded-xl transition-all min-w-[72px]',
+                    'flex flex-col items-center gap-1 p-3 rounded-xl transition-all min-w-[72px] cursor-pointer',
                     energyLevel === value
                       ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-105'
                       : 'bg-surface-800 hover:bg-surface-700'
@@ -129,7 +129,7 @@ function MorningRitual() {
                   key={value}
                   onClick={() => setMood(value)}
                   className={cn(
-                    'text-2xl p-2 rounded-xl transition-all',
+                    'text-2xl p-2 rounded-xl transition-all cursor-pointer',
                     mood === value ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-110' : 'hover:bg-surface-700'
                   )}
                 >

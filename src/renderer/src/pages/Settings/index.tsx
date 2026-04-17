@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -6,8 +6,43 @@ import { Select } from '../../components/ui/select'
 import { Modal } from '../../components/ui/modal'
 import { useSettingsStore } from '../../stores/settings.store'
 
+const THEME_OPTIONS = [
+  { value: 'dark', label: '🌙 Dark (default)' },
+  { value: 'light', label: '☀️ Light' },
+  { value: 'ember', label: '🔥 Ember' },
+  { value: 'ocean', label: '🌊 Ocean' },
+  { value: 'void', label: '🌑 Void' },
+  { value: 'golden', label: '✨ Golden' }
+] as const
+
+const ACCENT_OPTIONS = [
+  { value: 'default', label: 'Default Accent' },
+  { value: 'bronze', label: '🥉 Bronze Accent' },
+  { value: 'silver', label: '🥈 Silver Accent' },
+  { value: 'gold', label: '🥇 Gold Accent' }
+] as const
+
+function parseUnlocked(raw: string, defaults: string[]): Set<string> {
+  const unlocked = new Set(defaults)
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      for (const value of parsed) {
+        if (typeof value === 'string') {
+          unlocked.add(value)
+        }
+      }
+    }
+  } catch {
+    // ignore malformed settings and fallback to defaults
+  }
+
+  return unlocked
+}
+
 export function SettingsPage() {
-  const { settings, getSetting, setSetting, loadSettings, resetOnboarding } = useSettingsStore()
+  const { getSetting, setSetting, loadSettings, resetOnboarding } = useSettingsStore()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [showImportConfirm, setShowImportConfirm] = useState(false)
@@ -83,6 +118,20 @@ export function SettingsPage() {
   }
 
   const startOnBootEnabled = getSetting('start_on_boot', 'false') === 'true'
+  const currentTheme = getSetting('theme', 'dark')
+  const currentAccent = getSetting('active_accent', 'default')
+  const unlockedThemesSetting = getSetting('unlocked_themes', '[]')
+  const unlockedAccentsSetting = getSetting('unlocked_accents', '[]')
+
+  const unlockedThemes = useMemo(
+    () => parseUnlocked(unlockedThemesSetting, ['dark', 'light', currentTheme]),
+    [currentTheme, unlockedThemesSetting]
+  )
+
+  const unlockedAccents = useMemo(
+    () => parseUnlocked(unlockedAccentsSetting, ['default', currentAccent]),
+    [currentAccent, unlockedAccentsSetting]
+  )
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -97,12 +146,47 @@ export function SettingsPage() {
         <CardContent className="space-y-4">
           <Select
             label="Theme"
-            value={getSetting('theme', 'dark')}
-            onChange={(e) => setSetting('theme', e.target.value)}
+            value={currentTheme}
+            onChange={(e) => {
+              const nextTheme = e.target.value
+              if (!unlockedThemes.has(nextTheme)) return
+              setSetting('theme', nextTheme)
+            }}
           >
-            <option value="dark">🌙 Dark (default)</option>
-            <option value="light">☀️ Light</option>
+            {THEME_OPTIONS.map((theme) => (
+              <option
+                key={theme.value}
+                value={theme.value}
+                disabled={!unlockedThemes.has(theme.value)}
+              >
+                {theme.label}{!unlockedThemes.has(theme.value) ? ' (locked)' : ''}
+              </option>
+            ))}
           </Select>
+
+          <Select
+            label="Accent"
+            value={currentAccent}
+            onChange={(e) => {
+              const nextAccent = e.target.value
+              if (!unlockedAccents.has(nextAccent)) return
+              setSetting('active_accent', nextAccent)
+            }}
+          >
+            {ACCENT_OPTIONS.map((accent) => (
+              <option
+                key={accent.value}
+                value={accent.value}
+                disabled={!unlockedAccents.has(accent.value)}
+              >
+                {accent.label}{!unlockedAccents.has(accent.value) ? ' (locked)' : ''}
+              </option>
+            ))}
+          </Select>
+
+          <p className="text-xs text-surface-400">
+            Cosmetic themes and accents can be earned from loot drops or purchased in the shop.
+          </p>
         </CardContent>
       </Card>
 

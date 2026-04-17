@@ -48,6 +48,18 @@ function energyTaskScore(task: Task, zoneLevel: number): number {
   return (isFit ? 1000 : 0) + lowEnergyScore + (task.priority === 1 ? 50 : 20) + urgencyScore
 }
 
+function energySortExplanation(zoneLevel: number): string {
+  if (zoneLevel >= 4) {
+    return 'Energy Sort prioritizes deep, high-priority tasks and longer work blocks while your energy is high.'
+  }
+
+  if (zoneLevel === 3) {
+    return 'Energy Sort balances priority with moderate effort so you can keep steady momentum.'
+  }
+
+  return 'Energy Sort surfaces shorter, lower-friction tasks to maintain progress during low-energy periods.'
+}
+
 function toDateTimeLocalInput(timestamp: number | null | undefined): string {
   if (!timestamp) return ''
   const date = new Date(timestamp)
@@ -236,6 +248,9 @@ export function TasksPage() {
             <p className="text-xs text-primary-200/80 mt-0.5">{energyZone.recommendation}</p>
             <p className="text-xs text-primary-200/80 mt-1">
               {recommendedCount} task{recommendedCount !== 1 ? 's' : ''} currently match this energy zone.
+            </p>
+            <p className="text-xs text-primary-200/70 mt-1">
+              {energySortExplanation(energyZone.level)}
             </p>
           </div>
           <Button

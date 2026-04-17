@@ -103,7 +103,13 @@ export const SHOP_CATALOG: ShopItem[] = [
     effectType: 'xp_boost', effectDuration: 60, effectMagnitude: 1.6
   },
 
-  // ── Cosmetics (12 items) ──────────────────────────────────────────────────────
+  // ── Cosmetics (15 items) ──────────────────────────────────────────────────────
+  {
+    id: 'cosmetic_theme_ember',
+    type: 'cosmetic', rarity: 'rare',
+    name: 'Ember Theme', description: 'Molten forge palette with fiery highlights',
+    icon: '🔥', focusCost: 85, cosmeticType: 'theme', cosmeticValue: 'ember'
+  },
   {
     id: 'cosmetic_theme_ocean',
     type: 'cosmetic', rarity: 'uncommon',
@@ -127,6 +133,18 @@ export const SHOP_CATALOG: ShopItem[] = [
     type: 'cosmetic', rarity: 'uncommon',
     name: 'Bronze Accent', description: 'Bronze UI accent color',
     icon: '🥉', focusCost: 40, cosmeticType: 'accent', cosmeticValue: 'bronze'
+  },
+  {
+    id: 'cosmetic_accent_silver',
+    type: 'cosmetic', rarity: 'rare',
+    name: 'Silver Accent', description: 'Silver UI accent color',
+    icon: '🥈', focusCost: 65, cosmeticType: 'accent', cosmeticValue: 'silver'
+  },
+  {
+    id: 'cosmetic_accent_gold',
+    type: 'cosmetic', rarity: 'epic',
+    name: 'Gold Accent', description: 'Royal gold UI accent color',
+    icon: '🥇', focusCost: 110, cosmeticType: 'accent', cosmeticValue: 'gold'
   },
   {
     id: 'cosmetic_title_focused',

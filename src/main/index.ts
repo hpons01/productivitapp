@@ -11,6 +11,20 @@ import { getSetting } from './db/queries/settings.queries'
 let mainWindow: BrowserWindow | null = null
 const appWithQuitFlag = app as typeof app & { isQuitting?: boolean }
 
+// Enforce single instance — second launch focuses the existing window instead of creating a new one
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+}
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  }
+})
+
 function createWindow(): BrowserWindow {
   const { width: workAreaWidth, height: workAreaHeight } = screen.getPrimaryDisplay().workAreaSize
   const launchWidth = Math.max(900, Math.round(workAreaWidth * 0.80))
@@ -31,7 +45,8 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: false
     }
   })
 

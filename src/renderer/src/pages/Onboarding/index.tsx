@@ -143,7 +143,8 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-900 flex items-center justify-center p-6">
+    <div className="h-screen overflow-y-auto bg-surface-900">
+      <div className="min-h-full flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
         {/* Progress */}
         <div className="flex items-center gap-1.5 mb-8 justify-center">
@@ -370,6 +371,7 @@ export function OnboardingPage() {
             </div>
           </div>
         </Modal>
+      </div>
       </div>
     </div>
   )

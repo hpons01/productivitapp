@@ -79,11 +79,13 @@ const LOOT_POOLS: Record<LootTier, LootItem[]> = {
   uncommon: [
     { tier: 'uncommon', type: 'xp_boost', name: 'XP Tome', description: '+150 bonus XP', value: 150 },
     { tier: 'uncommon', type: 'power_up', name: 'Focus Potion', description: '+25% XP on your next 3 Pomodoros' },
+    { tier: 'uncommon', type: 'cosmetic', name: 'Silver Accent', description: 'Unlock silver UI accents' },
     { tier: 'uncommon', type: 'title', name: 'The Persistent', description: 'A green title for the consistent' }
   ],
   rare: [
     { tier: 'rare', type: 'xp_boost', name: 'Ancient XP Crystal', description: '+500 bonus XP', value: 500 },
     { tier: 'rare', type: 'power_up', name: 'Streak Shield', description: 'Protect a streak from breaking once' },
+    { tier: 'rare', type: 'theme', name: 'Ember Theme', description: 'Unlock the warm Emberforge palette' },
     { tier: 'rare', type: 'theme', name: 'Ocean Theme', description: 'Unlock the Ocean dark theme' },
     { tier: 'rare', type: 'title', name: 'The Relentless', description: 'A blue title for the focused' }
   ],
@@ -95,6 +97,7 @@ const LOOT_POOLS: Record<LootTier, LootItem[]> = {
   ],
   legendary: [
     { tier: 'legendary', type: 'xp_boost', name: 'Legendary XP Tome', description: '+5000 bonus XP', value: 5000 },
+    { tier: 'legendary', type: 'cosmetic', name: 'Gold Accent', description: 'Unlock royal gold UI accents' },
     { tier: 'legendary', type: 'theme', name: 'Golden Theme', description: 'Unlock the legendary Gold UI theme' },
     { tier: 'legendary', type: 'title', name: 'Productivity God', description: 'The rarest title in the game' },
     { tier: 'legendary', type: 'power_up', name: 'Time Warp', description: '3× XP for the next hour' }
