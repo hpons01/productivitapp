@@ -43,7 +43,7 @@ export function QuestsPage() {
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] flex items-center gap-2">
             <ScrollText size={22} className="text-amber-400" />
             Quest Log
           </h1>
@@ -59,7 +59,7 @@ export function QuestsPage() {
               'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
               activeTab === 'daily'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                : 'bg-surface-700 ui-fg-muted ui-bg-hover'
             )}
           >
             <ScrollText size={14} />
@@ -77,7 +77,7 @@ export function QuestsPage() {
               'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
               activeTab === 'active'
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                : 'bg-surface-700 ui-fg-muted ui-bg-hover'
             )}
           >
             <Compass size={14} />
@@ -95,7 +95,7 @@ export function QuestsPage() {
               'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
               activeTab === 'catalog'
                 ? 'bg-primary-600/20 text-primary-300 border border-primary-500/40'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                : 'bg-surface-700 ui-fg-muted ui-bg-hover'
             )}
           >
             <BookOpen size={14} />

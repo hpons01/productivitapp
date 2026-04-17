@@ -12,6 +12,7 @@ export interface AchievementCheck {
 export interface AchievementStats {
   habitStreak: number
   totalPomodoros: number
+  endlessLoopsCompleted: number
   habitsCount: number
   tasksCompletedToday: number
   twoMinTasksTotal: number
@@ -43,6 +44,8 @@ export const ACHIEVEMENT_CHECKS: AchievementCheck[] = [
   { code: 'pomodoro_50', check: (s) => s.totalPomodoros >= 50 },
   { code: 'pomodoro_100', check: (s) => s.totalPomodoros >= 100 },
   { code: 'pomodoro_500', check: (s) => s.totalPomodoros >= 500 },
+  { code: 'endless_5', check: (s) => s.endlessLoopsCompleted >= 5 },
+  { code: 'endless_10', check: (s) => s.endlessLoopsCompleted >= 10 },
 
   // Habit creation
   { code: 'first_habit', check: (s) => s.habitsCount >= 1 },

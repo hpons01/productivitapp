@@ -77,6 +77,22 @@
     --app-success: #10b981;
     --app-danger: #ef4444;
     --scrollbar-color: var(--app-surface-500);
+
+    --app-on-primary: #ffffff;
+    --app-focus-ring: var(--app-primary);
+    --app-interactive-fg-default: var(--app-text);
+    --app-interactive-fg-muted: var(--app-muted);
+    --app-interactive-fg-hover: var(--app-text);
+    --app-interactive-fg-active: var(--app-primary);
+    --app-interactive-bg-hover: var(--app-surface-700);
+    --app-interactive-bg-active: color-mix(in srgb, var(--app-primary) 22%, transparent);
+    --app-interactive-border: var(--app-border);
+    --app-interactive-border-hover: var(--app-surface-400);
+    --app-icon-default: var(--app-muted);
+    --app-icon-hover: var(--app-text);
+
+    --app-control-bg: color-mix(in srgb, var(--app-surface-700) 70%, transparent);
+    --app-control-bg-hover: var(--app-interactive-bg-hover);
   }
 
   .light {
@@ -97,6 +113,15 @@
     --app-text: #1a1a2e;
     --app-muted: #6b6b8a;
     --scrollbar-color: var(--app-surface-500);
+
+    --app-on-primary: #ffffff;
+    --app-interactive-fg-hover: #0f172a;
+    --app-interactive-bg-hover: var(--app-surface-600);
+    --app-interactive-border-hover: #b9b0cc;
+    --app-icon-hover: var(--app-primary);
+
+    --app-control-bg: color-mix(in srgb, var(--app-surface-600) 72%, transparent);
+    --app-control-bg-hover: #e2dcef;
   }
 
   /* Many screens use hardcoded text-white utilities; remap for readable light mode. */
@@ -106,6 +131,14 @@
   .light .text-white\/70,
   .light .text-white\/60 {
     color: var(--app-text) !important;
+  }
+
+  .light .hover\:text-white:hover,
+  .light .hover\:text-white\/90:hover,
+  .light .hover\:text-white\/80:hover,
+  .light .hover\:text-white\/70:hover,
+  .light .hover\:text-white\/60:hover {
+    color: var(--app-interactive-fg-hover) !important;
   }
 
   .ocean {
@@ -200,16 +233,19 @@
   .accent-bronze {
     --app-primary: #cd7f32;
     --app-primary-glow: rgba(205, 127, 50, 0.35);
+    --app-on-primary: #ffffff;
   }
 
   .accent-silver {
     --app-primary: #c3ccd8;
     --app-primary-glow: rgba(195, 204, 216, 0.35);
+    --app-on-primary: #1b2533;
   }
 
   .accent-gold {
     --app-primary: #e3b341;
     --app-primary-glow: rgba(227, 179, 65, 0.35);
+    --app-on-primary: #2e1d04;
   }
 
   * {
@@ -257,6 +293,38 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  .ui-fg-default {
+    color: var(--app-interactive-fg-default);
+  }
+
+  .ui-fg-muted {
+    color: var(--app-interactive-fg-muted);
+  }
+
+  .ui-fg-hover:hover {
+    color: var(--app-interactive-fg-hover);
+  }
+
+  .ui-bg-hover:hover {
+    background-color: var(--app-interactive-bg-hover);
+  }
+
+  .ui-border-default {
+    border-color: var(--app-interactive-border);
+  }
+
+  .ui-border-hover:hover {
+    border-color: var(--app-interactive-border-hover);
+  }
+
+  .ui-icon-default {
+    color: var(--app-icon-default);
+  }
+
+  .ui-icon-hover:hover {
+    color: var(--app-icon-hover);
   }
 }
 
@@ -329,12 +397,12 @@
   .window-control-btn {
     @apply inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors;
     color: var(--app-muted);
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--app-control-bg);
   }
 
   .window-control-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: var(--app-control-bg-hover);
+    color: var(--app-interactive-fg-hover);
   }
 
   .window-control-close:hover {

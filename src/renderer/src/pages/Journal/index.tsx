@@ -59,7 +59,7 @@ function MorningRitual() {
           <div className="space-y-2">
             <p className="text-xs text-surface-400 font-medium uppercase tracking-wide">Today's Intentions</p>
             {parsedIntentions.map((i: string, idx: number) => (
-              <div key={idx} className="flex items-start gap-2 text-sm text-white">
+              <div key={idx} className="flex items-start gap-2 text-sm text-[color:var(--app-interactive-fg-default)]">
                 <span className="text-primary-400 font-bold">{idx + 1}.</span>
                 <span>{i}</span>
               </div>
@@ -88,11 +88,11 @@ function MorningRitual() {
           )}>
             <div className={cn(
               'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
-              i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-primary-600 text-white' : 'bg-surface-700 text-surface-400'
+              i < step ? 'bg-emerald-500 text-[color:var(--app-interactive-fg-default)]' : i === step ? 'bg-primary-600 text-[color:var(--app-on-primary)]' : 'bg-surface-700 text-surface-400'
             )}>
               {i < step ? '✓' : i + 1}
             </div>
-            <span className={cn('text-xs', i === step ? 'text-white' : 'text-surface-400')}>{s}</span>
+            <span className={cn('text-xs', i === step ? 'text-[color:var(--app-interactive-fg-default)]' : 'text-surface-400')}>{s}</span>
             {i < steps.length - 1 && <div className={cn('flex-1 h-px', i < step ? 'bg-emerald-500' : 'bg-surface-600')} />}
           </div>
         ))}
@@ -111,7 +111,7 @@ function MorningRitual() {
                     'flex flex-col items-center gap-1 p-3 rounded-xl transition-all min-w-[72px] cursor-pointer',
                     energyLevel === value
                       ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-105'
-                      : 'bg-surface-800 hover:bg-surface-700'
+                      : 'bg-surface-800 ui-bg-hover'
                   )}
                 >
                   <span className="text-2xl">{emoji}</span>
@@ -130,7 +130,7 @@ function MorningRitual() {
                   onClick={() => setMood(value)}
                   className={cn(
                     'text-2xl p-2 rounded-xl transition-all cursor-pointer',
-                    mood === value ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-110' : 'hover:bg-surface-700'
+                    mood === value ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-110' : 'ui-bg-hover'
                   )}
                 >
                   {emoji}
@@ -160,7 +160,7 @@ function MorningRitual() {
                     value={intent.action}
                     onChange={(e) => updateField('action', e.target.value)}
                     placeholder="[action]"
-                    className="min-w-[140px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-white placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="min-w-[140px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-[color:var(--app-interactive-fg-default)] placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--app-primary-glow)]"
                   />
                   <span className="text-surface-300">at</span>
                   <input
@@ -168,14 +168,14 @@ function MorningRitual() {
                     onChange={(e) => updateField('time', e.target.value)}
                     type="time"
                     placeholder="[time]"
-                    className="min-w-[100px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-white placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="min-w-[100px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-[color:var(--app-interactive-fg-default)] placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--app-primary-glow)]"
                   />
                   <span className="text-surface-300">in</span>
                   <input
                     value={intent.location}
                     onChange={(e) => updateField('location', e.target.value)}
                     placeholder="[location]"
-                    className="min-w-[120px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-white placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="min-w-[120px] flex-1 bg-surface-700 border border-surface-600 rounded-md px-2 py-1.5 text-[color:var(--app-interactive-fg-default)] placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-[color:var(--app-primary-glow)]"
                   />
                 </div>
               </div>
@@ -313,7 +313,7 @@ export function JournalPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Daily Journal</h1>
+        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Daily Journal</h1>
         <p className="text-surface-400 text-sm mt-1">Rituals and reflections power your growth.</p>
       </div>
 
@@ -327,7 +327,7 @@ export function JournalPage() {
             <Tabs.Trigger
               key={value}
               value={value}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm transition-all data-[state=active]:bg-primary-600 data-[state=active]:text-white text-surface-400 hover:text-white"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm transition-all data-[state=active]:bg-primary-600 data-[state=active]:text-[color:var(--app-on-primary)] ui-fg-muted ui-fg-hover"
             >
               <Icon size={14} />
               <span className="hidden sm:inline">{label}</span>

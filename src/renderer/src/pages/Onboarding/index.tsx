@@ -165,7 +165,7 @@ export function OnboardingPage() {
             <motion.div key="step0" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6 text-center">
               <div>
                 <div className="text-6xl mb-4">⚔️</div>
-                <h1 className="text-3xl font-bold text-white mb-2">Welcome to ProductivitApp</h1>
+                <h1 className="text-3xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Welcome to ProductivitApp</h1>
                 <p className="text-surface-300 text-sm leading-relaxed">
                   A science-backed productivity app designed for the kind of person who grinds hard,<br />
                   leveling up their real life like a role-playing game.
@@ -201,7 +201,7 @@ export function OnboardingPage() {
             <motion.div key="step1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
               <div className="text-center">
                 <div className="text-4xl mb-3">🧪</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Science-Powered Growth</h2>
+                <h2 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Science-Powered Growth</h2>
                 <p className="text-surface-400 text-sm">This app is built on proven behavioral science — not just motivation hype.</p>
               </div>
               <div className="space-y-3">
@@ -224,7 +224,7 @@ export function OnboardingPage() {
             <motion.div key="step2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
               <div className="text-center">
                 <div className="text-4xl mb-3">🌱</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Seed Your Habits</h2>
+                <h2 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Seed Your Habits</h2>
                 <p className="text-surface-400 text-sm">Pick 2-3 habits to start. You can add more later.</p>
               </div>
               <div className="space-y-2">
@@ -239,7 +239,7 @@ export function OnboardingPage() {
                     className={cn(
                       'w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left',
                       selectedHabits.includes(i)
-                        ? 'bg-primary-600/20 border-primary-500/40 text-white'
+                        ? 'bg-primary-600/20 border-primary-500/40 text-[color:var(--app-interactive-fg-default)]'
                         : 'bg-surface-800 border-surface-600 text-surface-300 hover:border-surface-400'
                     )}
                   >
@@ -264,7 +264,7 @@ export function OnboardingPage() {
             <motion.div key="step3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
               <div className="text-center">
                 <div className="text-4xl mb-3">🧭</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Choose Your Core Values</h2>
+                <h2 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Choose Your Core Values</h2>
                 <p className="text-surface-400 text-sm">Pick up to 3 values. Your dashboard will keep your goals tied to these.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -281,7 +281,7 @@ export function OnboardingPage() {
                       className={cn(
                         'w-full text-left p-3 rounded-xl border transition-all disabled:opacity-50 disabled:cursor-not-allowed',
                         selected
-                          ? 'bg-primary-600/20 border-primary-500/40 text-white'
+                            ? 'bg-primary-600/20 border-primary-500/40 text-[color:var(--app-interactive-fg-default)]'
                           : 'bg-surface-800 border-surface-600 text-surface-200 hover:border-surface-400'
                       )}
                     >
@@ -311,7 +311,7 @@ export function OnboardingPage() {
             <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
               <div className="text-center">
                 <div className="text-4xl mb-3">🤝</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Make a Commitment</h2>
+                <h2 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Make a Commitment</h2>
                 <p className="text-surface-400 text-sm">
                   Research shows written commitments dramatically increase follow-through (Ariely, 2008).
                 </p>

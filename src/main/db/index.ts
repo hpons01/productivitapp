@@ -23,6 +23,7 @@ export function initDatabase(): void {
   ensurePetQuestColumns()
   ensureQuestLifecycleSchema()
   ensurePomodoroPresets()
+  ensurePomodoroLoopSchema()
   ensureCatalogSchema()
   ensureLapseReflectionSchema()
   ensureHabitObstaclePlanColumn()
@@ -263,6 +264,19 @@ function ensurePomodoroPresets(): void {
 
   for (const preset of defaults) {
     stmt.run(preset.id, preset.name, preset.work_mins, preset.break_mins, Date.now())
+  }
+}
+
+function ensurePomodoroLoopSchema(): void {
+  const tableInfo = db.prepare('PRAGMA table_info(pomodoro_sessions)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('endless_mode')) {
+    db.exec('ALTER TABLE pomodoro_sessions ADD COLUMN endless_mode INTEGER NOT NULL DEFAULT 0')
+  }
+
+  if (!columns.has('loop_completed')) {
+    db.exec('ALTER TABLE pomodoro_sessions ADD COLUMN loop_completed INTEGER NOT NULL DEFAULT 0')
   }
 }
 
@@ -517,6 +531,8 @@ CREATE TABLE IF NOT EXISTS pomodoro_sessions (
   ended_at       INTEGER,
   duration_mins  INTEGER NOT NULL DEFAULT 25,
   break_mins     INTEGER NOT NULL DEFAULT 5,
+  endless_mode   INTEGER NOT NULL DEFAULT 0,
+  loop_completed INTEGER NOT NULL DEFAULT 0,
   completed      INTEGER NOT NULL DEFAULT 0,
   interruptions  INTEGER DEFAULT 0,
   xp_awarded     INTEGER DEFAULT 0
@@ -649,6 +665,8 @@ const BADGE_DEFINITIONS = [
   { code: 'pomodoro_50', name: 'Deep Worker', description: 'Complete 50 sessions', rarity: 'uncommon', icon: '🎯', xp_value: 150 },
   { code: 'pomodoro_100', name: 'Pomodoro Master', description: 'Complete 100 sessions', rarity: 'rare', icon: '⚡', xp_value: 400 },
   { code: 'pomodoro_500', name: 'Clockwork Mind', description: 'Complete 500 sessions', rarity: 'epic', icon: '🕰️', xp_value: 1500 },
+  { code: 'endless_5', name: 'Flow State', description: 'Complete 5 endless loops', rarity: 'rare', icon: '♾️', xp_value: 350 },
+  { code: 'endless_10', name: 'Unstoppable', description: 'Complete 10 endless loops', rarity: 'epic', icon: '🌀', xp_value: 800 },
   // Habit badges
   { code: 'first_habit', name: 'Fresh Start', description: 'Create your first habit', rarity: 'common', icon: '🌱', xp_value: 20 },
   { code: 'habit_5', name: 'Habit Builder', description: 'Track 5 different habits', rarity: 'uncommon', icon: '🏗️', xp_value: 100 },

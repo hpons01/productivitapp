@@ -52,7 +52,7 @@ export function DailyQuestsTab({ quests, loading, activeCount, busyId, onEnroll,
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-surface-400">Active:</span>
-          <span className="text-sm font-bold text-white">{activeCount}/3</span>
+          <span className="text-sm font-bold text-[color:var(--app-interactive-fg-default)]">{activeCount}/3</span>
         </div>
       </div>
 

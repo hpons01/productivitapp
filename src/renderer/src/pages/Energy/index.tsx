@@ -34,7 +34,7 @@ export function EnergyPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Energy Tracker</h1>
+        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Energy Tracker</h1>
         <p className="text-surface-400 text-sm mt-1">Track your energy to discover your peak performance windows.</p>
       </div>
 
@@ -45,7 +45,7 @@ export function EnergyPage() {
             <div className="flex items-center gap-4">
               <div className="text-4xl">{currentZone.emoji}</div>
               <div>
-                <div className="font-bold text-white">{currentZone.label} Energy</div>
+                <div className="font-bold text-[color:var(--app-interactive-fg-default)]">{currentZone.label} Energy</div>
                 <div className="text-surface-400 text-xs mt-0.5 max-w-xs">{currentZone.recommendation}</div>
               </div>
               <div className="ml-auto text-xs text-surface-500">
@@ -79,7 +79,7 @@ export function EnergyPage() {
                     'flex flex-col items-center gap-1 p-3 rounded-xl transition-all cursor-pointer',
                     selectedEnergy === value
                       ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-105'
-                      : 'bg-surface-800 hover:bg-surface-700'
+                      : 'bg-surface-800 ui-bg-hover'
                   )}
                 >
                   <span className="text-2xl">{emoji}</span>
@@ -98,7 +98,7 @@ export function EnergyPage() {
                   onClick={() => setSelectedMood(val as number)}
                   className={cn(
                     'text-2xl p-2 rounded-xl transition-all cursor-pointer',
-                    selectedMood === val ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-110' : 'hover:bg-surface-700'
+                    selectedMood === val ? 'bg-primary-600/30 ring-2 ring-primary-500 scale-110' : 'ui-bg-hover'
                   )}
                 >
                   {emoji}

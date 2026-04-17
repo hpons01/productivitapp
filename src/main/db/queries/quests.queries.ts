@@ -75,6 +75,13 @@ function getUserLevel(db: Database.Database): number {
   return Math.max(1, Math.floor(Math.sqrt(result.total / 10)))
 }
 
+function isDeveloperModeEnabled(db: Database.Database): boolean {
+  const row = db
+    .prepare('SELECT value FROM settings WHERE key = ?')
+    .get('developer_mode') as { value: string } | undefined
+  return row?.value === 'true'
+}
+
 export function scaleCatalogXP(baseXP: number, userLevel: number, difficulty: QuestDifficulty): number {
   if (difficulty !== 'easy') return baseXP
   if (userLevel <= 10) return baseXP
@@ -682,6 +689,7 @@ export function getCatalogQuests(db: Database.Database): CatalogQuestView[] {
   syncExpiredCatalogEnrollments(db)
 
   const userLevel = getUserLevel(db)
+  const developerModeEnabled = isDeveloperModeEnabled(db)
 
   const definitions = db.prepare(`
     SELECT * FROM quest_definitions
@@ -710,7 +718,7 @@ export function getCatalogQuests(db: Database.Database): CatalogQuestView[] {
     ...def,
     enrollment: enrollmentMap.get(def.id) ?? null,
     scaled_xp_reward: scaleCatalogXP(def.xp_reward, userLevel, def.difficulty),
-    is_locked: userLevel < def.min_level_required,
+    is_locked: !developerModeEnabled && userLevel < def.min_level_required,
     user_level: userLevel
   }))
 }
@@ -720,6 +728,7 @@ export function enrollCatalogQuest(db: Database.Database, definitionId: string):
 
   const nowMs = Date.now()
   const userLevel = getUserLevel(db)
+  const developerModeEnabled = isDeveloperModeEnabled(db)
 
   let newId: string | null = null
 
@@ -729,7 +738,7 @@ export function enrollCatalogQuest(db: Database.Database, definitionId: string):
       .get(definitionId) as QuestDefinition | undefined
     if (!def) throw new Error('Quest definition not found.')
 
-    if (userLevel < def.min_level_required) {
+    if (!developerModeEnabled && userLevel < def.min_level_required) {
       throw new Error(`Requires level ${def.min_level_required} (you are level ${userLevel}).`)
     }
 

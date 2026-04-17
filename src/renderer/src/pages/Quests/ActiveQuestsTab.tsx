@@ -58,7 +58,7 @@ export function ActiveQuestsTab({
               <Card key={quest.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-sm font-semibold text-white">{quest.title}</CardTitle>
+                    <CardTitle className="text-sm font-semibold text-[color:var(--app-interactive-fg-default)]">{quest.title}</CardTitle>
                     <span className={cn('inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-2 py-1 rounded-md border font-semibold', sourceStyle)}>
                       {sourceIcon}
                       {sourceLabel}
@@ -106,7 +106,7 @@ export function ActiveQuestsTab({
       <Modal open={pendingAbandon !== null} onClose={() => setPendingAbandon(null)} title="Abandon Quest" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-surface-300">
-            Abandon <span className="text-white font-semibold">{pendingAbandon?.title}</span>?
+            Abandon <span className="text-[color:var(--app-interactive-fg-default)] font-semibold">{pendingAbandon?.title}</span>?
           </p>
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200 space-y-1">
             <p>You will lose current progress: <span className="font-semibold">{pendingAbandon?.progress ?? 0}/{pendingAbandon?.target ?? 0}</span>.</p>

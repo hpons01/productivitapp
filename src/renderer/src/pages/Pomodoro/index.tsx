@@ -44,9 +44,10 @@ interface SessionRow {
 export function PomodoroPage() {
   const {
     status, timeLeft, duration, breakDuration, sessionLabel,
-    interruptions, todayPomodoros, todayMinutes,
-    start, pause, resume, tick, complete, abandon, startBreak, endBreak,
+    interruptions, todayPomodoros, todayMinutes, repetitionTarget, endlessMode, loopsCompletedInRun,
+    start, pause, resume, tick, stop, endBreak,
     setLabel, increment, loadTodayStats,
+    setRepetitionTarget, toggleEndlessMode,
     presets, loadPresets, createPreset, deletePreset, applyPreset
   } = usePomodoroStore()
 
@@ -141,7 +142,7 @@ export function PomodoroPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Focus Timer</h1>
+        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Focus Timer</h1>
         <p className="text-surface-400 text-sm mt-1">
           {todayPomodoros} sessions · {todayMinutes} min focused today
         </p>
@@ -156,7 +157,7 @@ export function PomodoroPage() {
               value={sessionLabel}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="What are you working on? (optional)"
-              className="bg-surface-800/60 border border-surface-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-surface-500 focus:outline-none focus:border-primary-500 w-full max-w-xs text-center"
+              className="bg-surface-800/60 border border-surface-500 rounded-xl px-4 py-2.5 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)] w-full max-w-xs text-center"
             />
           )}
 
@@ -191,6 +192,13 @@ export function PomodoroPage() {
               <div className="text-xs text-surface-400 mt-2 capitalize">
                 {status === 'break' ? '☕ Break' : status === 'running' ? '🎯 Focusing' : status === 'paused' ? '⏸ Paused' : status === 'completed' ? '🎉 Done!' : '🍅 Pomodoro'}
               </div>
+              {status !== 'idle' && (
+                <div className="text-[11px] text-surface-400 mt-1">
+                  {endlessMode
+                    ? `Endless enabled · loops done ${loopsCompletedInRun}`
+                    : `Loops done ${Math.min(loopsCompletedInRun, repetitionTarget)} / ${repetitionTarget}`}
+                </div>
+              )}
               {status === 'running' && interruptions > 0 && (
                 <div className="flex items-center gap-1 mt-1 text-amber-400 text-xs">
                   <AlertCircle size={10} />
@@ -218,18 +226,28 @@ export function PomodoroPage() {
                 <Button variant="secondary" size="icon" onClick={increment} title="Mark interruption">
                   <AlertCircle size={16} />
                 </Button>
-                <Button variant="danger" size="icon" onClick={abandon}><StopCircle size={16} /></Button>
+                <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
+                  {endlessMode ? 'Endless On' : 'Endless'}
+                </Button>
+                <Button variant="danger" size="icon" onClick={stop}><StopCircle size={16} /></Button>
               </>
             )}
             {status === 'paused' && (
               <>
                 <Button onClick={resume}><Play size={16} /> Resume</Button>
-                <Button variant="danger" size="icon" onClick={abandon}><StopCircle size={16} /></Button>
+                <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
+                  {endlessMode ? 'Endless On' : 'Endless'}
+                </Button>
+                <Button variant="danger" size="icon" onClick={stop}><StopCircle size={16} /></Button>
               </>
             )}
             {status === 'break' && (
               <>
                 <Button onClick={endBreak}><SkipForward size={16} /> Skip Break</Button>
+                <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
+                  {endlessMode ? 'Endless On' : 'Endless'}
+                </Button>
+                <Button variant="danger" size="icon" onClick={stop}><StopCircle size={16} /></Button>
               </>
             )}
             {status === 'completed' && (
@@ -246,6 +264,21 @@ export function PomodoroPage() {
         <Card>
           <CardHeader><CardTitle className="text-sm">Presets</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            <div className="rounded-xl border border-surface-600 bg-surface-800/40 p-3">
+              <label className="text-xs text-surface-300 block mb-2">Repetitions (work sessions total)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={repetitionTarget}
+                  onChange={(e) => setRepetitionTarget(Number(e.target.value || 1))}
+                  className="w-24 rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
+                />
+                <span className="text-xs text-surface-400">Each loop is counted when break ends or is skipped.</span>
+              </div>
+            </div>
+
             <div className="flex items-start gap-2">
               <div className="flex gap-2 flex-wrap flex-1">
                 {PRESETS.map((preset) => {
@@ -321,7 +354,7 @@ export function PomodoroPage() {
                     value={customWork}
                     onChange={(e) => setCustomWork(Number(e.target.value || 0))}
                     placeholder="Work (min)"
-                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-white placeholder:text-surface-400 focus:outline-none focus:border-primary-500"
+                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
                   />
                   <input
                     type="number"
@@ -330,7 +363,7 @@ export function PomodoroPage() {
                     value={customBreak}
                     onChange={(e) => setCustomBreak(Number(e.target.value || 0))}
                     placeholder="Break (min)"
-                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-white placeholder:text-surface-400 focus:outline-none focus:border-primary-500"
+                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
                   />
                 </div>
 
@@ -397,7 +430,7 @@ export function PomodoroPage() {
                   <span className="text-base shrink-0">{s.completed ? '🍅' : '💨'}</span>
 
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white truncate">
+                    <div className="font-medium text-[color:var(--app-interactive-fg-default)] truncate">
                       {s.label || <span className="text-surface-500 italic">Unlabeled</span>}
                     </div>
                     <div className="text-xs text-surface-400">

@@ -46,9 +46,11 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
               >
                 {title && (
                   <div className="flex items-center justify-between mb-5">
-                    <Dialog.Title className="text-lg font-bold text-white">{title}</Dialog.Title>
+                    <Dialog.Title className="text-lg font-bold text-[color:var(--app-interactive-fg-default)]">
+                      {title}
+                    </Dialog.Title>
                     <Dialog.Close asChild>
-                      <button className="p-1.5 rounded-lg text-surface-400 hover:text-white hover:bg-surface-600 transition-colors">
+                      <button className="p-1.5 rounded-lg ui-icon-default ui-icon-hover ui-bg-hover transition-colors">
                         <X size={16} />
                       </button>
                     </Dialog.Close>

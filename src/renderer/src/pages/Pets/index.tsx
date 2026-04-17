@@ -60,7 +60,7 @@ export function PetsPage() {
     <div className="flex flex-col h-full p-6 gap-6 overflow-y-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-white">Companions</h1>
+        <h1 className="text-2xl font-black text-[color:var(--app-interactive-fg-default)]">Companions</h1>
         <p className="text-surface-400 text-sm mt-1">
           Complete daily quests to earn eggs. Hatch them to discover your companions.
         </p>
@@ -73,8 +73,8 @@ export function PetsPage() {
           className={cn(
             'px-4 py-2 rounded-lg text-sm font-semibold transition-all',
             tab === 'eggs'
-              ? 'bg-primary-600 text-white shadow'
-              : 'text-surface-400 hover:text-white'
+              ? 'bg-primary-600 text-[color:var(--app-on-primary)] shadow'
+              : 'text-surface-400 hover:text-[color:var(--app-interactive-fg-default)]'
           )}
         >
           Eggs {eggs.length > 0 && <span className="ml-1.5 bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full">{eggs.length}</span>}
@@ -84,8 +84,8 @@ export function PetsPage() {
           className={cn(
             'px-4 py-2 rounded-lg text-sm font-semibold transition-all',
             tab === 'roster'
-              ? 'bg-primary-600 text-white shadow'
-              : 'text-surface-400 hover:text-white'
+              ? 'bg-primary-600 text-[color:var(--app-on-primary)] shadow'
+              : 'text-surface-400 hover:text-[color:var(--app-interactive-fg-default)]'
           )}
         >
           My Pets {pets.length > 0 && <span className="ml-1.5 text-surface-500 text-[10px]">({pets.length})</span>}
@@ -286,7 +286,7 @@ function PetCard({
           <div className="flex items-center gap-2">
             {isRenaming ? (
               <input
-                className="bg-surface-700 border border-surface-500 rounded-lg px-2 py-0.5 text-sm text-white font-bold w-32 outline-none focus:border-primary-400"
+                className="bg-surface-700 border border-surface-500 rounded-lg px-2 py-0.5 text-sm text-[color:var(--app-interactive-fg-default)] font-bold w-32 outline-none focus:border-[color:var(--app-focus-ring)]"
                 value={renameValue}
                 onChange={(e) => onRenameChange(e.target.value)}
                 onBlur={onSubmitRename}
@@ -294,7 +294,7 @@ function PetCard({
                 autoFocus
               />
             ) : (
-              <span className="font-bold text-sm text-white">{pet.name}</span>
+              <span className="font-bold text-sm text-[color:var(--app-interactive-fg-default)]">{pet.name}</span>
             )}
             <button
               onClick={onStartRename}
@@ -361,7 +361,7 @@ function EmptyEggs() {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
       <div className="text-5xl">🥚</div>
-      <h3 className="text-lg font-bold text-white">No eggs yet</h3>
+      <h3 className="text-lg font-bold text-[color:var(--app-interactive-fg-default)]">No eggs yet</h3>
       <p className="text-surface-400 text-sm max-w-xs">
         Complete daily quests to earn companion eggs. Look for the <span className="text-amber-400">🥚</span> icon on quests that reward eggs.
       </p>
@@ -373,7 +373,7 @@ function EmptyRoster() {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
       <div className="text-5xl">🐾</div>
-      <h3 className="text-lg font-bold text-white">No companions yet</h3>
+      <h3 className="text-lg font-bold text-[color:var(--app-interactive-fg-default)]">No companions yet</h3>
       <p className="text-surface-400 text-sm max-w-xs">
         Hatch an egg to meet your first companion. They'll level up as you stay productive!
       </p>

@@ -5,7 +5,6 @@ import { useGamificationStore } from '../../stores/gamification.store'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
 import { useSettingsStore } from '../../stores/settings.store'
 import { useShopStore } from '../../stores/shop.store'
-import { cn } from '../../lib/utils'
 
 const CLASS_ICONS: Record<string, string> = {
   'Time Mage': '⚡',
@@ -27,7 +26,7 @@ export function TopBar() {
   const [isMaximized, setIsMaximized] = useState(false)
   const isWindows = navigator.userAgent.includes('Windows')
   const { level, totalXP, characterClass } = useGamificationStore()
-  const { status, timeLeft, pause, resume, abandon, endBreak } = usePomodoroStore()
+  const { status, timeLeft, pause, resume, stop, endBreak } = usePomodoroStore()
   const equippedTitle = useSettingsStore((s) => s.getSetting('equipped_title', ''))
   const { focusBalance, refreshBalance } = useShopStore()
 
@@ -63,7 +62,9 @@ export function TopBar() {
     <div className="flex items-center justify-between px-6 py-3 border-b border-surface-600 bg-surface-800/50 drag-region">
       {/* Left: date */}
       <div className="text-sm text-surface-400 no-drag">
-        <span className="font-medium text-white">{format(time, 'EEEE')}</span>
+        <span className="font-medium text-[color:var(--app-interactive-fg-default)]">
+          {format(time, 'EEEE')}
+        </span>
         <span className="mx-2 opacity-40">·</span>
         <span>{format(time, 'MMMM d, yyyy')}</span>
       </div>
@@ -107,7 +108,7 @@ export function TopBar() {
             <span className="text-[10px] font-semibold uppercase tracking-wide text-primary-300">
               {status === 'break' ? 'Break' : 'Focus'}
             </span>
-            <span className="text-xs font-mono text-white font-bold tabular-nums">
+            <span className="text-xs font-mono text-[color:var(--app-interactive-fg-default)] font-bold tabular-nums">
               {formatTimer(timeLeft)}
             </span>
             {status === 'running' && (
@@ -133,7 +134,7 @@ export function TopBar() {
             {status === 'break' && (
               <button
                 className="window-control-btn"
-                onClick={endBreak}
+                onClick={() => void endBreak()}
                 aria-label="Skip break"
                 title="Skip break"
               >
@@ -142,7 +143,7 @@ export function TopBar() {
             )}
             <button
               className="window-control-btn window-control-close"
-              onClick={() => void abandon()}
+              onClick={() => void stop()}
               aria-label="Stop focus session"
               title="Stop"
             >
@@ -150,7 +151,7 @@ export function TopBar() {
             </button>
           </div>
         )}
-        <div className="text-sm font-mono text-white">
+        <div className="text-sm font-mono text-[color:var(--app-interactive-fg-default)]">
           {format(time, 'HH:mm:ss')}
         </div>
         {isWindows && (

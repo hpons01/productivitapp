@@ -5,6 +5,7 @@ function baseStats(overrides: Partial<AchievementStats> = {}): AchievementStats 
   return {
     habitStreak: 0,
     totalPomodoros: 0,
+    endlessLoopsCompleted: 0,
     habitsCount: 0,
     tasksCompletedToday: 0,
     twoMinTasksTotal: 0,
@@ -36,6 +37,17 @@ describe('checkAchievements', () => {
   it('unlocks pomodoro_1 when totalPomodoros >= 1', () => {
     const result = checkAchievements(baseStats({ totalPomodoros: 1 }), new Set())
     expect(result).toContain('pomodoro_1')
+  })
+
+  it('unlocks endless_5 when endlessLoopsCompleted >= 5', () => {
+    const result = checkAchievements(baseStats({ endlessLoopsCompleted: 5 }), new Set())
+    expect(result).toContain('endless_5')
+  })
+
+  it('unlocks endless_10 when endlessLoopsCompleted >= 10', () => {
+    const result = checkAchievements(baseStats({ endlessLoopsCompleted: 10 }), new Set())
+    expect(result).toContain('endless_10')
+    expect(result).toContain('endless_5')
   })
 
   it('unlocks streak_7 when habitStreak >= 7', () => {

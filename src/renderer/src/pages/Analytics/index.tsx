@@ -152,7 +152,7 @@ const HeatmapGrid = memo(function HeatmapGrid({
                     <TooltipPrimitive.Content
                       side="top"
                       sideOffset={4}
-                      className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-white shadow-xl select-none animate-in fade-in-0 zoom-in-95"
+                      className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-[color:var(--app-interactive-fg-default)] shadow-xl select-none animate-in fade-in-0 zoom-in-95"
                     >
                       <span className="font-semibold">{day.label}</span>
                       <span className="text-surface-300 ml-1.5">
@@ -207,7 +207,7 @@ const YearHeatmapRows = memo(function YearHeatmapRows({
                       <TooltipPrimitive.Content
                         side="top"
                         sideOffset={4}
-                        className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-white shadow-xl select-none animate-in fade-in-0 zoom-in-95"
+                        className="z-50 rounded-lg bg-surface-700 border border-surface-500 px-2.5 py-1.5 text-xs text-[color:var(--app-interactive-fg-default)] shadow-xl select-none animate-in fade-in-0 zoom-in-95"
                       >
                         <span className="font-semibold">{day.label}</span>
                         <span className="text-surface-300 ml-1.5">
@@ -275,7 +275,7 @@ const HabitHeatmapCard = memo(function HabitHeatmapCard({ loading, heatmap }: { 
                 onClick={() => setDetailMode('month')}
                 className={cn(
                   'px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
-                  detailMode === 'month' ? 'bg-primary-600 text-white' : 'text-surface-300 hover:text-white'
+                  detailMode === 'month' ? 'bg-primary-600 text-[color:var(--app-on-primary)]' : 'ui-fg-muted ui-fg-hover'
                 )}
               >
                 Current Month
@@ -285,7 +285,7 @@ const HabitHeatmapCard = memo(function HabitHeatmapCard({ loading, heatmap }: { 
                 onClick={() => setDetailMode('year')}
                 className={cn(
                   'px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors',
-                  detailMode === 'year' ? 'bg-primary-600 text-white' : 'text-surface-300 hover:text-white'
+                  detailMode === 'year' ? 'bg-primary-600 text-[color:var(--app-on-primary)]' : 'ui-fg-muted ui-fg-hover'
                 )}
               >
                 Full Year
@@ -503,7 +503,7 @@ export function AnalyticsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Profile Command Center</h1>
+        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Profile Command Center</h1>
         <p className="text-surface-400 text-sm mt-1">Own your identity, tune your class, and level with intention.</p>
       </div>
 
@@ -536,7 +536,7 @@ export function AnalyticsPage() {
                 {gami.classOptions.find((c) => c.id === gami.selectedClassId)?.icon || '🌱'}
               </div>
               <div>
-                <div className="text-xl font-bold text-white">{gami.characterClass}</div>
+                <div className="text-xl font-bold text-[color:var(--app-interactive-fg-default)]">{gami.characterClass}</div>
                 <div className="text-xs text-surface-400 mt-0.5">{gami.selectedClassDescription}</div>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-amber-400 font-bold">Level {gami.level}</span>
@@ -579,7 +579,7 @@ export function AnalyticsPage() {
           <CardContent className="space-y-3">
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
               <div className="text-xs text-emerald-200 uppercase tracking-wide">Boosted Activity</div>
-              <div className="text-white font-semibold mt-1">{classBonusLabel}</div>
+              <div className="text-[color:var(--app-interactive-fg-default)] font-semibold mt-1">{classBonusLabel}</div>
             </div>
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
               <div className="text-xs text-amber-200 uppercase tracking-wide">XP Multiplier</div>
@@ -669,7 +669,7 @@ export function AnalyticsPage() {
                     <div className="text-2xl">{classDef.icon}</div>
                     {selected && <span className="text-[10px] uppercase tracking-wider text-primary-300 font-bold">Equipped</span>}
                   </div>
-                  <div className="text-white font-semibold mt-2">{classDef.name}</div>
+                  <div className="text-[color:var(--app-interactive-fg-default)] font-semibold mt-2">{classDef.name}</div>
                   <div className="text-xs text-surface-400 mt-1 min-h-[34px]">{classDef.description}</div>
                   <div className="mt-3 text-xs text-surface-300">Boost: {boostedLabel}</div>
                   <div className="text-xs text-amber-300 font-semibold">Multiplier: x{classDef.multiplier.toFixed(2)}</div>
@@ -695,7 +695,7 @@ export function AnalyticsPage() {
           ) : (
             <div className="space-y-3">
               <div className="text-sm text-surface-300">
-                <span className="font-semibold text-white">{selectedClass.name}</span>
+                <span className="font-semibold text-[color:var(--app-interactive-fg-default)]">{selectedClass.name}</span>
                 <span className="text-surface-500"> · Mastery XP {selectedClassProgress?.masteryXp?.toLocaleString() || 0}</span>
               </div>
 
@@ -728,7 +728,7 @@ export function AnalyticsPage() {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <div className="text-sm font-semibold text-white">{step.title}</div>
+                          <div className="text-sm font-semibold text-[color:var(--app-interactive-fg-default)]">{step.title}</div>
                           <div className="text-[11px] text-surface-400">Unlocks at {step.minXp} mastery XP</div>
                         </div>
                         <span

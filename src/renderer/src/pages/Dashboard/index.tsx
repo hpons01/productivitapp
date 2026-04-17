@@ -172,7 +172,7 @@ export function DashboardPage() {
     <motion.div variants={container} initial="hidden" animate="show" className="max-w-6xl mx-auto space-y-6">
       {/* Header greeting */}
       <motion.div variants={item}>
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">
           {new Date().getHours() < 12 ? '🌅 Good morning' : new Date().getHours() < 17 ? '☀️ Good afternoon' : '🌙 Good evening'}
           , {playerName}
         </h1>
@@ -232,7 +232,7 @@ export function DashboardPage() {
                 <Card className="h-full bg-gradient-to-br from-primary-900/35 to-surface-700 border-primary-700/30 hover:border-primary-500/50 transition-colors cursor-pointer">
                   <CardContent className="pt-4 pb-3 flex flex-col items-center text-center gap-2">
                     <Icon size={22} className={color} />
-                    <div className="text-2xl font-bold text-white">{value}</div>
+                    <div className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">{value}</div>
                     <div className="text-xs text-surface-400">{label}</div>
                   </CardContent>
                 </Card>
@@ -278,7 +278,7 @@ export function DashboardPage() {
                     >
                       <span className="text-xl">{habit.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <div className={cn('text-sm font-medium truncate', habit.completedToday ? 'text-emerald-300 line-through opacity-70' : 'text-white')}>
+                        <div className={cn('text-sm font-medium truncate', habit.completedToday ? 'text-emerald-300 line-through opacity-70' : 'text-[color:var(--app-interactive-fg-default)]')}>
                           {habit.name}
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
@@ -422,7 +422,7 @@ export function DashboardPage() {
                 <div>
                   <div className="text-center mb-4">
                     <div className="text-4xl mb-2">👹</div>
-                    <div className="font-bold text-white">{weeklyBoss.name}</div>
+                    <div className="font-bold text-[color:var(--app-interactive-fg-default)]">{weeklyBoss.name}</div>
                     {weeklyBoss.defeated ? (
                       <div className="text-emerald-400 text-sm mt-1">✅ Defeated! Claim your loot.</div>
                     ) : (

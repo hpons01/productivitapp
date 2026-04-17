@@ -70,7 +70,7 @@ function EvolutionUnlockedToast({ reward }: { reward: PendingReward }) {
     >
       <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[250px] shadow-2xl">
         <div className="text-[10px] uppercase tracking-wider text-emerald-200 font-semibold">Evolution Unlocked</div>
-        <div className="text-sm font-bold text-white mt-1">{className} → {evolutionTitle}</div>
+        <div className="text-sm font-bold text-[color:var(--app-interactive-fg-default)] mt-1">{className} → {evolutionTitle}</div>
         {identityCue && <div className="text-[11px] text-emerald-100/90 mt-1">{identityCue}</div>}
       </div>
     </motion.div>
@@ -95,7 +95,7 @@ function ClassChangedToast({ reward }: { reward: PendingReward }) {
         <div className="flex items-center gap-2 mt-1">
           <span className="text-xl">{classIcon}</span>
           <div>
-            <div className="text-sm font-bold text-white">{className}</div>
+            <div className="text-sm font-bold text-[color:var(--app-interactive-fg-default)]">{className}</div>
             <div className="text-[11px] text-primary-200">Evolution: {evolutionTitle}</div>
           </div>
         </div>
@@ -168,7 +168,7 @@ function LevelUpScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
         </motion.div>
 
         <motion.h1
-          className="text-4xl font-black text-white mb-2"
+          className="text-4xl font-black text-[color:var(--app-interactive-fg-default)] mb-2"
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
@@ -281,7 +281,7 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
         <div className={cn('text-xs uppercase tracking-widest font-bold mb-1', colors.text)}>
           {loot.tier} drop
         </div>
-        <h2 className="text-xl font-black text-white mb-1">{loot.name}</h2>
+        <h2 className="text-xl font-black text-[color:var(--app-interactive-fg-default)] mb-1">{loot.name}</h2>
         <p className="text-surface-400 text-sm mb-6">{loot.description}</p>
         <Button onClick={handleClaim} className="w-full">Claim! 🎁</Button>
       </motion.div>
@@ -377,7 +377,7 @@ function QuestCompletedToast({ reward }: { reward: PendingReward }) {
           <span className="text-base">✅</span>
           <div className="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Quest Complete!</div>
         </div>
-        <div className="text-sm font-bold text-white leading-snug">{title}</div>
+        <div className="text-sm font-bold text-[color:var(--app-interactive-fg-default)] leading-snug">{title}</div>
         <div className="flex items-center gap-3 mt-1">
           {xpAwarded > 0 && (
             <span className="text-xs text-amber-300 font-semibold">+{xpAwarded} XP</span>

@@ -124,7 +124,9 @@ export default function App() {
       {taskReminder && (
         <div className="fixed right-4 top-4 z-[70] w-[320px] rounded-2xl border border-amber-400/30 bg-surface-800/95 backdrop-blur p-4 shadow-2xl shadow-black/35">
           <p className="text-xs uppercase tracking-wide text-amber-300 font-semibold">Task reminder</p>
-          <p className="text-sm text-white mt-1 font-medium line-clamp-2">{taskReminder.title}</p>
+          <p className="mt-1 line-clamp-2 text-sm font-medium text-[color:var(--app-interactive-fg-default)]">
+            {taskReminder.title}
+          </p>
           <p className="text-xs text-surface-400 mt-1">
             Planned for {new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(taskReminder.dueDate))}
           </p>
@@ -153,7 +155,7 @@ export default function App() {
       )}
       {updateState && (
         <div className="fixed left-1/2 top-4 z-[70] w-[min(94vw,560px)] -translate-x-1/2 rounded-2xl border border-primary-500/30 bg-surface-800/95 p-4 shadow-2xl shadow-black/35 backdrop-blur">
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-[color:var(--app-interactive-fg-default)]">
             {updateState === 'available'
               ? 'Update found. Downloading now...'
               : 'Update ready to install'}

@@ -49,7 +49,7 @@ export function QuestCard({ quest, activeCount, busyId, onEnroll, onAbandon }: Q
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-sm font-semibold text-white truncate">{quest.description}</CardTitle>
+          <CardTitle className="text-sm font-semibold text-[color:var(--app-interactive-fg-default)] truncate">{quest.description}</CardTitle>
           <span
             className={cn(
               'text-[10px] uppercase tracking-wide px-2 py-1 rounded-md border font-semibold shrink-0',
@@ -122,7 +122,7 @@ export function QuestCard({ quest, activeCount, busyId, onEnroll, onAbandon }: Q
       <Modal open={confirmEnrollOpen} onClose={() => setConfirmEnrollOpen(false)} title="Enroll in Quest" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-surface-300">
-            Start <span className="text-white font-semibold">{quest.description}</span> now?
+            Start <span className="text-[color:var(--app-interactive-fg-default)] font-semibold">{quest.description}</span> now?
           </p>
           <p className="text-xs text-surface-400">
             You can keep up to 3 daily quests active at once. This quest gives <span className="text-amber-300 font-semibold">+{quest.xp_reward} XP</span>{quest.focus_reward > 0 && <span> and <span className="text-cyan-300 font-semibold">+{quest.focus_reward} Focus 💎</span></span>} on completion.
@@ -149,7 +149,7 @@ export function QuestCard({ quest, activeCount, busyId, onEnroll, onAbandon }: Q
       <Modal open={confirmAbandonOpen} onClose={() => setConfirmAbandonOpen(false)} title="Abandon Quest" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-surface-300">
-            Abandon <span className="text-white font-semibold">{quest.description}</span>?
+            Abandon <span className="text-[color:var(--app-interactive-fg-default)] font-semibold">{quest.description}</span>?
           </p>
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200 space-y-1">
             <p>You will lose current progress: <span className="font-semibold">{quest.progress}/{quest.target}</span>.</p>

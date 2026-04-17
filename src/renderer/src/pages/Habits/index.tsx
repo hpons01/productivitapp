@@ -45,7 +45,7 @@ function HabitForm({
               onClick={() => setIcon(i)}
               className={cn(
                 'w-9 h-9 rounded-lg text-lg transition-all',
-                icon === i ? 'bg-primary-600/30 ring-2 ring-primary-500' : 'bg-surface-800 hover:bg-surface-700'
+                icon === i ? 'bg-primary-600/30 ring-2 ring-primary-500' : 'bg-surface-800 ui-bg-hover'
               )}
             >
               {i}
@@ -118,7 +118,7 @@ function HabitForm({
             className="mt-0.5"
           />
           <span>
-            <span className="font-semibold text-white">Start as Tiny Habit mode</span>
+            <span className="font-semibold text-[color:var(--app-interactive-fg-default)]">Start as Tiny Habit mode</span>
             <span className="block text-xs text-surface-400 mt-0.5">2-minute minimum version, then graduate after one week of consistency.</span>
           </span>
         </label>
@@ -162,7 +162,7 @@ function HabitMenu({ habit, onEdit, onDelete }: { habit: Habit; onEdit: () => vo
     <div ref={ref} className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-400 hover:text-white hover:bg-surface-700 transition-all"
+        className="w-8 h-8 rounded-lg flex items-center justify-center ui-fg-muted ui-fg-hover ui-bg-hover transition-all"
         aria-label="Habit actions"
       >
         <MoreVertical size={16} />
@@ -178,7 +178,7 @@ function HabitMenu({ habit, onEdit, onDelete }: { habit: Habit; onEdit: () => vo
           >
             <button
               onClick={() => { setOpen(false); onEdit() }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-surface-200 hover:bg-surface-700 hover:text-white transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-surface-200 ui-bg-hover hover:text-[color:var(--app-interactive-fg-default)] transition-colors"
             >
               <Pencil size={13} /> Edit
             </button>
@@ -200,7 +200,7 @@ function DeleteConfirmModal({ habit, onConfirm, onCancel }: { habit: Habit; onCo
     <Modal open onClose={onCancel} title="Delete Habit">
       <div className="space-y-4">
         <p className="text-surface-300 text-sm">
-          Are you sure you want to delete <span className="text-white font-semibold">{habit.icon} {habit.name}</span>?
+          Are you sure you want to delete <span className="text-[color:var(--app-interactive-fg-default)] font-semibold">{habit.icon} {habit.name}</span>?
         </p>
         <p className="text-surface-500 text-xs">
           This will remove the habit and its completion history. Your streak of <strong className="text-amber-400">{habit.streak} days</strong> will be lost.
@@ -257,7 +257,7 @@ function LapseReflectionModal({
                 className={cn(
                   'text-left rounded-xl border p-3 transition-colors',
                   reasonCode === option.code
-                    ? 'border-primary-500/60 bg-primary-500/15 text-white'
+                    ? 'border-primary-500/60 bg-primary-500/15 text-[color:var(--app-interactive-fg-default)]'
                     : 'border-surface-600 bg-surface-800 text-surface-200 hover:border-surface-400'
                 )}
               >
@@ -321,7 +321,7 @@ function MicroCheckinModal({
     <Modal open onClose={onSkip} title="Quick Check-in">
       <div className="space-y-4">
         <p className="text-sm text-surface-200">
-          How did <span className="text-white font-semibold">{habit.name}</span> feel?
+          How did <span className="text-[color:var(--app-interactive-fg-default)] font-semibold">{habit.name}</span> feel?
         </p>
         <div className="grid grid-cols-2 gap-3">
           <Select label="Difficulty" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
@@ -428,7 +428,7 @@ export function HabitsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Habits</h1>
+          <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Habits</h1>
           <p className="text-surface-400 text-sm mt-1">
             {completedCount}/{totalCount} completed today
           </p>
@@ -463,7 +463,7 @@ export function HabitsPage() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="text-4xl mb-3">🌱</div>
-            <p className="text-white font-semibold mb-1">Start Your Habit Journey</p>
+            <p className="text-[color:var(--app-interactive-fg-default)] font-semibold mb-1">Start Your Habit Journey</p>
             <p className="text-surface-400 text-sm mb-4">Build powerful habits, one day at a time.</p>
             <Button onClick={() => setShowForm(true)}><Plus size={16} /> Add Your First Habit</Button>
           </CardContent>
@@ -508,7 +508,7 @@ export function HabitsPage() {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={cn('font-semibold text-sm truncate', habit.completedToday ? 'text-surface-400 line-through' : 'text-white')}>
+                        <span className={cn('font-semibold text-sm truncate', habit.completedToday ? 'text-surface-400 line-through' : 'text-[color:var(--app-interactive-fg-default)]')}>
                           {habit.name}
                         </span>
                         {habit.isLegendary && (
@@ -627,7 +627,7 @@ export function HabitsPage() {
         <Modal open onClose={() => setGraduatingHabit(null)} title="Tiny Habit Graduation">
           <div className="space-y-4">
             <p className="text-sm text-surface-200">
-              You kept <span className="font-semibold text-white">{graduatingHabit.name}</span> consistent for a week.
+              You kept <span className="font-semibold text-[color:var(--app-interactive-fg-default)]">{graduatingHabit.name}</span> consistent for a week.
             </p>
             <p className="text-xs text-surface-400">
               Ready to graduate from tiny mode and raise your standard?

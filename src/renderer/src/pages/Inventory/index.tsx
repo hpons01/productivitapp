@@ -141,7 +141,7 @@ export function InventoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] flex items-center gap-2">
             <Package size={22} className="text-amber-400" />
             Loot Inventory
           </h1>
@@ -161,7 +161,7 @@ export function InventoryPage() {
               'px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize',
               filter === f
                 ? 'bg-primary-600/20 text-primary-300 border border-primary-500/30'
-                : 'text-surface-400 hover:text-white hover:bg-surface-700'
+                : 'ui-fg-muted ui-fg-hover ui-bg-hover'
             )}
           >
             {f}
@@ -176,7 +176,7 @@ export function InventoryPage() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="text-5xl mb-3">📦</div>
-            <p className="text-white font-semibold mb-1">
+            <p className="text-[color:var(--app-interactive-fg-default)] font-semibold mb-1">
               {filter === 'all' ? 'No Loot Yet' : filter === 'available' ? 'Nothing Available' : 'Nothing Used Yet'}
             </p>
             <p className="text-surface-400 text-sm">
@@ -226,7 +226,7 @@ export function InventoryPage() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-white text-sm">
+                          <span className="font-semibold text-[color:var(--app-interactive-fg-default)] text-sm">
                             {payload.name || item.type}
                           </span>
                           <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-md border', colors.text, colors.border, colors.bg)}>
