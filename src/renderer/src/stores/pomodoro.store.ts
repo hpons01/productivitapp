@@ -143,9 +143,13 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     if (timeLeft <= elapsedSeconds) {
       set({ timeLeft: 0, lastTickAt: now })
       if (status === 'running') {
-        get().complete()
+        void get().complete().catch((error) => {
+          console.error('Pomodoro completion failed from tick', error)
+        })
       } else {
-        get().endBreak()
+        void get().endBreak().catch((error) => {
+          console.error('Pomodoro break end failed from tick', error)
+        })
       }
       return
     }

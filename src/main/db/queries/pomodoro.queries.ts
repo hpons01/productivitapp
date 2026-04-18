@@ -70,7 +70,7 @@ export function markLoopCompleted(db: Database.Database, id: string, endlessMode
   db.prepare(`
     UPDATE pomodoro_sessions
     SET loop_completed = 1,
-        endless_mode = CASE WHEN ? = 1 THEN 1 ELSE endless_mode END
+        endless_mode = ?
     WHERE id = ? AND completed = 1
   `).run(endlessMode ? 1 : 0, id)
 }

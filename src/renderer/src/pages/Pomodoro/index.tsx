@@ -229,7 +229,7 @@ export function PomodoroPage() {
                 <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
                   {endlessMode ? 'Endless On' : 'Endless'}
                 </Button>
-                <Button variant="danger" size="icon" onClick={stop}><StopCircle size={16} /></Button>
+                <Button variant="danger" size="icon" onClick={() => void stop()}><StopCircle size={16} /></Button>
               </>
             )}
             {status === 'paused' && (
@@ -238,20 +238,20 @@ export function PomodoroPage() {
                 <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
                   {endlessMode ? 'Endless On' : 'Endless'}
                 </Button>
-                <Button variant="danger" size="icon" onClick={stop}><StopCircle size={16} /></Button>
+                <Button variant="danger" size="icon" onClick={() => void stop()}><StopCircle size={16} /></Button>
               </>
             )}
             {status === 'break' && (
               <>
-                <Button onClick={endBreak}><SkipForward size={16} /> Skip Break</Button>
+                <Button onClick={() => void endBreak()}><SkipForward size={16} /> Skip Break</Button>
                 <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
                   {endlessMode ? 'Endless On' : 'Endless'}
                 </Button>
-                <Button variant="danger" size="icon" onClick={stop}><StopCircle size={16} /></Button>
+                <Button variant="danger" size="icon" onClick={() => void stop()}><StopCircle size={16} /></Button>
               </>
             )}
             {status === 'completed' && (
-              <Button onClick={() => usePomodoroStore.getState().endBreak()}>
+              <Button onClick={() => void usePomodoroStore.getState().endBreak()}>
                 <Play size={16} /> Start Another
               </Button>
             )}
