@@ -88,7 +88,7 @@ function ShopItemCard({ item, focusBalance, isPurchased, isPurchasing, onBuy }: 
         'flex flex-col gap-3 p-4 rounded-2xl border bg-surface-800/60 backdrop-blur-sm transition-all duration-200',
         colors.border,
         colors.bg,
-        isPurchased ? 'opacity-60' : 'hover:bg-surface-700/60'
+        isPurchased ? 'opacity-60' : 'ui-bg-hover'
       )}
     >
       {/* Icon + rarity badge */}
@@ -101,7 +101,7 @@ function ShopItemCard({ item, focusBalance, isPurchased, isPurchasing, onBuy }: 
 
       {/* Name + description */}
       <div className="flex flex-col gap-1 flex-1">
-        <p className="text-sm font-bold text-white leading-tight">{item.name}</p>
+        <p className="text-sm font-bold text-[color:var(--app-interactive-fg-default)] leading-tight">{item.name}</p>
         <p className="text-xs text-surface-400 leading-snug">{item.description}</p>
         {item.type === 'potion' && item.effectDuration && (
           <p className="text-[10px] text-surface-500 mt-0.5">Duration: {item.effectDuration}m</p>
@@ -170,7 +170,7 @@ export function ShopPage() {
         <div className="flex flex-col gap-2 flex-1">
           <div className="flex items-center gap-2">
             <ShoppingBag size={20} className="text-cyan-400" />
-            <h1 className="text-2xl font-black text-white">The Shop</h1>
+            <h1 className="text-2xl font-black text-[color:var(--app-interactive-fg-default)]">The Shop</h1>
           </div>
           <p className="text-sm text-surface-400 italic leading-snug">&ldquo;{greeting}&rdquo;</p>
 
@@ -182,7 +182,7 @@ export function ShopPage() {
             </div>
             <div className="flex items-center gap-1.5 text-sm text-surface-400">
               <span className="text-[10px] uppercase tracking-wide font-medium">Refreshes in</span>
-              <span className="font-mono text-white font-bold text-xs">{countdown}</span>
+              <span className="font-mono text-[color:var(--app-interactive-fg-default)] font-bold text-xs">{countdown}</span>
             </div>
           </div>
         </div>

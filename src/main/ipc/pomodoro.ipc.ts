@@ -4,8 +4,10 @@ import {
   startSession,
   completeSession,
   abandonSession,
+  markLoopCompleted,
   listSessions,
   getTodayStats,
+  getLifetimeStats,
   listPresets,
   createPreset,
   deletePreset
@@ -20,7 +22,10 @@ import { emitQuestCompletions } from './quest-notifications'
 export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:start', (_event, data) => {
     const db = getDb()
-    const session = startSession(db, data)
+    const session = startSession(db, {
+      ...data,
+      endless_mode: data?.endless_mode ? 1 : 0
+    })
     logEvent(db, 'pomodoro_started', 'pomodoro', session.id, { duration: session.duration_mins })
     return session
   })
@@ -126,6 +131,17 @@ export function registerPomodoroIpc(): void {
   ipcMain.handle('pomodoro:todayStats', () => {
     const db = getDb()
     return getTodayStats(db)
+  })
+
+  ipcMain.handle('pomodoro:loopCompleted', (_event, data: { id: string; endlessMode?: boolean }) => {
+    const db = getDb()
+    markLoopCompleted(db, data.id, Boolean(data.endlessMode))
+    return { success: true }
+  })
+
+  ipcMain.handle('pomodoro:lifetimeStats', () => {
+    const db = getDb()
+    return getLifetimeStats(db)
   })
 
   ipcMain.handle('pomodoro:presets:list', () => {

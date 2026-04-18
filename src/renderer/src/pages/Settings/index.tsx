@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -6,8 +6,54 @@ import { Select } from '../../components/ui/select'
 import { Modal } from '../../components/ui/modal'
 import { useSettingsStore } from '../../stores/settings.store'
 
+const THEME_OPTIONS = [
+  { value: 'dark', label: '🌙 Dark (default)' },
+  { value: 'light', label: '☀️ Light' },
+  { value: 'ember', label: '🔥 Ember' },
+  { value: 'ocean', label: '🌊 Ocean' },
+  { value: 'void', label: '🌑 Void' },
+  { value: 'golden', label: '✨ Golden' }
+] as const
+
+const ACCENT_OPTIONS = [
+  { value: 'default', label: 'Default Accent' },
+  { value: 'bronze', label: '🥉 Bronze Accent' },
+  { value: 'silver', label: '🥈 Silver Accent' },
+  { value: 'gold', label: '🥇 Gold Accent' }
+] as const
+
+const SETTINGS_KEYS = {
+  developerMode: 'developer_mode',
+  unlockedThemes: 'unlocked_themes',
+  unlockedAccents: 'unlocked_accents',
+  developerModeThemesBackup: 'developer_mode_unlocked_themes_backup',
+  developerModeAccentsBackup: 'developer_mode_unlocked_accents_backup'
+} as const
+
+const ALL_THEME_VALUES = THEME_OPTIONS.map((theme) => theme.value)
+const ALL_ACCENT_VALUES = ACCENT_OPTIONS.map((accent) => accent.value)
+
+function parseUnlocked(raw: string, defaults: string[]): Set<string> {
+  const unlocked = new Set(defaults)
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      for (const value of parsed) {
+        if (typeof value === 'string') {
+          unlocked.add(value)
+        }
+      }
+    }
+  } catch {
+    // ignore malformed settings and fallback to defaults
+  }
+
+  return unlocked
+}
+
 export function SettingsPage() {
-  const { settings, getSetting, setSetting, loadSettings, resetOnboarding } = useSettingsStore()
+  const { getSetting, setSetting, loadSettings, resetOnboarding } = useSettingsStore()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [showImportConfirm, setShowImportConfirm] = useState(false)
@@ -16,6 +62,7 @@ export function SettingsPage() {
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
+  const [developerModeBusy, setDeveloperModeBusy] = useState(false)
 
   useEffect(() => { loadSettings() }, [])
 
@@ -83,11 +130,69 @@ export function SettingsPage() {
   }
 
   const startOnBootEnabled = getSetting('start_on_boot', 'false') === 'true'
+  const developerModeEnabled = getSetting(SETTINGS_KEYS.developerMode, 'false') === 'true'
+  const currentTheme = getSetting('theme', 'dark')
+  const currentAccent = getSetting('active_accent', 'default')
+  const unlockedThemesSetting = getSetting(SETTINGS_KEYS.unlockedThemes, '[]')
+  const unlockedAccentsSetting = getSetting(SETTINGS_KEYS.unlockedAccents, '[]')
+
+  const unlockedThemes = useMemo(
+    () => (developerModeEnabled
+      ? new Set(ALL_THEME_VALUES)
+      : parseUnlocked(unlockedThemesSetting, ['dark', 'light', currentTheme])),
+    [currentTheme, developerModeEnabled, unlockedThemesSetting]
+  )
+
+  const unlockedAccents = useMemo(
+    () => (developerModeEnabled
+      ? new Set(ALL_ACCENT_VALUES)
+      : parseUnlocked(unlockedAccentsSetting, ['default', currentAccent])),
+    [currentAccent, developerModeEnabled, unlockedAccentsSetting]
+  )
+
+  const handleDeveloperModeToggle = async (nextEnabled: boolean) => {
+    setDeveloperModeBusy(true)
+    try {
+      if (nextEnabled) {
+        const currentThemes = getSetting(SETTINGS_KEYS.unlockedThemes, '[]')
+        const currentAccents = getSetting(SETTINGS_KEYS.unlockedAccents, '[]')
+
+        await Promise.all([
+          setSetting(SETTINGS_KEYS.developerModeThemesBackup, currentThemes),
+          setSetting(SETTINGS_KEYS.developerModeAccentsBackup, currentAccents),
+          setSetting(SETTINGS_KEYS.developerMode, 'true'),
+          setSetting(SETTINGS_KEYS.unlockedThemes, JSON.stringify(ALL_THEME_VALUES)),
+          setSetting(SETTINGS_KEYS.unlockedAccents, JSON.stringify(ALL_ACCENT_VALUES))
+        ])
+        return
+      }
+
+      const restoreThemesRaw = getSetting(
+        SETTINGS_KEYS.developerModeThemesBackup,
+        JSON.stringify(['dark', 'light'])
+      )
+      const restoreAccentsRaw = getSetting(
+        SETTINGS_KEYS.developerModeAccentsBackup,
+        JSON.stringify(['default'])
+      )
+
+      const restoreThemes = JSON.stringify(Array.from(parseUnlocked(restoreThemesRaw, ['dark', 'light'])))
+      const restoreAccents = JSON.stringify(Array.from(parseUnlocked(restoreAccentsRaw, ['default'])))
+
+      await Promise.all([
+        setSetting(SETTINGS_KEYS.developerMode, 'false'),
+        setSetting(SETTINGS_KEYS.unlockedThemes, restoreThemes),
+        setSetting(SETTINGS_KEYS.unlockedAccents, restoreAccents)
+      ])
+    } finally {
+      setDeveloperModeBusy(false)
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
+        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Settings</h1>
         <p className="text-surface-400 text-sm mt-1">Customize your productivity experience.</p>
       </div>
 
@@ -97,12 +202,47 @@ export function SettingsPage() {
         <CardContent className="space-y-4">
           <Select
             label="Theme"
-            value={getSetting('theme', 'dark')}
-            onChange={(e) => setSetting('theme', e.target.value)}
+            value={currentTheme}
+            onChange={(e) => {
+              const nextTheme = e.target.value
+              if (!unlockedThemes.has(nextTheme)) return
+              setSetting('theme', nextTheme)
+            }}
           >
-            <option value="dark">🌙 Dark (default)</option>
-            <option value="light">☀️ Light</option>
+            {THEME_OPTIONS.map((theme) => (
+              <option
+                key={theme.value}
+                value={theme.value}
+                disabled={!unlockedThemes.has(theme.value)}
+              >
+                {theme.label}{!unlockedThemes.has(theme.value) ? ' (locked)' : ''}
+              </option>
+            ))}
           </Select>
+
+          <Select
+            label="Accent"
+            value={currentAccent}
+            onChange={(e) => {
+              const nextAccent = e.target.value
+              if (!unlockedAccents.has(nextAccent)) return
+              setSetting('active_accent', nextAccent)
+            }}
+          >
+            {ACCENT_OPTIONS.map((accent) => (
+              <option
+                key={accent.value}
+                value={accent.value}
+                disabled={!unlockedAccents.has(accent.value)}
+              >
+                {accent.label}{!unlockedAccents.has(accent.value) ? ' (locked)' : ''}
+              </option>
+            ))}
+          </Select>
+
+          <p className="text-xs text-surface-400">
+            Cosmetic themes and accents can be earned from loot drops or purchased in the shop.
+          </p>
         </CardContent>
       </Card>
 
@@ -131,7 +271,7 @@ export function SettingsPage() {
         <CardContent>
           <label className="flex items-center justify-between gap-4 rounded-xl border border-surface-500 bg-surface-800 px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-white">Start when computer starts</p>
+              <p className="text-sm font-medium text-[color:var(--app-interactive-fg-default)]">Start when computer starts</p>
               <p className="text-xs text-surface-400 mt-1">
                 Opens ProductivitApp automatically after login.
               </p>
@@ -236,6 +376,33 @@ export function SettingsPage() {
             </Button>
           </div>
           {updateStatus && <p className="text-xs text-surface-300">{updateStatus}</p>}
+        </CardContent>
+      </Card>
+
+      {/* Developer Mode */}
+      <Card>
+        <CardHeader><CardTitle>Developer Mode</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <label className="flex items-center justify-between gap-4 rounded-xl border border-surface-500 bg-surface-800 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-[color:var(--app-interactive-fg-default)]">Unlock everything for testing</p>
+              <p className="text-xs text-surface-400 mt-1">
+                Bypasses cosmetic locks and catalog quest level requirements.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={developerModeEnabled}
+              onChange={(e) => void handleDeveloperModeToggle(e.target.checked)}
+              disabled={developerModeBusy}
+              className="h-4 w-4 rounded border-surface-400 bg-surface-900"
+            />
+          </label>
+          <p className="text-xs text-surface-400">
+            {developerModeEnabled
+              ? 'Developer mode is active. Locked cosmetics and catalog quests are now available.'
+              : 'When disabled, your previous cosmetic unlock state is restored automatically.'}
+          </p>
         </CardContent>
       </Card>
 

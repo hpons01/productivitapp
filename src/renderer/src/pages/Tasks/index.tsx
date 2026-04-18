@@ -48,6 +48,18 @@ function energyTaskScore(task: Task, zoneLevel: number): number {
   return (isFit ? 1000 : 0) + lowEnergyScore + (task.priority === 1 ? 50 : 20) + urgencyScore
 }
 
+function energySortExplanation(zoneLevel: number): string {
+  if (zoneLevel >= 4) {
+    return 'Energy Sort prioritizes deep, high-priority tasks and longer work blocks while your energy is high.'
+  }
+
+  if (zoneLevel === 3) {
+    return 'Energy Sort balances priority with moderate effort so you can keep steady momentum.'
+  }
+
+  return 'Energy Sort surfaces shorter, lower-friction tasks to maintain progress during low-energy periods.'
+}
+
 function toDateTimeLocalInput(timestamp: number | null | undefined): string {
   if (!timestamp) return ''
   const date = new Date(timestamp)
@@ -204,7 +216,7 @@ export function TasksPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Tasks</h1>
+          <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Tasks</h1>
           <p className="text-surface-400 text-sm mt-1">{tasks.length} pending tasks</p>
         </div>
         <Button onClick={() => setShowForm(true)}><Plus size={16} /> Add Task</Button>
@@ -237,6 +249,9 @@ export function TasksPage() {
             <p className="text-xs text-primary-200/80 mt-1">
               {recommendedCount} task{recommendedCount !== 1 ? 's' : ''} currently match this energy zone.
             </p>
+            <p className="text-xs text-primary-200/70 mt-1">
+              {energySortExplanation(energyZone.level)}
+            </p>
           </div>
           <Button
             size="sm"
@@ -255,7 +270,7 @@ export function TasksPage() {
         <Card>
           <CardContent className="text-center py-12">
             <div className="text-4xl mb-3">✅</div>
-            <p className="text-white font-semibold mb-1">
+            <p className="text-[color:var(--app-interactive-fg-default)] font-semibold mb-1">
               {filter === 'quick' ? 'No quick tasks!' : 'All clear!'}
             </p>
             <p className="text-surface-400 text-sm mb-4">
@@ -302,7 +317,7 @@ export function TasksPage() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-white">{task.title}</span>
+                      <span className="text-sm font-medium text-[color:var(--app-interactive-fg-default)]">{task.title}</span>
                       <Badge variant={PRIORITY_COLORS[task.priority] as 'danger' | 'warning' | 'default'} className="text-[10px]">
                         {PRIORITY_LABELS[task.priority]}
                       </Badge>
@@ -376,7 +391,7 @@ export function TasksPage() {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-white">{task.title}</span>
+                        <span className="text-sm font-medium text-[color:var(--app-interactive-fg-default)]">{task.title}</span>
                         <Badge variant={PRIORITY_COLORS[task.priority] as 'danger' | 'warning' | 'default'} className="text-[10px]">
                           {PRIORITY_LABELS[task.priority]}
                         </Badge>
@@ -438,7 +453,7 @@ export function TasksPage() {
                   exit={{ opacity: 0, x: 40, height: 0 }}
                   transition={{ duration: 0.25 }}
                 >
-                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-surface-700 border border-surface-500/50 hover:border-surface-300/60 hover:bg-surface-700/95 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/25 transition-all duration-300 ease-out group">
+                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-surface-700 border border-surface-500/50 hover:border-surface-300/60 ui-bg-hover hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/25 transition-all duration-300 ease-out group">
                     {/* Complete button */}
                     <button
                       onClick={() => complete(task.id)}
@@ -450,7 +465,7 @@ export function TasksPage() {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-white">{task.title}</span>
+                        <span className="text-sm font-medium text-[color:var(--app-interactive-fg-default)]">{task.title}</span>
                         <Badge variant={PRIORITY_COLORS[task.priority] as 'danger' | 'warning' | 'default'} className="text-[10px]">
                           {PRIORITY_LABELS[task.priority]}
                         </Badge>

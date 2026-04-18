@@ -240,7 +240,7 @@ export function EggHatchScreen({
           {stage === 'crack' && (
             <motion.p
               key="crack-text"
-              className="text-white text-sm font-semibold"
+              className="text-[color:var(--app-interactive-fg-default)] text-sm font-semibold"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -251,7 +251,7 @@ export function EggHatchScreen({
           {stage === 'shatter' && (
             <motion.p
               key="shatter-text"
-              className="text-white text-base font-bold"
+              className="text-[color:var(--app-interactive-fg-default)] text-base font-bold"
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 1, 0] }}
               transition={{ duration: 0.5 }}

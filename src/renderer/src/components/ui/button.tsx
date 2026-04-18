@@ -4,16 +4,16 @@ import { cn } from '../../lib/utils'
 import { Loader2 } from 'lucide-react'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-50 disabled:pointer-events-none select-none',
+  'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--app-focus-ring)] disabled:opacity-50 disabled:pointer-events-none select-none',
   {
     variants: {
       variant: {
         primary:
-          'bg-primary-600 text-white hover:bg-primary-500 shadow-lg hover:shadow-primary-600/30 hover:-translate-y-0.5 active:translate-y-0',
+          'bg-primary-600 text-[color:var(--app-on-primary)] hover:bg-primary-500 shadow-lg hover:shadow-primary-600/30 hover:-translate-y-0.5 active:translate-y-0',
         secondary:
-          'bg-surface-700 text-white hover:bg-surface-600 border border-surface-500',
+          'bg-surface-700 text-[color:var(--app-interactive-fg-default)] hover:bg-[color:var(--app-interactive-bg-hover)] border border-[color:var(--app-interactive-border)]',
         ghost:
-          'bg-transparent text-surface-300 hover:bg-surface-700 hover:text-white',
+          'bg-transparent text-[color:var(--app-interactive-fg-muted)] hover:bg-[color:var(--app-interactive-bg-hover)] hover:text-[color:var(--app-interactive-fg-hover)]',
         danger:
           'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30',
         success:

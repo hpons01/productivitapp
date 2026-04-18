@@ -18,24 +18,36 @@ export interface PomodoroPreset {
 interface PomodoroState {
   status: TimerStatus
   timeLeft: number // seconds
+  lastTickAt: number | null
   duration: number // minutes
   breakDuration: number // minutes
+  runDuration: number // minutes
+  runBreakDuration: number // minutes
+  repetitionTarget: number
+  endlessMode: boolean
+  loopsCompletedInRun: number
   currentSessionId: string | null
+  lastCompletedSessionId: string | null
   sessionLabel: string
+  runLabel: string
   interruptions: number
+  pendingBreakTimeoutId: ReturnType<typeof setTimeout> | null
   todayPomodoros: number
   todayMinutes: number
   presets: PomodoroPreset[]
 
-  start: (label?: string, durationMins?: number) => Promise<void>
+  start: (label?: string, durationMins?: number, options?: { continueRun?: boolean }) => Promise<void>
   pause: () => void
   resume: () => void
   tick: () => void
   complete: () => Promise<void>
+  stop: () => Promise<void>
   abandon: () => Promise<void>
   startBreak: () => void
-  endBreak: () => void
+  endBreak: () => Promise<void>
   setLabel: (label: string) => void
+  setRepetitionTarget: (value: number) => void
+  toggleEndlessMode: () => void
   increment: () => void
   loadTodayStats: () => Promise<void>
   loadPresets: () => Promise<void>
@@ -47,18 +59,34 @@ interface PomodoroState {
 export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   status: 'idle',
   timeLeft: 25 * 60,
+  lastTickAt: null,
   duration: 25,
   breakDuration: 5,
+  runDuration: 25,
+  runBreakDuration: 5,
+  repetitionTarget: 1,
+  endlessMode: false,
+  loopsCompletedInRun: 0,
   currentSessionId: null,
+  lastCompletedSessionId: null,
   sessionLabel: '',
+  runLabel: '',
   interruptions: 0,
+  pendingBreakTimeoutId: null,
   todayPomodoros: 0,
   todayMinutes: 0,
   presets: [],
 
-  start: async (label = '', durationMins?: number) => {
-    const duration = durationMins ?? get().duration
+  start: async (label = '', durationMins?: number, options?: { continueRun?: boolean }) => {
+    const continueRun = options?.continueRun === true
+    const state = get()
+    const duration = durationMins ?? (continueRun ? state.runDuration : state.duration)
+    const breakDuration = continueRun ? state.runBreakDuration : state.breakDuration
     const sessionId = generateId()
+
+    if (state.pendingBreakTimeoutId) {
+      clearTimeout(state.pendingBreakTimeoutId)
+    }
 
     await api().pomodoro.start({
       id: sessionId,
@@ -66,41 +94,70 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       task_id: null,
       started_at: Date.now(),
       duration_mins: duration,
-      break_mins: get().breakDuration
+      break_mins: breakDuration,
+      endless_mode: state.endlessMode ? 1 : 0
     })
 
     set({
       status: 'running',
       timeLeft: duration * 60,
+      lastTickAt: Date.now(),
       currentSessionId: sessionId,
+      lastCompletedSessionId: null,
       sessionLabel: label,
+      runLabel: continueRun ? state.runLabel : label,
       interruptions: 0,
-      duration
+      duration,
+      breakDuration,
+      runDuration: continueRun ? state.runDuration : duration,
+      runBreakDuration: continueRun ? state.runBreakDuration : breakDuration,
+      loopsCompletedInRun: continueRun ? state.loopsCompletedInRun : 0,
+      pendingBreakTimeoutId: null
     })
   },
 
   pause: () => {
+    if (get().status !== 'running') return
     set((s) => ({
       status: 'paused',
+      lastTickAt: null,
       interruptions: s.interruptions + 1
     }))
   },
 
-  resume: () => set({ status: 'running' }),
+  resume: () => {
+    if (get().status !== 'paused') return
+    set({ status: 'running', lastTickAt: Date.now() })
+  },
 
   tick: () => {
-    const { status, timeLeft } = get()
+    const { status, timeLeft, lastTickAt } = get()
     if (status !== 'running' && status !== 'break') return
 
-    if (timeLeft <= 1) {
+    const now = Date.now()
+    const baseline = lastTickAt ?? now
+    const elapsedSeconds = Math.floor((now - baseline) / 1000)
+
+    if (elapsedSeconds <= 0) return
+
+    if (timeLeft <= elapsedSeconds) {
+      set({ timeLeft: 0, lastTickAt: now })
       if (status === 'running') {
-        get().complete()
+        void get().complete().catch((error) => {
+          console.error('Pomodoro completion failed from tick', error)
+        })
       } else {
-        get().endBreak()
+        void get().endBreak().catch((error) => {
+          console.error('Pomodoro break end failed from tick', error)
+        })
       }
-    } else {
-      set({ timeLeft: timeLeft - 1 })
+      return
     }
+
+    set({
+      timeLeft: timeLeft - elapsedSeconds,
+      lastTickAt: baseline + elapsedSeconds * 1000
+    })
   },
 
   complete: async () => {
@@ -109,7 +166,13 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
     await api().pomodoro.complete({ id: currentSessionId, interruptions })
 
-    set({ status: 'completed', timeLeft: 0 })
+    set({
+      status: 'completed',
+      timeLeft: 0,
+      lastTickAt: null,
+      currentSessionId: null,
+      lastCompletedSessionId: currentSessionId
+    })
 
     try {
       const { refreshFromDB, triggerLootBox, checkAndUnlockBadges } = useGamificationStore.getState()
@@ -117,10 +180,13 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
       triggerLootBox('pomodoro')
 
+      const lifetimeStats = await api().pomodoro.lifetimeStats()
+
       await checkAndUnlockBadges({
         habitsCount: 0,
         habitStreak: 0,
-        totalPomodoros: (get().todayPomodoros || 0) + 1,
+        totalPomodoros: Number(lifetimeStats.totalPomodoros || 0),
+        endlessLoopsCompleted: Number(lifetimeStats.endlessLoopsCompleted || 0),
         tasksCompletedToday: 0,
         twoMinTasksTotal: 0,
         morningRitualConsecutive: 0,
@@ -139,27 +205,102 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     } finally {
       await get().loadTodayStats()
       // Auto-start break after a moment, even if reward side effects fail.
-      setTimeout(() => get().startBreak(), 1500)
+      const timeoutId = setTimeout(() => {
+        if (get().status === 'completed') {
+          get().startBreak()
+        }
+      }, 1500)
+      set({ pendingBreakTimeoutId: timeoutId })
     }
   },
 
-  abandon: async () => {
-    const { currentSessionId } = get()
-    if (currentSessionId) {
+  stop: async () => {
+    const { status, currentSessionId, pendingBreakTimeoutId, duration } = get()
+
+    if (pendingBreakTimeoutId) {
+      clearTimeout(pendingBreakTimeoutId)
+    }
+
+    if ((status === 'running' || status === 'paused') && currentSessionId) {
       await api().pomodoro.abandon(currentSessionId)
     }
-    set({ status: 'idle', timeLeft: get().duration * 60, currentSessionId: null })
+
+    set({
+      status: 'idle',
+      timeLeft: duration * 60,
+      lastTickAt: null,
+      currentSessionId: null,
+      lastCompletedSessionId: null,
+      interruptions: 0,
+      loopsCompletedInRun: 0,
+      pendingBreakTimeoutId: null
+    })
   },
+
+  abandon: async () => get().stop(),
 
   startBreak: () => {
-    set((s) => ({ status: 'break', timeLeft: s.breakDuration * 60 }))
+    set((s) => ({
+      status: 'break',
+      timeLeft: s.runBreakDuration * 60,
+      lastTickAt: Date.now(),
+      pendingBreakTimeoutId: null
+    }))
   },
 
-  endBreak: () => {
-    set((s) => ({ status: 'idle', timeLeft: s.duration * 60, currentSessionId: null }))
+  endBreak: async () => {
+    const {
+      lastCompletedSessionId,
+      loopsCompletedInRun,
+      repetitionTarget,
+      endlessMode,
+      runLabel,
+      runDuration,
+      runBreakDuration
+    } = get()
+
+    if (lastCompletedSessionId) {
+      await api().pomodoro.loopCompleted({ id: lastCompletedSessionId, endlessMode })
+    }
+
+    const completedLoops = lastCompletedSessionId ? loopsCompletedInRun + 1 : loopsCompletedInRun
+    const shouldContinue = endlessMode || completedLoops < repetitionTarget
+
+    if (shouldContinue) {
+      set({
+        loopsCompletedInRun: completedLoops,
+        lastCompletedSessionId: null,
+        status: 'idle',
+        timeLeft: runDuration * 60,
+        lastTickAt: null,
+        currentSessionId: null,
+        interruptions: 0,
+        duration: runDuration,
+        breakDuration: runBreakDuration
+      })
+      await get().start(runLabel, runDuration, { continueRun: true })
+      return
+    }
+
+    set((s) => ({
+      status: 'idle',
+      timeLeft: s.duration * 60,
+      lastTickAt: null,
+      currentSessionId: null,
+      lastCompletedSessionId: null,
+      interruptions: 0,
+      loopsCompletedInRun: completedLoops
+    }))
   },
 
   setLabel: (label) => set({ sessionLabel: label }),
+
+  setRepetitionTarget: (value) => {
+    const safe = Math.max(1, Math.min(99, Number.isFinite(value) ? Math.floor(value) : 1))
+    set({ repetitionTarget: safe })
+  },
+
+  toggleEndlessMode: () => set((s) => ({ endlessMode: !s.endlessMode })),
 
   increment: () => set((s) => ({ interruptions: s.interruptions + 1 })),
 
@@ -211,6 +352,13 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   },
 
   applyPreset: (workMins, breakMins) => {
-    set({ duration: workMins, breakDuration: breakMins, timeLeft: workMins * 60 })
+    set({
+      duration: workMins,
+      breakDuration: breakMins,
+      runDuration: workMins,
+      runBreakDuration: breakMins,
+      timeLeft: workMins * 60,
+      lastTickAt: null
+    })
   }
 }))

@@ -49,7 +49,7 @@ export function Sidebar() {
   return (
     <div className="flex flex-col w-[72px] bg-surface-800 border-r border-surface-600 py-4">
       {/* Core productivity nav */}
-      <nav className="flex flex-col items-center gap-1 flex-1">
+      <nav className="flex flex-col items-center gap-1 flex-1 min-h-0 overflow-y-auto no-scrollbar">
         {coreNavItems.map(({ to, icon: Icon, label, end }) => (
           <NavLink
             key={to}
@@ -60,7 +60,7 @@ export function Sidebar() {
                 'flex flex-col items-center gap-1 w-12 py-2.5 rounded-xl transition-all duration-200 group no-drag',
                 isActive
                   ? 'bg-primary-600/20 text-primary-400'
-                  : 'text-surface-400 hover:text-white hover:bg-surface-700'
+                  : 'ui-fg-muted ui-fg-hover ui-bg-hover'
               )
             }
           >
@@ -106,7 +106,7 @@ export function Sidebar() {
                 'flex flex-col items-center gap-1 w-12 py-2.5 rounded-xl transition-all duration-200 group no-drag',
                 isActive
                   ? 'bg-primary-600/20 text-primary-400'
-                  : 'text-surface-400 hover:text-white hover:bg-surface-700'
+                  : 'ui-fg-muted ui-fg-hover ui-bg-hover'
               )
             }
           >
@@ -117,7 +117,7 @@ export function Sidebar() {
       </nav>
 
       {/* Level badge + XP bar */}
-      <div className="flex flex-col items-center gap-2 mt-auto px-2">
+      <div className="flex flex-col items-center gap-2 mt-auto">
         {/* Active timer indicator */}
         {status === 'running' && (
           <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center">
@@ -128,12 +128,12 @@ export function Sidebar() {
         )}
 
         {/* Level */}
-        <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-          <span className="text-xs font-bold text-amber-400">L{level}</span>
+        <div className="w-8 h-7 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+          <span className="text-[10px] font-bold text-amber-400">L{level}</span>
         </div>
 
         {/* Mini XP bar */}
-        <div className="w-8 h-1 bg-surface-600 rounded-full overflow-hidden">
+        <div className="w-7 h-0.5 bg-surface-600 rounded-full overflow-hidden">
           <div
             className="h-full xp-bar rounded-full transition-all duration-500"
             style={{ width: `${Math.min(100, xpProgress)}%` }}
@@ -148,7 +148,7 @@ export function Sidebar() {
               'flex flex-col items-center gap-1 w-12 py-2.5 rounded-xl transition-all duration-200 mt-1',
               isActive
                 ? 'bg-primary-600/20 text-primary-400'
-                : 'text-surface-400 hover:text-white hover:bg-surface-700'
+                : 'ui-fg-muted ui-fg-hover ui-bg-hover'
             )
           }
         >

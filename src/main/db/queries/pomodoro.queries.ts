@@ -10,9 +10,21 @@ export interface PomodoroSession {
   ended_at: number | null
   duration_mins: number
   break_mins: number
+  endless_mode: number
+  loop_completed: number
   completed: number
   interruptions: number
   xp_awarded: number
+}
+
+export interface StartPomodoroSessionInput {
+  id: string
+  task_id: string | null
+  label: string | null
+  started_at: number
+  duration_mins: number
+  break_mins: number
+  endless_mode?: number
 }
 
 export interface PomodoroPreset {
@@ -24,11 +36,14 @@ export interface PomodoroPreset {
   created_at: number
 }
 
-export function startSession(db: Database.Database, data: Omit<PomodoroSession, 'ended_at' | 'completed' | 'interruptions' | 'xp_awarded'>): PomodoroSession {
+export function startSession(db: Database.Database, data: StartPomodoroSessionInput): PomodoroSession {
   db.prepare(`
-    INSERT INTO pomodoro_sessions (id, task_id, label, started_at, duration_mins, break_mins, completed)
-    VALUES (@id, @task_id, @label, @started_at, @duration_mins, @break_mins, 0)
-  `).run(data)
+    INSERT INTO pomodoro_sessions (id, task_id, label, started_at, duration_mins, break_mins, endless_mode, completed, loop_completed)
+    VALUES (@id, @task_id, @label, @started_at, @duration_mins, @break_mins, @endless_mode, 0, 0)
+  `).run({
+    ...data,
+    endless_mode: data.endless_mode ? 1 : 0
+  })
   return db.prepare('SELECT * FROM pomodoro_sessions WHERE id = ?').get(data.id) as PomodoroSession
 }
 
@@ -49,6 +64,15 @@ export function completeSession(
 
 export function abandonSession(db: Database.Database, id: string): void {
   db.prepare('UPDATE pomodoro_sessions SET ended_at = ?, completed = 0 WHERE id = ?').run(Date.now(), id)
+}
+
+export function markLoopCompleted(db: Database.Database, id: string, endlessMode: boolean): void {
+  db.prepare(`
+    UPDATE pomodoro_sessions
+    SET loop_completed = 1,
+        endless_mode = ?
+    WHERE id = ? AND completed = 1
+  `).run(endlessMode ? 1 : 0, id)
 }
 
 export function listSessions(db: Database.Database, date?: string): PomodoroSession[] {
@@ -92,6 +116,26 @@ export function getTodayStats(db: Database.Database): {
 export function getTotalCompletedCount(db: Database.Database): number {
   const result = db.prepare('SELECT COUNT(*) as count FROM pomodoro_sessions WHERE completed = 1').get() as { count: number }
   return result.count
+}
+
+export function getLifetimeStats(db: Database.Database): {
+  totalPomodoros: number
+  endlessLoopsCompleted: number
+} {
+  const result = db.prepare(`
+    SELECT
+      SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as totalPomodoros,
+      SUM(CASE WHEN completed = 1 AND endless_mode = 1 AND loop_completed = 1 THEN 1 ELSE 0 END) as endlessLoopsCompleted
+    FROM pomodoro_sessions
+  `).get() as {
+    totalPomodoros: number | null
+    endlessLoopsCompleted: number | null
+  }
+
+  return {
+    totalPomodoros: result.totalPomodoros || 0,
+    endlessLoopsCompleted: result.endlessLoopsCompleted || 0
+  }
 }
 
 export function listPresets(db: Database.Database): PomodoroPreset[] {

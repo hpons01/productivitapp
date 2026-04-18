@@ -66,7 +66,7 @@ export function AmbientSoundPlayer() {
           <Slider.Track className="bg-surface-700 relative grow rounded-full h-1">
             <Slider.Range className="absolute bg-primary-500 rounded-full h-full" />
           </Slider.Track>
-          <Slider.Thumb className="block w-3 h-3 bg-white rounded-full shadow-md hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <Slider.Thumb className="block w-3 h-3 rounded-full bg-[color:var(--app-interactive-fg-default)] shadow-md hover:bg-[color:var(--app-icon-hover)] focus:outline-none focus:ring-2 focus:ring-[color:var(--app-primary-glow)]" />
         </Slider.Root>
         <span className="text-[10px] text-surface-500 w-7 text-right shrink-0">
           {Math.round((volume * 100)/0.2)}%

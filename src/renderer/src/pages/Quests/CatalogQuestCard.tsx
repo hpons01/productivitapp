@@ -66,7 +66,7 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="shrink-0">{CATEGORY_ICONS[quest.category]}</span>
-            <CardTitle className={cn('text-sm font-semibold truncate', isCompleted ? 'text-surface-400 line-through decoration-surface-500' : 'text-white')}>
+            <CardTitle className={cn('text-sm font-semibold truncate', isCompleted ? 'text-surface-400 line-through decoration-surface-500' : 'text-[color:var(--app-interactive-fg-default)]')}>
               {quest.title}
             </CardTitle>
           </div>
@@ -185,7 +185,7 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
       <Modal open={confirmEnrollOpen} onClose={() => setConfirmEnrollOpen(false)} title="Enroll in Quest" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-surface-300">
-            Enroll in <span className="text-white font-semibold">{quest.title}</span>?
+            Enroll in <span className="text-[color:var(--app-interactive-fg-default)] font-semibold">{quest.title}</span>?
           </p>
           <p className="text-xs text-surface-400">
             Time window: <span className="text-surface-200 font-semibold">{quest.duration_days} days</span>. Completion reward: <span className="text-amber-300 font-semibold">+{quest.scaled_xp_reward} XP</span>{quest.focus_reward > 0 && <span> + <span className="text-cyan-300 font-semibold">+{quest.focus_reward} Focus 💎</span></span>}.
@@ -212,7 +212,7 @@ export function CatalogQuestCard({ quest, busyId, onEnroll, onAbandon }: Catalog
       <Modal open={confirmAbandonOpen} onClose={() => setConfirmAbandonOpen(false)} title="Abandon Quest" size="sm">
         <div className="space-y-4">
           <p className="text-sm text-surface-300">
-            Abandon <span className="text-white font-semibold">{quest.title}</span>?
+            Abandon <span className="text-[color:var(--app-interactive-fg-default)] font-semibold">{quest.title}</span>?
           </p>
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200 space-y-1">
             <p>You will lose current progress: <span className="font-semibold">{enrollment?.progress ?? 0}/{quest.target_count}</span>.</p>

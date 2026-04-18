@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
-import { Minus, Square, X } from 'lucide-react'
+import { Minus, Pause, Play, Square, StopCircle, X } from 'lucide-react'
 import { useGamificationStore } from '../../stores/gamification.store'
+import { usePomodoroStore } from '../../stores/pomodoro.store'
 import { useSettingsStore } from '../../stores/settings.store'
 import { useShopStore } from '../../stores/shop.store'
-import { cn } from '../../lib/utils'
 
 const CLASS_ICONS: Record<string, string> = {
   'Time Mage': '⚡',
@@ -15,11 +15,18 @@ const CLASS_ICONS: Record<string, string> = {
   Apprentice: '🌱'
 }
 
+function formatTimer(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 export function TopBar() {
   const [time, setTime] = useState(new Date())
   const [isMaximized, setIsMaximized] = useState(false)
   const isWindows = navigator.userAgent.includes('Windows')
   const { level, totalXP, characterClass } = useGamificationStore()
+  const { status, timeLeft, pause, resume, stop, endBreak } = usePomodoroStore()
   const equippedTitle = useSettingsStore((s) => s.getSetting('equipped_title', ''))
   const { focusBalance, refreshBalance } = useShopStore()
 
@@ -49,12 +56,15 @@ export function TopBar() {
   const xpForNextLevel = Math.pow(level + 1, 2) * 10
   const xpProgress = Math.min(100, ((totalXP - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100)
   const xpRemaining = Math.max(0, xpForNextLevel - totalXP)
+  const hasActiveTimer = status === 'running' || status === 'paused' || status === 'break'
 
   return (
     <div className="flex items-center justify-between px-6 py-3 border-b border-surface-600 bg-surface-800/50 drag-region">
       {/* Left: date */}
       <div className="text-sm text-surface-400 no-drag">
-        <span className="font-medium text-white">{format(time, 'EEEE')}</span>
+        <span className="font-medium text-[color:var(--app-interactive-fg-default)]">
+          {format(time, 'EEEE')}
+        </span>
         <span className="mx-2 opacity-40">·</span>
         <span>{format(time, 'MMMM d, yyyy')}</span>
       </div>
@@ -93,7 +103,55 @@ export function TopBar() {
 
       {/* Right: time */}
       <div className="flex items-center gap-3 no-drag">
-        <div className="text-sm font-mono text-white">
+        {hasActiveTimer && (
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl border border-primary-500/30 bg-primary-500/10 no-drag">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-primary-300">
+              {status === 'break' ? 'Break' : 'Focus'}
+            </span>
+            <span className="text-xs font-mono text-[color:var(--app-interactive-fg-default)] font-bold tabular-nums">
+              {formatTimer(timeLeft)}
+            </span>
+            {status === 'running' && (
+              <button
+                className="window-control-btn"
+                onClick={pause}
+                aria-label="Pause focus session"
+                title="Pause"
+              >
+                <Pause size={12} />
+              </button>
+            )}
+            {status === 'paused' && (
+              <button
+                className="window-control-btn"
+                onClick={resume}
+                aria-label="Resume focus session"
+                title="Resume"
+              >
+                <Play size={12} />
+              </button>
+            )}
+            {status === 'break' && (
+              <button
+                className="window-control-btn"
+                onClick={() => void endBreak()}
+                aria-label="Skip break"
+                title="Skip break"
+              >
+                <Play size={12} />
+              </button>
+            )}
+            <button
+              className="window-control-btn window-control-close"
+              onClick={() => void stop()}
+              aria-label="Stop focus session"
+              title="Stop"
+            >
+              <StopCircle size={12} />
+            </button>
+          </div>
+        )}
+        <div className="text-sm font-mono text-[color:var(--app-interactive-fg-default)]">
           {format(time, 'HH:mm:ss')}
         </div>
         {isWindows && (

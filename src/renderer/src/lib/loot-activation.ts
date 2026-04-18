@@ -1,9 +1,16 @@
 import type { LootItem } from './science/rewards'
 
 const THEME_MAP: Record<string, string> = {
+  'Ember Theme': 'ember',
   'Ocean Theme': 'ocean',
   'Void Theme': 'void',
   'Golden Theme': 'golden'
+}
+
+const ACCENT_MAP: Record<string, string> = {
+  'Bronze Accent': 'bronze',
+  'Silver Accent': 'silver',
+  'Gold Accent': 'gold'
 }
 
 const POWERUP_TYPE_MAP: Record<string, string> = {
@@ -35,9 +42,39 @@ export function getPowerupTypeFromName(name: string | undefined): string | undef
   return POWERUP_TYPE_MAP[name]
 }
 
+export function getAccentKeyFromLootName(name: string | undefined): string | undefined {
+  if (!name) return undefined
+  return ACCENT_MAP[name]
+}
+
+function parseUnlocked(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((entry): entry is string => typeof entry === 'string')
+  } catch {
+    return []
+  }
+}
+
+async function ensureUnlocked(
+  key: 'unlocked_themes' | 'unlocked_accents',
+  value: string,
+  getSetting: ((key: string, defaultValue?: string) => string) | undefined,
+  setSetting: (key: string, val: string) => Promise<void>
+): Promise<void> {
+  if (!getSetting) return
+
+  const current = parseUnlocked(getSetting(key, '[]'))
+  if (current.includes(value)) return
+
+  await setSetting(key, JSON.stringify([...current, value]))
+}
+
 export async function activateLootItem(
   loot: Pick<LootItem, 'type'> & { name?: string },
-  setSetting: (key: string, val: string) => Promise<void>
+  setSetting: (key: string, val: string) => Promise<void>,
+  getSetting?: (key: string, defaultValue?: string) => string
 ): Promise<void> {
   switch (loot.type) {
     case 'title':
@@ -47,13 +84,19 @@ export async function activateLootItem(
 
     case 'theme': {
       const key = getThemeKeyFromLootName(loot.name)
-      if (key) await setSetting('theme', key)
+      if (key) {
+        await setSetting('theme', key)
+        await ensureUnlocked('unlocked_themes', key, getSetting, setSetting)
+      }
       break
     }
 
-    case 'cosmetic':
-      await setSetting('active_accent', 'bronze')
+    case 'cosmetic': {
+      const accentKey = getAccentKeyFromLootName(loot.name) ?? 'bronze'
+      await setSetting('active_accent', accentKey)
+      await ensureUnlocked('unlocked_accents', accentKey, getSetting, setSetting)
       break
+    }
 
     case 'power_up': {
       if (!loot.name) return

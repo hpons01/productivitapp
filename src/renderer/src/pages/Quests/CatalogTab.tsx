@@ -74,8 +74,8 @@ export function CatalogTab({ quests, loading, busyId, onEnroll, onAbandon }: Cat
             className={cn(
               'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
               categoryFilter === cat.value
-                ? 'bg-primary-600 text-white'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                ? 'bg-primary-600 text-[color:var(--app-on-primary)]'
+                : 'bg-surface-700 ui-fg-muted ui-bg-hover'
             )}
           >
             <span>{cat.icon}</span>
@@ -93,8 +93,8 @@ export function CatalogTab({ quests, loading, busyId, onEnroll, onAbandon }: Cat
             className={cn(
               'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
               difficultyFilter === diff.value
-                ? 'bg-surface-500 text-white'
-                : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
+                ? 'bg-surface-500 text-[color:var(--app-interactive-fg-default)]'
+                : 'bg-surface-800 ui-fg-muted ui-bg-hover'
             )}
           >
             {diff.label}
