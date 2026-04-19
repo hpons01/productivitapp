@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
-import { Minus, Pause, Play, Square, StopCircle, X } from 'lucide-react'
+import { Gem, Minus, Pause, Play, Square, StopCircle, X } from 'lucide-react'
 import { useGamificationStore } from '../../stores/gamification.store'
 import { usePomodoroStore } from '../../stores/pomodoro.store'
 import { useSettingsStore } from '../../stores/settings.store'
@@ -59,90 +59,112 @@ export function TopBar() {
   const hasActiveTimer = status === 'running' || status === 'paused' || status === 'break'
 
   return (
-    <div className="flex items-center justify-between px-5 py-2 border-b border-[color:var(--app-sidebar-border)] bg-surface-800/30 backdrop-blur-md drag-region" style={{ borderBottomColor: 'var(--app-glass-border)' }}>
-      {/* Left: date with typographic hierarchy */}
-      <div className="no-drag flex flex-col leading-tight">
-        <span className="text-xs font-semibold text-[color:var(--app-text)] tracking-tight">
+    <div
+      className="flex items-center justify-between px-5 py-2.5 border-b drag-region"
+      style={{
+        borderBottomColor: 'var(--app-glass-border)',
+        background: 'var(--app-surface-800)',
+        boxShadow: 'var(--shadow-inset)',
+      }}
+    >
+      {/* Left: date as codex entry */}
+      <div className="no-drag flex flex-col leading-none gap-0.5">
+        <span className="text-[11px] font-[family:var(--font-display)] font-semibold text-[color:var(--app-primary)] tracking-[0.12em] uppercase leading-none">
           {format(time, 'EEEE')}
         </span>
-        <span className="text-[10px] font-ui text-[color:var(--app-muted)] tabular-nums">
-          {format(time, 'MMM d, yyyy')}
+        <span className="text-[9px] font-mono text-[color:var(--app-muted)] tabular-nums tracking-wider">
+          {format(time, 'MMM d · yyyy')}
         </span>
       </div>
 
-      {/* Center: unified pill container */}
-      <div className="no-drag flex items-center gap-0 bg-surface-700/40 border border-surface-600/50 rounded-2xl px-3 py-1.5">
-        {/* Class icon + name + title */}
-        <div className="flex items-center gap-1.5 pr-3 border-r border-surface-600/50">
-          <span className="text-sm leading-none">{CLASS_ICONS[characterClass]}</span>
+      {/* Center: character unit frame */}
+      <div
+        className="no-drag flex items-stretch gap-0 border rounded-sm overflow-hidden"
+        style={{
+          background: 'var(--app-surface-700)',
+          borderColor: 'var(--app-unit-frame-border)',
+          boxShadow: 'var(--shadow-inset)',
+        }}
+      >
+        {/* Panel 1: Class portrait */}
+        <div className="flex items-center gap-2 px-3 border-r border-primary-700/30">
+          <span className="text-sm leading-none" aria-hidden="true">
+            {CLASS_ICONS[characterClass] ?? '🌱'}
+          </span>
           <div className="flex flex-col leading-none gap-0.5">
-            <span className="text-[10px] font-semibold text-[color:var(--app-text)] leading-none">
+            <span className="text-[11px] font-[family:var(--font-display)] font-semibold text-[color:var(--app-text)] uppercase tracking-wider leading-none">
               {characterClass}
             </span>
             {equippedTitle && (
-              <span className="text-[9px] text-[color:var(--app-muted)] leading-none italic">
+              <span className="text-[8px] font-[family:var(--font-display)] text-amber-500/70 leading-none italic">
                 {equippedTitle}
               </span>
             )}
           </div>
         </div>
 
-        {/* Level + XP bar + remaining */}
-        <div className="flex items-center gap-2 px-3 border-r border-surface-600/50">
-          <span className="text-[10px] font-ui font-bold text-amber-400 tabular-nums">LV{level}</span>
-          <div className="relative w-28 h-1.5 bg-surface-600 rounded-full overflow-hidden">
+        {/* Panel 2: XP ribbon */}
+        <div className="flex items-center gap-2.5 px-3 border-r border-primary-700/30">
+          <span className="text-[10px] font-mono font-black text-amber-300 tabular-nums">LV{level}</span>
+          <div className="relative w-24 h-[5px] bg-surface-600 rounded-none overflow-hidden">
             <div
-              className="absolute inset-y-0 left-0 xp-bar rounded-full transition-all duration-700 ease-out"
+              className="absolute inset-y-0 left-0 xp-bar transition-all duration-700 ease-out"
               style={{ width: `${xpProgress}%` }}
             />
+            {/* Tactical tick marks */}
+            <div className="absolute inset-y-0 left-1/4 w-px bg-black/40" />
+            <div className="absolute inset-y-0 left-1/2 w-px bg-black/40" />
+            <div className="absolute inset-y-0 left-3/4 w-px bg-black/40" />
           </div>
-          <span className="text-[9px] font-ui text-[color:var(--app-muted)] tabular-nums">{xpRemaining}xp</span>
+          <span className="text-[9px] font-mono text-amber-600/70 tabular-nums">{xpRemaining}xp</span>
         </div>
 
-        {/* Total XP */}
-        <div className="flex items-center gap-1 px-3 border-r border-surface-600/50">
-          <span className="text-[10px] font-ui font-bold text-amber-400 tabular-nums">
-            {totalXP.toLocaleString()}
-          </span>
-          <span className="text-[9px] text-amber-500/50 font-ui">XP</span>
+        {/* Panel 3: Total XP */}
+        <div className="flex items-center gap-1 px-3 border-r border-primary-700/30">
+          <div className="flex flex-col items-end leading-none gap-0.5">
+            <span className="text-[7px] font-[family:var(--font-display)] text-amber-600/60 uppercase tracking-[0.15em] leading-none">Total</span>
+            <span className="text-[10px] font-mono font-bold text-amber-400 tabular-nums">
+              {totalXP.toLocaleString()} <span className="text-amber-600/50">XP</span>
+            </span>
+          </div>
         </div>
 
-        {/* Focus balance */}
-        <div className="flex items-center gap-1 pl-3">
-          <span className="text-[10px] font-ui font-bold text-cyan-400 tabular-nums">
+        {/* Panel 4: Focus currency */}
+        <div className="flex items-center gap-1.5 px-3">
+          <Gem size={10} className="text-cyan-500/70" />
+          <span className="text-[10px] font-mono font-bold text-cyan-400 tabular-nums">
             {focusBalance.toLocaleString()}
           </span>
-          <span className="text-[10px] leading-none">💎</span>
+          <span className="text-[9px] font-[family:var(--font-display)] text-cyan-700/70 uppercase tracking-wider">
+            Focus
+          </span>
         </div>
       </div>
 
       {/* Right: timer + clock + window controls */}
       <div className="flex items-center gap-2 no-drag">
         {hasActiveTimer && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-primary-500/25 bg-primary-500/10 no-drag">
-            <span className="text-[9px] font-semibold uppercase tracking-widest text-primary-300/80">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-l-2 no-drag"
+            style={{
+              borderColor: 'var(--app-unit-frame-border)',
+              borderLeftColor: status === 'break' ? 'var(--app-ring-break, #3b82f6)' : status === 'paused' ? 'var(--app-amber)' : 'var(--app-primary)',
+              background: 'var(--app-unit-frame-bg)',
+            }}
+          >
+            <span className="text-[9px] font-[family:var(--font-display)] font-semibold uppercase tracking-widest text-primary-300/80">
               {status === 'break' ? 'Break' : 'Focus'}
             </span>
-            <span className="text-xs font-ui text-[color:var(--app-text)] font-bold tabular-nums">
+            <span className="text-xs font-mono text-[color:var(--app-text)] font-bold tabular-nums">
               {formatTimer(timeLeft)}
             </span>
             {status === 'running' && (
-              <button
-                className="window-control-btn"
-                onClick={pause}
-                aria-label="Pause focus session"
-                title="Pause"
-              >
+              <button className="window-control-btn" onClick={pause} aria-label="Pause focus session" title="Pause">
                 <Pause size={11} />
               </button>
             )}
             {status === 'paused' && (
-              <button
-                className="window-control-btn"
-                onClick={resume}
-                aria-label="Resume focus session"
-                title="Resume"
-              >
+              <button className="window-control-btn" onClick={resume} aria-label="Resume focus session" title="Resume">
                 <Play size={11} />
               </button>
             )}
@@ -167,7 +189,7 @@ export function TopBar() {
           </div>
         )}
 
-        <div className="text-sm font-ui font-medium text-[color:var(--app-interactive-fg-default)] tabular-nums">
+        <div className="text-sm font-mono font-semibold text-[color:var(--app-interactive-fg-default)] tabular-nums">
           {format(time, 'HH:mm:ss')}
         </div>
 

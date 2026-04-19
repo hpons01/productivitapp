@@ -25,8 +25,8 @@ export function GamificationOverlay() {
   return (
     <>
       {/* XP floating popups */}
-      {xpPopups.map((r) => (
-        <XPPopup key={r.id} reward={r} />
+      {xpPopups.map((r, i) => (
+        <XPPopup key={r.id} reward={r} index={i} />
       ))}
       {classToasts.map((r) => (
         <ClassChangedToast key={r.id} reward={r} />
@@ -56,9 +56,15 @@ export function GamificationOverlay() {
 }
 
 function EvolutionUnlockedToast({ reward }: { reward: PendingReward }) {
+  const { dismissReward } = useGamificationStore()
   const className = reward.data.className as string
   const evolutionTitle = reward.data.evolutionTitle as string
   const identityCue = reward.data.identityCue as string | undefined
+
+  useEffect(() => {
+    const t = setTimeout(() => dismissReward(reward.id), 4000)
+    return () => clearTimeout(t)
+  }, [])
 
   return (
     <motion.div
@@ -68,7 +74,7 @@ function EvolutionUnlockedToast({ reward }: { reward: PendingReward }) {
       exit={{ opacity: 0, y: -12, scale: 0.96 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
     >
-      <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[250px] shadow-2xl">
+      <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-sm px-4 py-2.5 backdrop-blur-sm min-w-[260px] shadow-2xl">
         <div className="text-[10px] uppercase tracking-wider text-emerald-200 font-semibold">Evolution Unlocked</div>
         <div className="text-sm font-bold text-[color:var(--app-interactive-fg-default)] mt-1">{className} → {evolutionTitle}</div>
         {identityCue && <div className="text-[11px] text-emerald-100/90 mt-1">{identityCue}</div>}
@@ -78,9 +84,15 @@ function EvolutionUnlockedToast({ reward }: { reward: PendingReward }) {
 }
 
 function ClassChangedToast({ reward }: { reward: PendingReward }) {
+  const { dismissReward } = useGamificationStore()
   const className = reward.data.className as string
   const classIcon = reward.data.classIcon as string
   const evolutionTitle = reward.data.evolutionTitle as string
+
+  useEffect(() => {
+    const t = setTimeout(() => dismissReward(reward.id), 4000)
+    return () => clearTimeout(t)
+  }, [])
 
   return (
     <motion.div
@@ -90,7 +102,7 @@ function ClassChangedToast({ reward }: { reward: PendingReward }) {
       exit={{ opacity: 0, y: -12, scale: 0.96 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
     >
-      <div className="bg-primary-500/20 border border-primary-400/50 rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[230px] shadow-2xl">
+      <div className="bg-primary-500/20 border border-primary-400/50 rounded-sm px-4 py-2.5 backdrop-blur-sm min-w-[260px] shadow-2xl">
         <div className="text-[10px] uppercase tracking-wider text-primary-200 font-semibold">Class Equipped</div>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-xl">{classIcon}</span>
@@ -104,17 +116,18 @@ function ClassChangedToast({ reward }: { reward: PendingReward }) {
   )
 }
 
-function XPPopup({ reward }: { reward: PendingReward }) {
+function XPPopup({ reward, index }: { reward: PendingReward; index: number }) {
   const amount = reward.data.amount as number
 
   return (
     <motion.div
-      className="fixed bottom-24 right-8 z-50 pointer-events-none"
+      className="fixed right-8 z-50 pointer-events-none"
+      style={{ bottom: `${96 + index * 48}px` }}
       initial={{ opacity: 1, y: 0, scale: 1 }}
       animate={{ opacity: 0, y: -60, scale: 1.2 }}
       transition={{ duration: 1.8, ease: 'easeOut' }}
     >
-      <div className="bg-amber-500/20 border border-amber-500/40 rounded-xl px-4 py-2 font-bold text-amber-400 text-sm backdrop-blur-sm">
+      <div className="bg-amber-500/20 border border-amber-500/40 rounded-sm px-4 py-2 font-bold text-amber-400 text-sm backdrop-blur-sm">
         +{amount} XP ⚡
       </div>
     </motion.div>
@@ -160,7 +173,7 @@ function LevelUpScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
           className="w-32 h-32 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-primary-600 flex items-center justify-center text-5xl shadow-2xl"
           animate={{ rotate: [0, 360] }}
           transition={{ duration: 2, ease: 'linear', repeat: Infinity }}
-          style={{ background: 'conic-gradient(from 0deg, #f59e0b, #7c3aed, #f59e0b)' }}
+          style={{ background: 'conic-gradient(from 0deg, #c8972a, #0d9488, #c8972a)' }}
         >
           <div className="w-28 h-28 rounded-full bg-surface-800 flex items-center justify-center text-5xl">
             {CLASS_ICONS[characterClass] || '⚔️'}
@@ -210,7 +223,7 @@ function BadgeUnlockScreen({ reward, onDismiss }: { reward: PendingReward; onDis
         <p className="text-surface-400 uppercase tracking-widest text-xs mb-4 font-bold">Achievement Unlocked</p>
 
         <motion.div
-          className={cn('w-24 h-24 mx-auto mb-4 rounded-2xl border-2 flex items-center justify-center text-5xl', colors.bg, colors.border)}
+          className={cn('w-24 h-24 mx-auto mb-4 rounded-sm border-2 flex items-center justify-center text-5xl', colors.bg, colors.border)}
           style={{ boxShadow: `0 0 40px ${badge.rarity === 'legendary' ? '#f59e0b' : badge.rarity === 'epic' ? '#a855f7' : '#3b82f6'}44` }}
           animate={{ y: [0, -8, 0] }}
           transition={{ repeat: Infinity, duration: 2 }}
@@ -274,7 +287,7 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
 
         {/* Loot chest */}
         <motion.div
-          className={cn('w-24 h-24 mx-auto mb-4 rounded-2xl border-2 flex items-center justify-center text-5xl', colors.bg, colors.border)}
+          className={cn('w-24 h-24 mx-auto mb-4 rounded-sm border-2 flex items-center justify-center text-5xl', colors.bg, colors.border)}
           initial={{ rotate: 0 }}
           animate={{ rotate: [0, -5, 5, -3, 3, 0], scale: [1, 1.1, 1] }}
           transition={{ duration: 0.6 }}
@@ -322,7 +335,7 @@ function Backdrop({ children, onClick }: { children: React.ReactNode; onClick?: 
   return (
     <motion.div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ background: 'radial-gradient(ellipse at center, rgba(15,15,26,0.95) 0%, rgba(15,15,26,0.98) 100%)' }}
+      style={{ background: 'radial-gradient(ellipse at center, rgba(8,12,11,0.96) 0%, rgba(8,12,11,0.99) 100%)' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -343,7 +356,7 @@ function Particles() {
           key={i}
           className="absolute w-1.5 h-1.5 rounded-full"
           style={{
-            background: ['#7c3aed', '#f59e0b', '#10b981', '#ec4899', '#3b82f6'][i % 5],
+            background: ['#0d9488', '#c8972a', '#16a34a', '#4a9fd4', '#9b59b6'][i % 5],
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`
           }}
@@ -361,12 +374,15 @@ function Particles() {
 }
 
 function QuestCompletedToast({ reward }: { reward: PendingReward }) {
+  const { dismissReward } = useGamificationStore()
   const title = reward.data.title as string
   const xpAwarded = reward.data.xpAwarded as number
   const focusAwarded = reward.data.focusAwarded as number
 
   useEffect(() => {
     playSound('quest')
+    const t = setTimeout(() => dismissReward(reward.id), 4000)
+    return () => clearTimeout(t)
   }, [])
 
   return (
@@ -377,7 +393,7 @@ function QuestCompletedToast({ reward }: { reward: PendingReward }) {
       exit={{ opacity: 0, x: 40, scale: 0.95 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
     >
-      <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-xl px-4 py-3 backdrop-blur-sm min-w-[260px] shadow-2xl">
+      <div className="bg-emerald-500/15 border border-emerald-400/50 rounded-sm px-4 py-3 backdrop-blur-sm min-w-[260px] shadow-2xl">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-base">✅</span>
           <div className="text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Quest Complete!</div>
@@ -449,12 +465,12 @@ function FocusEarnedPopup({ reward }: { reward: PendingReward }) {
   const amount = reward.data.amount as number
   return (
     <motion.div
-      className="fixed bottom-36 right-8 z-50 pointer-events-none"
+      className="fixed bottom-48 right-8 z-50 pointer-events-none"
       initial={{ opacity: 1, y: 0, scale: 1 }}
       animate={{ opacity: 0, y: -60, scale: 1.1 }}
       transition={{ duration: 1.8, ease: 'easeOut' }}
     >
-      <div className="bg-cyan-500/20 border border-cyan-500/40 rounded-xl px-4 py-2 font-bold text-cyan-400 text-sm backdrop-blur-sm shadow-lg">
+      <div className="bg-cyan-500/20 border border-cyan-500/40 rounded-sm px-4 py-2 font-bold text-cyan-400 text-sm backdrop-blur-sm shadow-lg">
         +{amount} Focus 💎
       </div>
     </motion.div>

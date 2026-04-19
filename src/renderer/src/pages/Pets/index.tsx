@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Heart, Egg, ChevronRight, Check, Pencil } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
@@ -67,22 +67,22 @@ export function PetsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-800 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-surface-800 rounded-sm p-1 w-fit border border-surface-600/40">
         <button
           onClick={() => setTab('eggs')}
           className={cn(
-            'px-4 py-2 rounded-lg text-sm font-semibold transition-all',
+            'px-4 py-2 rounded-sm text-sm font-semibold transition-all',
             tab === 'eggs'
               ? 'bg-primary-600 text-[color:var(--app-on-primary)] shadow'
               : 'text-surface-400 hover:text-[color:var(--app-interactive-fg-default)]'
           )}
         >
-          Eggs {eggs.length > 0 && <span className="ml-1.5 bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full">{eggs.length}</span>}
+          Eggs {eggs.length > 0 && <span className="ml-1.5 bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-sm">{eggs.length}</span>}
         </button>
         <button
           onClick={() => setTab('roster')}
           className={cn(
-            'px-4 py-2 rounded-lg text-sm font-semibold transition-all',
+            'px-4 py-2 rounded-sm text-sm font-semibold transition-all',
             tab === 'roster'
               ? 'bg-primary-600 text-[color:var(--app-on-primary)] shadow'
               : 'text-surface-400 hover:text-[color:var(--app-interactive-fg-default)]'
@@ -186,7 +186,7 @@ function EggCard({
         {/* Egg icon */}
         <motion.div
           className={cn(
-            'w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border-2 flex-shrink-0',
+            'w-14 h-14 rounded-sm flex items-center justify-center text-3xl border-2 flex-shrink-0',
             colors.border, colors.bg
           )}
           animate={isHatching ? { rotate: [-5, 5, -4, 4, -2, 2, 0] } : { scale: [1, 1.04, 1] }}
@@ -259,23 +259,47 @@ function PetCard({
     pet.boosted_source
   )
 
+  function handleCardClick(event: MouseEvent<HTMLDivElement>) {
+    if (isEquipped || isRenaming) return
+    const target = event.target
+    if (target instanceof HTMLElement && target.closest('button, input, textarea, select, a')) return
+    onEquip()
+  }
+
+  function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (isEquipped || isRenaming) return
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    onEquip()
+  }
+
   return (
-    <Card className={cn(
-      'border transition-all duration-300',
-      isEquipped
-        ? 'border-amber-500/60 bg-amber-500/5 shadow-lg shadow-amber-500/10'
-        : cn(colors.border, colors.bg)
-    )}>
-      <CardContent className="p-4 flex items-start gap-4">
+    <Card
+      className={cn(
+        'border transition-all duration-200',
+        isEquipped
+          ? 'border-amber-500/60 bg-amber-500/5'
+          : cn(colors.border, colors.bg, 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-opacity-80')
+      )}
+      style={isEquipped ? { boxShadow: '0 0 20px var(--app-amber-glow), var(--shadow-panel)' } : undefined}
+      onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
+      role={!isEquipped ? 'button' : undefined}
+      tabIndex={!isEquipped ? 0 : -1}
+      aria-label={!isEquipped ? `Equip ${pet.name}` : undefined}
+    >
+      <CardContent
+        className="p-4 flex items-start gap-4"
+      >
         {/* Pet icon */}
         <div className={cn(
-          'w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border-2 flex-shrink-0 relative',
+          'w-14 h-14 rounded-sm flex items-center justify-center text-3xl border-2 flex-shrink-0 relative',
           isEquipped ? 'border-amber-500/60 bg-amber-500/10' : cn(colors.border, colors.bg)
         )}>
           {pet.icon}
           {isEquipped && (
-            <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
-              <Check size={10} className="text-black" strokeWidth={3} />
+            <div className="absolute -top-2 -right-2 w-5 h-5 bg-amber-400 rounded-sm flex items-center justify-center shadow-md">
+              <Check size={11} className="text-black" strokeWidth={3} />
             </div>
           )}
         </div>
@@ -286,7 +310,7 @@ function PetCard({
           <div className="flex items-center gap-2">
             {isRenaming ? (
               <input
-                className="bg-surface-700 border border-surface-500 rounded-lg px-2 py-0.5 text-sm text-[color:var(--app-interactive-fg-default)] font-bold w-32 outline-none focus:border-[color:var(--app-focus-ring)]"
+                className="bg-surface-700 border border-surface-500 rounded-sm px-2 py-0.5 text-sm text-[color:var(--app-interactive-fg-default)] font-bold w-32 outline-none focus:border-[color:var(--app-focus-ring)]"
                 value={renameValue}
                 onChange={(e) => onRenameChange(e.target.value)}
                 onBlur={onSubmitRename}
@@ -359,10 +383,10 @@ function PetCard({
 
 function EmptyEggs() {
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-      <div className="text-5xl">🥚</div>
+    <div className="flex flex-col items-center justify-center gap-4 text-center bg-surface-800/40 border border-surface-600/30 rounded-sm px-8 py-12">
+      <div className="text-5xl opacity-80">🥚</div>
       <h3 className="text-lg font-bold text-[color:var(--app-interactive-fg-default)]">No eggs yet</h3>
-      <p className="text-surface-400 text-sm max-w-xs">
+      <p className="text-[color:var(--app-muted)] text-sm max-w-xs">
         Complete daily quests to earn companion eggs. Look for the <span className="text-amber-400">🥚</span> icon on quests that reward eggs.
       </p>
     </div>
@@ -371,10 +395,10 @@ function EmptyEggs() {
 
 function EmptyRoster() {
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-      <div className="text-5xl">🐾</div>
+    <div className="flex flex-col items-center justify-center gap-4 text-center bg-surface-800/40 border border-surface-600/30 rounded-sm px-8 py-12">
+      <div className="text-5xl opacity-80">🐾</div>
       <h3 className="text-lg font-bold text-[color:var(--app-interactive-fg-default)]">No companions yet</h3>
-      <p className="text-surface-400 text-sm max-w-xs">
+      <p className="text-[color:var(--app-muted)] text-sm max-w-xs">
         Hatch an egg to meet your first companion. They'll level up as you stay productive!
       </p>
     </div>

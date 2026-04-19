@@ -6,7 +6,7 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     <div
       ref={ref}
       className={cn(
-        'rounded-2xl bg-surface-700 border border-surface-600/40 shadow-lg ui-glow-inset',
+        'rounded-sm bg-surface-700 border border-surface-500/30 shadow-[var(--shadow-panel,_0_4px_32px_rgba(0,0,0,0.6))] panel-crown',
         className
       )}
       {...props}
@@ -27,7 +27,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadi
     <h3
       ref={ref}
       className={cn(
-        'font-semibold text-sm tracking-tight text-[color:var(--app-interactive-fg-default)]',
+        'font-[family:var(--font-display)] font-semibold text-[13px] tracking-wide uppercase text-[color:var(--app-interactive-fg-default)]',
         className
       )}
       {...props}
