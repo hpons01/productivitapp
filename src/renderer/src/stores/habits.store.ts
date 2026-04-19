@@ -211,7 +211,7 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
       evolutionTier
     )
     if (triggerLoot) {
-      triggerLootBox(isStreakMilestone(streak) ? 'streak_milestone' : 'habit')
+      void triggerLootBox(isStreakMilestone(streak) ? 'streak_milestone' : 'habit')
     }
 
     return { xpAwarded, streak, loot: triggerLoot, shouldSuggestGraduation }

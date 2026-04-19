@@ -34,8 +34,8 @@ export function EnergyPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Energy Tracker</h1>
-        <p className="text-surface-400 text-sm mt-1">Track your energy to discover your peak performance windows.</p>
+        <h1 className="page-title">Energy Tracker</h1>
+        <p className="page-subtitle">Track your energy to discover your peak performance windows.</p>
       </div>
 
       {/* Current state */}
@@ -123,14 +123,14 @@ export function EnergyPage() {
           <CardContent>
             <ResponsiveContainer width="100%" height={160}>
               <LineChart data={chartData}>
-                <XAxis dataKey="time" tick={{ fill: '#8888aa', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis domain={[1, 5]} tick={{ fill: '#8888aa', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="time" tick={{ fill: 'var(--app-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis domain={[1, 5]} tick={{ fill: 'var(--app-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ background: '#16162a', border: '1px solid #2d2d4a', borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: '#a0a0c0' }}
+                  contentStyle={{ background: 'var(--app-surface-800)', border: '1px solid var(--app-border)', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: 'var(--app-muted)' }}
                 />
-                <Line type="monotone" dataKey="energy" stroke="#7c3aed" strokeWidth={2} dot={false} name="Energy" />
-                <Line type="monotone" dataKey="mood" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="4 2" name="Mood" />
+                <Line type="monotone" dataKey="energy" stroke="var(--app-primary)" strokeWidth={2} dot={false} name="Energy" />
+                <Line type="monotone" dataKey="mood" stroke="var(--app-amber)" strokeWidth={2} dot={false} strokeDasharray="4 2" name="Mood" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

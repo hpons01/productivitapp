@@ -59,56 +59,71 @@ export function TopBar() {
   const hasActiveTimer = status === 'running' || status === 'paused' || status === 'break'
 
   return (
-    <div className="flex items-center justify-between px-6 py-3 border-b border-surface-600 bg-surface-800/50 drag-region">
-      {/* Left: date */}
-      <div className="text-sm text-surface-400 no-drag">
-        <span className="font-medium text-[color:var(--app-interactive-fg-default)]">
+    <div className="flex items-center justify-between px-5 py-2 border-b border-[color:var(--app-sidebar-border)] bg-surface-800/30 backdrop-blur-md drag-region" style={{ borderBottomColor: 'var(--app-glass-border)' }}>
+      {/* Left: date with typographic hierarchy */}
+      <div className="no-drag flex flex-col leading-tight">
+        <span className="text-xs font-semibold text-[color:var(--app-text)] tracking-tight">
           {format(time, 'EEEE')}
         </span>
-        <span className="mx-2 opacity-40">·</span>
-        <span>{format(time, 'MMMM d, yyyy')}</span>
+        <span className="text-[10px] font-ui text-[color:var(--app-muted)] tabular-nums">
+          {format(time, 'MMM d, yyyy')}
+        </span>
       </div>
 
-      {/* Center: XP bar */}
-      <div className="flex items-center gap-3 no-drag">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-amber-400 font-bold">{CLASS_ICONS[characterClass]}</span>
-          <span className="text-xs text-surface-400 font-medium">{characterClass}</span>
-          {equippedTitle && (
-            <span className="text-[10px] text-surface-500 italic">· {equippedTitle}</span>
-          )}
+      {/* Center: unified pill container */}
+      <div className="no-drag flex items-center gap-0 bg-surface-700/40 border border-surface-600/50 rounded-2xl px-3 py-1.5">
+        {/* Class icon + name + title */}
+        <div className="flex items-center gap-1.5 pr-3 border-r border-surface-600/50">
+          <span className="text-sm leading-none">{CLASS_ICONS[characterClass]}</span>
+          <div className="flex flex-col leading-none gap-0.5">
+            <span className="text-[10px] font-semibold text-[color:var(--app-text)] leading-none">
+              {characterClass}
+            </span>
+            {equippedTitle && (
+              <span className="text-[9px] text-[color:var(--app-muted)] leading-none italic">
+                {equippedTitle}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-amber-400">LVL {level}</span>
-          <div className="relative w-32 h-2 bg-surface-600 rounded-full overflow-hidden">
+        {/* Level + XP bar + remaining */}
+        <div className="flex items-center gap-2 px-3 border-r border-surface-600/50">
+          <span className="text-[10px] font-ui font-bold text-amber-400 tabular-nums">LV{level}</span>
+          <div className="relative w-28 h-1.5 bg-surface-600 rounded-full overflow-hidden">
             <div
               className="absolute inset-y-0 left-0 xp-bar rounded-full transition-all duration-700 ease-out"
               style={{ width: `${xpProgress}%` }}
             />
           </div>
-          <span className="text-[10px] text-surface-400 font-mono">{xpRemaining} XP</span>
+          <span className="text-[9px] font-ui text-[color:var(--app-muted)] tabular-nums">{xpRemaining}xp</span>
         </div>
 
-        <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-          <span className="text-xs text-amber-400 font-bold">{totalXP.toLocaleString()}</span>
-          <span className="text-[10px] text-amber-500/60">XP</span>
+        {/* Total XP */}
+        <div className="flex items-center gap-1 px-3 border-r border-surface-600/50">
+          <span className="text-[10px] font-ui font-bold text-amber-400 tabular-nums">
+            {totalXP.toLocaleString()}
+          </span>
+          <span className="text-[9px] text-amber-500/50 font-ui">XP</span>
         </div>
 
-        <div className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
-          <span className="text-xs text-cyan-400 font-bold">{focusBalance.toLocaleString()}</span>
-          <span className="text-[10px] text-cyan-500/60">💎</span>
+        {/* Focus balance */}
+        <div className="flex items-center gap-1 pl-3">
+          <span className="text-[10px] font-ui font-bold text-cyan-400 tabular-nums">
+            {focusBalance.toLocaleString()}
+          </span>
+          <span className="text-[10px] leading-none">💎</span>
         </div>
       </div>
 
-      {/* Right: time */}
-      <div className="flex items-center gap-3 no-drag">
+      {/* Right: timer + clock + window controls */}
+      <div className="flex items-center gap-2 no-drag">
         {hasActiveTimer && (
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl border border-primary-500/30 bg-primary-500/10 no-drag">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-primary-300">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-primary-500/25 bg-primary-500/10 no-drag">
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-primary-300/80">
               {status === 'break' ? 'Break' : 'Focus'}
             </span>
-            <span className="text-xs font-mono text-[color:var(--app-interactive-fg-default)] font-bold tabular-nums">
+            <span className="text-xs font-ui text-[color:var(--app-text)] font-bold tabular-nums">
               {formatTimer(timeLeft)}
             </span>
             {status === 'running' && (
@@ -118,7 +133,7 @@ export function TopBar() {
                 aria-label="Pause focus session"
                 title="Pause"
               >
-                <Pause size={12} />
+                <Pause size={11} />
               </button>
             )}
             {status === 'paused' && (
@@ -128,7 +143,7 @@ export function TopBar() {
                 aria-label="Resume focus session"
                 title="Resume"
               >
-                <Play size={12} />
+                <Play size={11} />
               </button>
             )}
             {status === 'break' && (
@@ -138,7 +153,7 @@ export function TopBar() {
                 aria-label="Skip break"
                 title="Skip break"
               >
-                <Play size={12} />
+                <Play size={11} />
               </button>
             )}
             <button
@@ -147,13 +162,17 @@ export function TopBar() {
               aria-label="Stop focus session"
               title="Stop"
             >
-              <StopCircle size={12} />
+              <StopCircle size={11} />
             </button>
           </div>
         )}
-        <div className="text-sm font-mono text-[color:var(--app-interactive-fg-default)]">
+
+        <div className="text-sm font-ui font-medium text-[color:var(--app-interactive-fg-default)] tabular-nums">
           {format(time, 'HH:mm:ss')}
         </div>
+
+        {isWindows && <div className="w-px h-4 bg-surface-600/60 mx-1" />}
+
         {isWindows && (
           <div className="flex items-center gap-1">
             <button
@@ -162,7 +181,7 @@ export function TopBar() {
               aria-label="Minimize window"
               title="Minimize"
             >
-              <Minus size={14} />
+              <Minus size={13} />
             </button>
             <button
               className="window-control-btn"
@@ -173,7 +192,7 @@ export function TopBar() {
               aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
               title={isMaximized ? 'Restore' : 'Maximize'}
             >
-              <Square size={12} />
+              <Square size={11} />
             </button>
             <button
               className="window-control-btn window-control-close"
@@ -181,7 +200,7 @@ export function TopBar() {
               aria-label="Close window"
               title="Close"
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           </div>
         )}

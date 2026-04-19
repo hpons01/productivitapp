@@ -12,6 +12,7 @@ export interface LootItem {
   name: string
   description: string
   value?: number
+  levelFraction?: number
 }
 
 /** Probability of reward trigger for a given context */
@@ -73,17 +74,23 @@ export function rollLootTier(evolutionTier = 0): LootTier {
 const LOOT_POOLS: Record<LootTier, LootItem[]> = {
   common: [
     { tier: 'common', type: 'xp_boost', name: 'Minor XP Scroll', description: '+50 bonus XP', value: 50 },
+    { tier: 'common', type: 'xp_boost', name: 'Novice Sigil', description: 'Gain 25% of a level', levelFraction: 0.25 },
+    { tier: 'common', type: 'power_up', name: 'Long XP Tonic', description: '+25% XP for 6 hours' },
     { tier: 'common', type: 'title', name: 'The Diligent', description: 'A modest title for your efforts' },
     { tier: 'common', type: 'cosmetic', name: 'Bronze Accent', description: 'Unlock bronze UI accents' }
   ],
   uncommon: [
     { tier: 'uncommon', type: 'xp_boost', name: 'XP Tome', description: '+150 bonus XP', value: 150 },
+    { tier: 'uncommon', type: 'xp_boost', name: 'Adept Sigil', description: 'Gain 50% of a level', levelFraction: 0.5 },
+    { tier: 'uncommon', type: 'power_up', name: 'Long XP Elixir', description: '+50% XP for 6 hours' },
     { tier: 'uncommon', type: 'power_up', name: 'Focus Potion', description: '+25% XP on your next 3 Pomodoros' },
     { tier: 'uncommon', type: 'cosmetic', name: 'Silver Accent', description: 'Unlock silver UI accents' },
     { tier: 'uncommon', type: 'title', name: 'The Persistent', description: 'A green title for the consistent' }
   ],
   rare: [
     { tier: 'rare', type: 'xp_boost', name: 'Ancient XP Crystal', description: '+500 bonus XP', value: 500 },
+    { tier: 'rare', type: 'xp_boost', name: 'Master Sigil', description: 'Gain 75% of a level', levelFraction: 0.75 },
+    { tier: 'rare', type: 'power_up', name: 'Long XP Infusion', description: '+75% XP for 6 hours' },
     { tier: 'rare', type: 'power_up', name: 'Streak Shield', description: 'Protect a streak from breaking once' },
     { tier: 'rare', type: 'theme', name: 'Ember Theme', description: 'Unlock the warm Emberforge palette' },
     { tier: 'rare', type: 'theme', name: 'Ocean Theme', description: 'Unlock the Ocean dark theme' },
@@ -91,6 +98,8 @@ const LOOT_POOLS: Record<LootTier, LootItem[]> = {
   ],
   epic: [
     { tier: 'epic', type: 'xp_boost', name: 'Epic XP Orb', description: '+1500 bonus XP', value: 1500 },
+    { tier: 'epic', type: 'xp_boost', name: 'Ascendant Sigil', description: 'Gain a full level', levelFraction: 1 },
+    { tier: 'epic', type: 'power_up', name: 'Long XP Overdrive', description: '+100% XP for 6 hours' },
     { tier: 'epic', type: 'power_up', name: 'Double XP Elixir', description: '2× XP for the next 30 minutes' },
     { tier: 'epic', type: 'theme', name: 'Void Theme', description: 'Unlock the ultra-dark Void theme' },
     { tier: 'epic', type: 'title', name: 'Champion of Focus', description: 'A purple title for the elite' }
@@ -108,6 +117,34 @@ export function rollLoot(tier?: LootTier, evolutionTier = 0): LootItem {
   const t = tier ?? rollLootTier(evolutionTier)
   const pool = LOOT_POOLS[t]
   return pool[Math.floor(Math.random() * pool.length)]
+}
+
+/** Focus awarded instead of a duplicate cosmetic/theme drop */
+export const DUPLICATE_FOCUS_BY_TIER: Record<LootTier, number> = {
+  common: 15,
+  uncommon: 30,
+  rare: 60,
+  epic: 120,
+  legendary: 250
+}
+
+/**
+ * Roll loot with deduplication for cosmetic/theme items.
+ * If the rolled item is a theme or cosmetic already owned (by name),
+ * returns { loot: null, focusInstead: number } so the caller can award Focus instead.
+ */
+export function rollLootDeduped(
+  ownedNames: Set<string>,
+  tier?: LootTier,
+  evolutionTier = 0
+): { loot: LootItem; focusInstead: null } | { loot: null; focusInstead: number } {
+  const loot = rollLoot(tier, evolutionTier)
+
+  if ((loot.type === 'theme' || loot.type === 'cosmetic') && ownedNames.has(loot.name)) {
+    return { loot: null, focusInstead: DUPLICATE_FOCUS_BY_TIER[loot.tier] }
+  }
+
+  return { loot, focusInstead: null }
 }
 
 /** Check if a streak number is a milestone */

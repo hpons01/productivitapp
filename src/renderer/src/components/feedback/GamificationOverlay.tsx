@@ -242,7 +242,12 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
         id: reward.id,
         type: loot.type,
         tier: loot.tier,
-        payload: JSON.stringify({ name: loot.name, description: loot.description, value: loot.value })
+        payload: JSON.stringify({
+          name: loot.name,
+          description: loot.description,
+          value: loot.value,
+          levelFraction: loot.levelFraction
+        })
       }) as { success?: boolean; error?: string }
 
       if (!result?.success) {

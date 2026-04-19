@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db'
+import { getOrCreateWeeklyBoss } from '../db/queries/gamification.queries'
+import { awardFocus } from '../db/queries/shop.queries'
 
 export interface LootItem {
   id: string
@@ -73,6 +75,31 @@ export function registerLootIpc(): void {
     const db = getDb()
     db.prepare('UPDATE loot_inventory SET used_at = ? WHERE id = ?').run(Date.now(), id)
     return { success: true }
+  })
+
+  ipcMain.handle('boss:claimLoot', () => {
+    try {
+      const db = getDb()
+      const boss = getOrCreateWeeklyBoss(db)
+
+      if (!boss.defeated) {
+        return { success: false, error: 'Boss is not defeated yet.' }
+      }
+
+      const bossRow = db.prepare('SELECT loot_claimed FROM boss_battles WHERE id = ?').get(boss.id) as { loot_claimed: number } | undefined
+      if (bossRow?.loot_claimed) {
+        return { success: false, error: 'Loot already claimed.' }
+      }
+
+      const focusAwarded = 150
+      awardFocus(db, 'boss_defeat', boss.id, focusAwarded)
+      db.prepare('UPDATE boss_battles SET loot_claimed = 1 WHERE id = ?').run(boss.id)
+
+      return { success: true, focusAwarded }
+    } catch (err) {
+      console.error('[boss:claimLoot] error:', err)
+      return { success: false, error: String(err) }
+    }
   })
 
   ipcMain.handle('loot:save', (_event, item: unknown) => {

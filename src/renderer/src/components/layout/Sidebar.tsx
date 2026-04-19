@@ -47,7 +47,7 @@ export function Sidebar() {
   )
 
   return (
-    <div className="flex flex-col w-[72px] bg-surface-800 border-r border-surface-600 py-4">
+    <div className="app-sidebar flex flex-col w-[72px] py-4">
       {/* Core productivity nav */}
       <nav className="flex flex-col items-center gap-1 flex-1 min-h-0 overflow-y-auto no-scrollbar">
         {coreNavItems.map(({ to, icon: Icon, label, end }) => (
@@ -59,41 +59,42 @@ export function Sidebar() {
               cn(
                 'flex flex-col items-center gap-1 w-12 py-2.5 rounded-xl transition-all duration-200 group no-drag',
                 isActive
-                  ? 'bg-primary-600/20 text-primary-400'
-                  : 'ui-fg-muted ui-fg-hover ui-bg-hover'
+                  ? 'bg-primary-600/15 text-primary-400 shadow-[inset_0_0_0_1px_var(--app-primary-glow)] ui-glow-inset'
+                  : 'ui-fg-muted hover:text-[color:var(--app-text)] hover:bg-surface-700/60'
               )
             }
           >
-            <Icon size={18} strokeWidth={1.8} />
-            <span className="text-[9px] font-medium uppercase tracking-wide">{label}</span>
+            <Icon size={16} strokeWidth={1.8} className="transition-transform duration-200 group-hover:scale-110" />
+            <span className="text-[8.5px] font-semibold uppercase tracking-[0.12em] font-ui">{label}</span>
           </NavLink>
         ))}
 
         {/* Section divider */}
-        <div
-          className={cn(
-            'w-10 mt-2 mb-2 rounded-md border py-1 transition-all duration-200',
-            isRpgSectionActive
-              ? 'border-primary-500/40 bg-primary-500/10 shadow-sm shadow-primary-600/25'
-              : 'border-surface-500/70 bg-surface-700/30'
-          )}
-        >
-          <div className="relative h-px w-full bg-gradient-to-r from-transparent via-surface-300/70 to-transparent">
-            <div
-              className={cn(
-                'absolute inset-0 bg-gradient-to-r from-transparent via-primary-400/70 to-transparent transition-opacity duration-200',
-                isRpgSectionActive ? 'opacity-100' : 'opacity-0'
-              )}
-            />
-          </div>
-          <p
+        <div className="w-full flex flex-col items-center my-1 py-2 gap-1.5">
+          <div
             className={cn(
-              'text-[8px] uppercase tracking-[0.2em] text-center mt-1 font-semibold',
-              isRpgSectionActive ? 'text-primary-300' : 'text-surface-400'
+              'w-8 h-px transition-all duration-300',
+              isRpgSectionActive
+                ? 'bg-gradient-to-r from-transparent via-primary-400/60 to-transparent'
+                : 'bg-gradient-to-r from-transparent via-surface-500/50 to-transparent'
+            )}
+          />
+          <span
+            className={cn(
+              'text-[7.5px] font-ui font-semibold uppercase tracking-[0.18em] transition-colors duration-200',
+              isRpgSectionActive ? 'text-primary-400/80' : 'text-surface-500'
             )}
           >
             RPG
-          </p>
+          </span>
+          <div
+            className={cn(
+              'w-8 h-px transition-all duration-300',
+              isRpgSectionActive
+                ? 'bg-gradient-to-r from-transparent via-primary-400/60 to-transparent'
+                : 'bg-gradient-to-r from-transparent via-surface-500/50 to-transparent'
+            )}
+          />
         </div>
 
         {/* RPG progression nav */}
@@ -105,39 +106,38 @@ export function Sidebar() {
               cn(
                 'flex flex-col items-center gap-1 w-12 py-2.5 rounded-xl transition-all duration-200 group no-drag',
                 isActive
-                  ? 'bg-primary-600/20 text-primary-400'
-                  : 'ui-fg-muted ui-fg-hover ui-bg-hover'
+                  ? 'bg-primary-600/15 text-primary-400 shadow-[inset_0_0_0_1px_var(--app-primary-glow)] ui-glow-inset'
+                  : 'ui-fg-muted hover:text-[color:var(--app-text)] hover:bg-surface-700/60'
               )
             }
           >
-            <Icon size={18} strokeWidth={1.8} />
-            <span className="text-[9px] font-medium uppercase tracking-wide">{label}</span>
+            <Icon size={16} strokeWidth={1.8} className="transition-transform duration-200 group-hover:scale-110" />
+            <span className="text-[8.5px] font-semibold uppercase tracking-[0.12em] font-ui">{label}</span>
           </NavLink>
         ))}
       </nav>
 
-      {/* Level badge + XP bar */}
-      <div className="flex flex-col items-center gap-2 mt-auto">
+      {/* Level badge + XP bar + Settings */}
+      <div className="flex flex-col items-center gap-2 mt-auto pt-2">
         {/* Active timer indicator */}
         {status === 'running' && (
-          <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center">
-            <span className="text-xs font-mono text-emerald-400 font-bold">
+          <div className="w-11 rounded-xl bg-emerald-600/15 border border-emerald-500/25 flex items-center justify-center py-1.5">
+            <span className="text-[10px] font-ui text-emerald-400 font-bold tabular-nums">
               {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
             </span>
           </div>
         )}
 
-        {/* Level */}
-        <div className="w-8 h-7 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-          <span className="text-[10px] font-bold text-amber-400">L{level}</span>
-        </div>
-
-        {/* Mini XP bar */}
-        <div className="w-7 h-0.5 bg-surface-600 rounded-full overflow-hidden">
-          <div
-            className="h-full xp-bar rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(100, xpProgress)}%` }}
-          />
+        {/* Level glass mini-card */}
+        <div className="w-11 rounded-xl ui-glass flex flex-col items-center gap-1 py-2">
+          <span className="text-[9px] font-ui font-semibold text-amber-400/80 uppercase tracking-widest">LVL</span>
+          <span className="text-sm font-bold font-ui text-amber-400 leading-none tabular-nums">{level}</span>
+          <div className="w-7 h-0.5 bg-surface-600 rounded-full overflow-hidden mt-0.5">
+            <div
+              className="h-full xp-bar rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, xpProgress)}%` }}
+            />
+          </div>
         </div>
 
         {/* Settings */}
@@ -147,12 +147,12 @@ export function Sidebar() {
             cn(
               'flex flex-col items-center gap-1 w-12 py-2.5 rounded-xl transition-all duration-200 mt-1',
               isActive
-                ? 'bg-primary-600/20 text-primary-400'
-                : 'ui-fg-muted ui-fg-hover ui-bg-hover'
+                ? 'bg-primary-600/15 text-primary-400'
+                : 'ui-fg-muted hover:text-[color:var(--app-text)] hover:bg-surface-700/60'
             )
           }
         >
-          <Settings size={16} strokeWidth={1.8} />
+          <Settings size={15} strokeWidth={1.8} />
         </NavLink>
       </div>
     </div>

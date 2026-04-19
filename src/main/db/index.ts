@@ -31,6 +31,7 @@ export function initDatabase(): void {
   ensureHabitMicroCheckinSchema()
   ensureEventLogSchema()
   ensureShopSchema()   // must run before seedCatalogQuests so focus_reward column exists
+  ensureBossLootClaimedColumn()
   ensureDefaultSettings()
   seedBadges()
   seedPetDefinitions()
@@ -391,6 +392,13 @@ function ensureShopSchema(): void {
     db.exec('ALTER TABLE quest_definitions ADD COLUMN focus_reward INTEGER NOT NULL DEFAULT 0')
     // Back-fill focus_reward for any existing quest definitions
     backfillCatalogQuestFocusRewards()
+  }
+}
+
+function ensureBossLootClaimedColumn(): void {
+  const cols = (db.prepare('PRAGMA table_info(boss_battles)').all() as Array<{ name: string }>).map(c => c.name)
+  if (!cols.includes('loot_claimed')) {
+    db.exec('ALTER TABLE boss_battles ADD COLUMN loot_claimed INTEGER NOT NULL DEFAULT 0')
   }
 }
 

@@ -428,8 +428,8 @@ export function HabitsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Habits</h1>
-          <p className="text-surface-400 text-sm mt-1">
+          <h1 className="page-title">Habits</h1>
+          <p className="page-subtitle">
             {completedCount}/{totalCount} completed today
           </p>
         </div>

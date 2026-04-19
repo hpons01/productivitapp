@@ -61,7 +61,7 @@ export function PetsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-black text-[color:var(--app-interactive-fg-default)]">Companions</h1>
-        <p className="text-surface-400 text-sm mt-1">
+        <p className="page-subtitle">
           Complete daily quests to earn eggs. Hatch them to discover your companions.
         </p>
       </div>

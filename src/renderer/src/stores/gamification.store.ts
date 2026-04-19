@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { levelFromXP, levelProgress, xpToNextLevel } from '../lib/science/xp'
-import { shouldReward, rollLoot, LootItem, isStreakMilestone } from '../lib/science/rewards'
+import { shouldReward, rollLoot, rollLootDeduped, LootItem, isStreakMilestone } from '../lib/science/rewards'
 import { checkAchievements, AchievementStats } from '../lib/science/achievements'
 import { CharacterClassOption } from '../lib/constants/classes'
 
@@ -15,6 +15,22 @@ const CORE_VALUE_CUES: Record<string, string> = {
   mastery: 'Reps today become excellence later. Stay in deliberate practice.',
   impact: 'Today\'s execution can create value beyond yourself.',
   calm: 'Stay grounded. Smooth execution beats frantic effort.'
+}
+
+const LEVEL_UP_FOCUS_REWARD = 10
+
+function focusForLevel(level: number): number {
+  return level >= 2 ? LEVEL_UP_FOCUS_REWARD : 0
+}
+
+function totalLevelUpFocus(oldLevel: number, newLevel: number): number {
+  if (newLevel <= oldLevel) return 0
+
+  let total = 0
+  for (let level = oldLevel + 1; level <= newLevel; level += 1) {
+    total += focusForLevel(level)
+  }
+  return total
 }
 
 function resolveIdentityCue(coreValuesRaw: string | null, fallback: string): string {
@@ -71,7 +87,7 @@ interface GamificationState {
   checkAndUnlockBadges: (stats: AchievementStats) => Promise<void>
   setCharacterClass: (classId: string) => Promise<void>
   loadCharacterClassConfig: () => Promise<void>
-  triggerLootBox: (context?: string) => void
+  triggerLootBox: (context?: string) => Promise<void>
   triggerQuestCompleted: (title: string, xpAwarded: number, focusAwarded?: number) => void
   dismissReward: (id: string) => void
   refreshFromDB: () => Promise<void>
@@ -156,19 +172,31 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       // Level up notification
       if (hydrated && newLevel > oldLevel && oldLevel > 0) {
         const id = `levelup_${Date.now()}`
+        const focusAwarded = totalLevelUpFocus(oldLevel, newLevel)
         const identityCue = resolveIdentityCue(
           typeof coreValuesRaw === 'string' ? coreValuesRaw : null,
           'You are becoming the kind of person who executes with consistency.'
         )
+
+        const rewardsToAdd: PendingReward[] = [
+          {
+            id,
+            type: 'level_up',
+            data: { newLevel, oldLevel, characterClass: stats.characterClass, identityCue, focusAwarded }
+          }
+        ]
+
+        if (focusAwarded > 0) {
+          const focusId = `focus_level_${Date.now()}`
+          rewardsToAdd.push({ id: focusId, type: 'focus_earned', data: { amount: focusAwarded } })
+          setTimeout(() => get().dismissReward(focusId), 2200)
+          void import('./shop.store').then(({ useShopStore }) => {
+            void useShopStore.getState().refreshBalance()
+          })
+        }
+
         set((s) => ({
-          pendingRewards: [
-            ...s.pendingRewards,
-            {
-              id,
-              type: 'level_up',
-              data: { newLevel, oldLevel, characterClass: stats.characterClass, identityCue }
-            }
-          ]
+          pendingRewards: [...s.pendingRewards, ...rewardsToAdd]
         }))
       }
 
@@ -284,12 +312,39 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
     setTimeout(() => get().dismissReward(toastId), 2600)
   },
 
-  triggerLootBox: (context = 'default') => {
+  triggerLootBox: async (context = 'default') => {
     if (!shouldReward(context, get().classEvolutionIndex)) return
 
-    const loot = rollLoot(undefined, get().classEvolutionIndex)
+    // Build set of already-owned cosmetic/theme names to prevent duplicates
+    let ownedNames = new Set<string>()
+    try {
+      const existing = await api().loot.list() as Array<{ type: string; payload: string }>
+      ownedNames = new Set(
+        existing
+          .filter((i) => i.type === 'theme' || i.type === 'cosmetic')
+          .map((i) => { try { return (JSON.parse(i.payload) as { name?: string }).name ?? '' } catch { return '' } })
+          .filter(Boolean)
+      )
+    } catch { /* proceed without dedup on failure */ }
+
+    const result = rollLootDeduped(ownedNames, undefined, get().classEvolutionIndex)
     const id = `loot_${Date.now()}`
 
+    if (result.focusInstead !== null) {
+      // Duplicate cosmetic/theme — award Focus instead and persist to DB
+      void api().shop.awardFocus('loot_duplicate', id, result.focusInstead)
+      const focusId = `focus_dup_${Date.now()}`
+      set((s) => ({
+        pendingRewards: [...s.pendingRewards, { id: focusId, type: 'focus_earned', data: { amount: result.focusInstead } }]
+      }))
+      setTimeout(() => get().dismissReward(focusId), 2200)
+      void import('./shop.store').then(({ useShopStore }) => {
+        void useShopStore.getState().refreshBalance()
+      })
+      return
+    }
+
+    const loot = result.loot
     set((s) => ({
       pendingRewards: [
         ...s.pendingRewards,

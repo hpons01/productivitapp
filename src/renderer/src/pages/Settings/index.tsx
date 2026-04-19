@@ -192,8 +192,8 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Settings</h1>
-        <p className="text-surface-400 text-sm mt-1">Customize your productivity experience.</p>
+        <h1 className="page-title">Settings</h1>
+        <p className="page-subtitle">Customize your productivity experience.</p>
       </div>
 
       {/* Appearance */}

@@ -16,19 +16,19 @@ const PRESETS = [
 ]
 
 const STATUS_COLORS: Record<string, string> = {
-  idle: 'text-surface-400',
-  running: 'text-emerald-400',
-  paused: 'text-amber-400',
-  break: 'text-blue-400',
-  completed: 'text-purple-400'
+  idle: 'text-[color:var(--app-muted)]',
+  running: 'text-[color:var(--app-primary)]',
+  paused: 'text-[color:var(--app-amber)]',
+  break: 'text-[color:var(--app-ring-break,#3b82f6)]',
+  completed: 'text-[color:var(--app-primary)]'
 }
 
 const STATUS_BG: Record<string, string> = {
   idle: 'from-surface-700 to-surface-800',
-  running: 'from-emerald-900/20 to-surface-800',
+  running: 'from-primary-900/20 to-surface-800',
   paused: 'from-amber-900/20 to-surface-800',
   break: 'from-blue-900/20 to-surface-800',
-  completed: 'from-purple-900/20 to-surface-800'
+  completed: 'from-primary-900/20 to-surface-800'
 }
 
 interface SessionRow {
@@ -142,8 +142,8 @@ export function PomodoroPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Focus Timer</h1>
-        <p className="text-surface-400 text-sm mt-1">
+        <h1 className="page-title">Focus Timer</h1>
+        <p className="page-subtitle">
           {todayPomodoros} sessions · {todayMinutes} min focused today
         </p>
       </div>
@@ -170,16 +170,19 @@ export function PomodoroPage() {
               <motion.circle
                 cx="120" cy="120" r="110"
                 fill="none"
-                stroke={
-                  status === 'break' ? '#3b82f6'
-                  : status === 'paused' ? '#f59e0b'
-                  : '#7c3aed'
-                }
+                stroke="currentColor"
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
                 strokeDashoffset={circumference - (circumference * progressPct) / 100}
-                style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
+                style={{
+                  color: status === 'break'
+                    ? 'var(--app-ring-break, #3b82f6)'
+                    : status === 'paused'
+                    ? 'var(--app-amber)'
+                    : 'var(--app-primary)',
+                  filter: 'drop-shadow(0 0 8px currentColor)'
+                }}
                 transition={{ duration: 0.5 }}
               />
             </svg>

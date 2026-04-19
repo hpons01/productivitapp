@@ -4,7 +4,8 @@ import {
   getFocusBalance,
   getShopPurchasesForDate,
   purchaseShopItem,
-  getFocusLog
+  getFocusLog,
+  awardFocus
 } from '../db/queries/shop.queries'
 import { generateDailyShop } from '../domain/shop'
 
@@ -27,6 +28,12 @@ export function registerShopIpc(): void {
     if (!itemId || typeof itemId !== 'string') throw new Error('itemId required')
     if (!DATE_SEED_RE.test(dateSeed)) throw new Error('Invalid date seed format')
     return purchaseShopItem(getDb(), itemId, dateSeed)
+  })
+
+  ipcMain.handle('shop:awardFocus', (_event, source: string, sourceId: string, amount: number) => {
+    if (typeof amount !== 'number' || amount <= 0) return { success: false }
+    const result = awardFocus(getDb(), source, sourceId, amount)
+    return { success: true, newBalance: result.newBalance }
   })
 
   ipcMain.handle('shop:focusLog', (_event, limit = 50) => {

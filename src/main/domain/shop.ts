@@ -10,7 +10,7 @@ export interface ShopItem {
   icon: string
   focusCost: number
   // Potion fields
-  effectType?: 'xp_boost' | 'pet_xp_boost' | 'quest_rush' | 'focus_regen' | 'habit_boost'
+  effectType?: 'xp_boost' | 'pet_xp_boost' | 'quest_rush' | 'focus_regen' | 'habit_boost' | 'level_grant'
   effectDuration?: number
   effectMagnitude?: number
   // Cosmetic fields
@@ -21,7 +21,7 @@ export interface ShopItem {
 }
 
 export const SHOP_CATALOG: ShopItem[] = [
-  // ── Potions (10 items) ────────────────────────────────────────────────────────
+  // ── Potions ────────────────────────────────────────────────────────────────────
   {
     id: 'potion_xp_small',
     type: 'potion', rarity: 'common',
@@ -101,6 +101,70 @@ export const SHOP_CATALOG: ShopItem[] = [
     description: '+60% task XP for 1 hour',
     icon: '🏃', focusCost: 65,
     effectType: 'xp_boost', effectDuration: 60, effectMagnitude: 1.6
+  },
+  {
+    id: 'potion_level_quarter',
+    type: 'potion', rarity: 'common',
+    name: 'Novice Sigil',
+    description: 'Gain 25% of a level',
+    icon: '🪶', focusCost: 95,
+    effectType: 'level_grant', effectMagnitude: 0.25
+  },
+  {
+    id: 'potion_level_half',
+    type: 'potion', rarity: 'uncommon',
+    name: 'Adept Sigil',
+    description: 'Gain 50% of a level',
+    icon: '📘', focusCost: 190,
+    effectType: 'level_grant', effectMagnitude: 0.5
+  },
+  {
+    id: 'potion_level_three_quarters',
+    type: 'potion', rarity: 'rare',
+    name: 'Master Sigil',
+    description: 'Gain 75% of a level',
+    icon: '📗', focusCost: 320,
+    effectType: 'level_grant', effectMagnitude: 0.75
+  },
+  {
+    id: 'potion_level_full',
+    type: 'potion', rarity: 'epic',
+    name: 'Ascendant Sigil',
+    description: 'Gain a full level',
+    icon: '📕', focusCost: 500,
+    effectType: 'level_grant', effectMagnitude: 1.0
+  },
+  {
+    id: 'potion_xp_long_small',
+    type: 'potion', rarity: 'common',
+    name: 'Long XP Tonic',
+    description: '+25% XP for 6 hours',
+    icon: '🧪', focusCost: 80,
+    effectType: 'xp_boost', effectDuration: 360, effectMagnitude: 1.25
+  },
+  {
+    id: 'potion_xp_long_medium',
+    type: 'potion', rarity: 'uncommon',
+    name: 'Long XP Elixir',
+    description: '+50% XP for 6 hours',
+    icon: '⚗️', focusCost: 150,
+    effectType: 'xp_boost', effectDuration: 360, effectMagnitude: 1.5
+  },
+  {
+    id: 'potion_xp_long_large',
+    type: 'potion', rarity: 'rare',
+    name: 'Long XP Infusion',
+    description: '+75% XP for 6 hours',
+    icon: '🔬', focusCost: 260,
+    effectType: 'xp_boost', effectDuration: 360, effectMagnitude: 1.75
+  },
+  {
+    id: 'potion_xp_long_full',
+    type: 'potion', rarity: 'epic',
+    name: 'Long XP Overdrive',
+    description: '+100% XP for 6 hours',
+    icon: '🚀', focusCost: 380,
+    effectType: 'xp_boost', effectDuration: 360, effectMagnitude: 2.0
   },
 
   // ── Cosmetics (15 items) ──────────────────────────────────────────────────────
