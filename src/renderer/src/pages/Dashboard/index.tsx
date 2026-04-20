@@ -161,16 +161,8 @@ export function DashboardPage() {
     setChestPhase('opening')
 
     try {
-      const result = await window.api.loot.claimBossLoot() as { success: boolean; focusAwarded?: number; error?: string }
-      if (!result.success) {
-        console.error('[BossChest] IPC returned failure:', result.error)
-        setChestPhase('idle')
-        claimingRef.current = false
-        return
-      }
-
       const { dismissReward, classEvolutionIndex: evolutionTier } = useGamificationStore.getState()
-      const focusAmount = result.focusAwarded ?? 150
+      const focusAmount = 150
 
       // Build owned set for dedup
       let ownedNames = new Set<string>()
@@ -200,9 +192,8 @@ export function DashboardPage() {
         loot = fallbackPool[Math.floor(Math.random() * fallbackPool.length)]
       }
 
-      // Persist loot
       const lootId = `boss_loot_${Date.now()}`
-      await window.api.loot.save({
+      const lootPayload = {
         id: lootId,
         type: loot!.type,
         tier: loot!.tier,
@@ -212,7 +203,15 @@ export function DashboardPage() {
           value: loot!.value,
           levelFraction: loot!.levelFraction
         })
-      })
+      }
+
+      const result = await window.api.loot.claimBossLoot(lootPayload) as { success: boolean; focusAwarded?: number; error?: string }
+      if (!result.success) {
+        console.error('[BossChest] IPC returned failure:', result.error)
+        setChestPhase('idle')
+        claimingRef.current = false
+        return
+      }
 
       // Persist extra focus to DB if there was a duplicate bonus
       if (extraFocus !== focusAmount) {

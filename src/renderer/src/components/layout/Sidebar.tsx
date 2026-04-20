@@ -83,7 +83,7 @@ export function Sidebar() {
               title={label}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center gap-1 w-13 py-2.5 rounded-sm transition-all duration-200 group no-drag',
+                  'flex flex-col items-center gap-1 w-[52px] py-2.5 rounded-sm transition-all duration-200 group no-drag',
                   isActive ? activeNavClass : inactiveNavClass
                 )
               }
@@ -118,7 +118,7 @@ export function Sidebar() {
               title={label}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center gap-1 w-13 py-2.5 rounded-sm transition-all duration-200 group no-drag',
+                  'flex flex-col items-center gap-1 w-[52px] py-2.5 rounded-sm transition-all duration-200 group no-drag',
                   isActive ? activeNavClass : inactiveNavClass
                 )
               }
@@ -175,7 +175,7 @@ export function Sidebar() {
           title="Forge (Settings)"
           className={({ isActive }) =>
             cn(
-              'flex flex-col items-center gap-1 w-13 py-2.5 rounded-sm transition-all duration-200 border no-drag',
+              'flex flex-col items-center gap-1 w-[52px] py-2.5 rounded-sm transition-all duration-200 border no-drag',
               isActive
                 ? activeNavClass
                 : 'border-transparent ui-fg-muted hover:text-[color:var(--app-text)] hover:bg-surface-600/50 hover:border-primary-600/12'

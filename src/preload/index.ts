@@ -98,7 +98,7 @@ const api = {
     list: () => ipcRenderer.invoke('loot:list'),
     activate: (id: string) => ipcRenderer.invoke('loot:activate', id),
     save: (item: unknown) => ipcRenderer.invoke('loot:save', item),
-    claimBossLoot: () => ipcRenderer.invoke('boss:claimLoot')
+    claimBossLoot: (item: unknown) => ipcRenderer.invoke('boss:claimLoot', item)
   },
 
   // Pets

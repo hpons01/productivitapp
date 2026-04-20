@@ -7,12 +7,23 @@ import { Modal } from '../../components/ui/modal'
 import { useSettingsStore } from '../../stores/settings.store'
 import { cn } from '../../lib/utils'
 
-function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+  ariaLabel
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
+  ariaLabel: string
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
@@ -310,6 +321,7 @@ export function SettingsPage() {
             <Toggle
               checked={startOnBootEnabled}
               onChange={(v) => setSetting('start_on_boot', v ? 'true' : 'false')}
+              ariaLabel="Start when computer starts"
             />
           </div>
         </CardContent>
@@ -445,6 +457,7 @@ export function SettingsPage() {
               checked={developerModeEnabled}
               onChange={(v) => void handleDeveloperModeToggle(v)}
               disabled={developerModeBusy}
+              ariaLabel="Unlock everything for testing"
             />
           </div>
           <p className="text-xs text-surface-400">

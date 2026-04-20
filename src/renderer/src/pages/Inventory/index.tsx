@@ -167,9 +167,10 @@ export function InventoryPage() {
         getSetting
       )
 
-      // Consumables (xp_boost, power_up) and themes/cosmetics all get marked used on activation
-      await window.api.loot.activate(item.id)
-      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
+      if (item.type === 'xp_boost' || item.type === 'power_up') {
+        await window.api.loot.activate(item.id)
+        setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
+      }
     } catch (error) {
       console.error('Failed to activate loot item', error)
     }
