@@ -28,6 +28,25 @@ type DashboardActiveQuest = {
   status: 'enrolled' | 'active'
 }
 
+type BossClaimLootResult = {
+  success: boolean
+  focusAwarded?: number
+  error?: string
+}
+
+function toBossClaimLootResult(value: unknown): BossClaimLootResult {
+  if (!value || typeof value !== 'object') {
+    return { success: false, error: 'Invalid claim response.' }
+  }
+
+  const result = value as Record<string, unknown>
+  return {
+    success: result.success === true,
+    focusAwarded: typeof result.focusAwarded === 'number' ? result.focusAwarded : undefined,
+    error: typeof result.error === 'string' ? result.error : undefined
+  }
+}
+
 const CORE_VALUE_META: Record<string, { label: string; icon: string; cue: string }> = {
   health: { label: 'Health', icon: '🫀', cue: 'Protect your energy with focused, sustainable effort today.' },
   growth: { label: 'Growth', icon: '🌱', cue: 'Every completed action is another level gained.' },
@@ -162,7 +181,7 @@ export function DashboardPage() {
 
     try {
       const { dismissReward, classEvolutionIndex: evolutionTier } = useGamificationStore.getState()
-      const focusAmount = 150
+      const defaultFocusAmount = 150
 
       // Build owned set for dedup
       let ownedNames = new Set<string>()
@@ -179,11 +198,11 @@ export function DashboardPage() {
       const rollResult = rollLootDeduped(ownedNames, 'epic', evolutionTier)
 
       let loot: LootItem | null = rollResult.loot
-      let extraFocus = focusAmount
+      let extraFocus = defaultFocusAmount
 
       if (rollResult.focusInstead !== null) {
         // Boss rolled a duplicate cosmetic — add extra focus, use a fallback non-cosmetic roll
-        extraFocus = focusAmount + rollResult.focusInstead
+        extraFocus = defaultFocusAmount + rollResult.focusInstead
         // Re-roll forcing a non-cosmetic epic item (xp_boost or power_up)
         const fallbackPool = [
           { tier: 'epic' as const, type: 'xp_boost' as const, name: 'Epic XP Orb', description: '+1500 bonus XP', value: 1500 },
@@ -205,7 +224,7 @@ export function DashboardPage() {
         })
       }
 
-      const result = await window.api.loot.claimBossLoot(lootPayload) as { success: boolean; focusAwarded?: number; error?: string }
+      const result = toBossClaimLootResult(await window.api.loot.claimBossLoot(lootPayload))
       if (!result.success) {
         console.error('[BossChest] IPC returned failure:', result.error)
         setChestPhase('idle')
@@ -213,9 +232,13 @@ export function DashboardPage() {
         return
       }
 
+      const focusAmount = result.focusAwarded ?? defaultFocusAmount
+      const bonusFocus = extraFocus - defaultFocusAmount
+      extraFocus = focusAmount + bonusFocus
+
       // Persist extra focus to DB if there was a duplicate bonus
-      if (extraFocus !== focusAmount) {
-        void window.api.shop.awardFocus('boss_defeat_bonus', lootId, extraFocus - focusAmount)
+      if (bonusFocus > 0) {
+        void window.api.shop.awardFocus('boss_defeat_bonus', lootId, bonusFocus)
       }
 
       // Show focus popup

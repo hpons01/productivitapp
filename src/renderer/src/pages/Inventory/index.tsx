@@ -54,6 +54,7 @@ const TYPE_ICONS: Record<string, string> = {
   title: '📜',
   cosmetic: '✨'
 }
+const CONSUMABLE_LOOT_TYPES: RewardLootItem['type'][] = ['xp_boost', 'power_up']
 
 export function InventoryPage() {
   const [items, setItems] = useState<LootItem[]>([])
@@ -167,7 +168,7 @@ export function InventoryPage() {
         getSetting
       )
 
-      if (item.type === 'xp_boost' || item.type === 'power_up') {
+      if (CONSUMABLE_LOOT_TYPES.includes(item.type)) {
         await window.api.loot.activate(item.id)
         setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
       }
