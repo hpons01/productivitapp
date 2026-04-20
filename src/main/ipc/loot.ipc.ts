@@ -77,25 +77,47 @@ export function registerLootIpc(): void {
     return { success: true }
   })
 
-  ipcMain.handle('boss:claimLoot', () => {
+  ipcMain.handle('boss:claimLoot', (_event, item: unknown) => {
     try {
+      const validated = validateLootSaveInput(item)
+      if (!validated.ok) {
+        return { success: false, error: validated.error }
+      }
+
       const db = getDb()
-      const boss = getOrCreateWeeklyBoss(db)
-
-      if (!boss.defeated) {
-        return { success: false, error: 'Boss is not defeated yet.' }
-      }
-
-      const bossRow = db.prepare('SELECT loot_claimed FROM boss_battles WHERE id = ?').get(boss.id) as { loot_claimed: number } | undefined
-      if (bossRow?.loot_claimed) {
-        return { success: false, error: 'Loot already claimed.' }
-      }
-
       const focusAwarded = 150
-      awardFocus(db, 'boss_defeat', boss.id, focusAwarded)
-      db.prepare('UPDATE boss_battles SET loot_claimed = 1 WHERE id = ?').run(boss.id)
 
-      return { success: true, focusAwarded }
+      const claimLoot = db.transaction(() => {
+        const boss = getOrCreateWeeklyBoss(db)
+
+        if (!boss.defeated) {
+          return { success: false as const, error: 'Boss is not defeated yet.' }
+        }
+
+        const claimResult = db
+          .prepare('UPDATE boss_battles SET loot_claimed = 1 WHERE id = ? AND loot_claimed = 0')
+          .run(boss.id)
+
+        if (claimResult.changes !== 1) {
+          return { success: false as const, error: 'Loot already claimed.' }
+        }
+
+        db.prepare(
+          'INSERT OR IGNORE INTO loot_inventory (id, type, tier, payload, earned_at) VALUES (?, ?, ?, ?, ?)'
+        ).run(
+          validated.value.id,
+          validated.value.type,
+          validated.value.tier,
+          validated.value.payload,
+          Date.now()
+        )
+
+        awardFocus(db, 'boss_defeat', boss.id, focusAwarded)
+
+        return { success: true as const, focusAwarded }
+      })
+
+      return claimLoot()
     } catch (err) {
       console.error('[boss:claimLoot] error:', err)
       return { success: false, error: String(err) }
