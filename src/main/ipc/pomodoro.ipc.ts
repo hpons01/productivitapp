@@ -13,7 +13,6 @@ import {
   deletePreset
 } from '../db/queries/pomodoro.queries'
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
-import { getSetting, setSetting } from '../db/queries/settings.queries'
 import { sendNotification } from '../notifications'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
@@ -37,27 +36,10 @@ export function registerPomodoroIpc(): void {
     const session = db.prepare('SELECT duration_mins FROM pomodoro_sessions WHERE id = ?').get(id) as { duration_mins: number } | undefined
     const durationMins = Math.max(1, Number(session?.duration_mins ?? 25))
 
-    // Check for active power-up multiplier
-    let powerupBonus = 1
-    const rawPowerup = getSetting(db, 'active_powerup')
-    if (rawPowerup) {
-      try {
-        const pu = JSON.parse(rawPowerup) as { type: string; multiplier: number; expires_at: number | null; uses_left: number | null }
-        const expired = pu.expires_at !== null && Date.now() > pu.expires_at
-        const depleted = pu.uses_left !== null && pu.uses_left <= 0
-        if (!expired && !depleted && ['focus_potion', 'double_xp', 'time_warp'].includes(pu.type)) {
-          powerupBonus = pu.multiplier
-          if (pu.uses_left !== null) {
-            setSetting(db, 'active_powerup', JSON.stringify({ ...pu, uses_left: pu.uses_left - 1 }))
-          }
-        }
-      } catch {}
-    }
-
     // XP scales linearly from 40 XP per 25 minutes, then applies a 20% interruption penalty.
     const durationXP = (durationMins / 25) * 40
     const interruptedXP = interruptions > 0 ? durationXP * 0.8 : durationXP
-    const baseXP = Math.round(interruptedXP * powerupBonus)
+    const baseXP = Math.round(interruptedXP)
     const xpAward = awardXP(db, 'pomodoro', id, baseXP)
     const completedSession = completeSession(db, id, Date.now(), interruptions, xpAward.finalAmount)
     logEvent(db, 'pomodoro_completed', 'pomodoro', id, {

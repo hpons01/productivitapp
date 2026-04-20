@@ -5,14 +5,50 @@ import { Input } from '../../components/ui/input'
 import { Select } from '../../components/ui/select'
 import { Modal } from '../../components/ui/modal'
 import { useSettingsStore } from '../../stores/settings.store'
+import { cn } from '../../lib/utils'
+
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+  ariaLabel
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
+  ariaLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--app-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-transparent disabled:opacity-40 disabled:pointer-events-none',
+        checked ? 'bg-[color:var(--app-primary)] border-[color:var(--app-primary)]' : 'bg-surface-600 border-surface-500'
+      )}
+    >
+      <span
+        className={cn(
+          'pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200',
+          checked ? 'translate-x-3.5' : 'translate-x-0.5'
+        )}
+        style={{ marginTop: '1px' }}
+      />
+    </button>
+  )
+}
 
 const THEME_OPTIONS = [
-  { value: 'dark', label: '🌙 Dark (default)' },
-  { value: 'light', label: '☀️ Light' },
-  { value: 'ember', label: '🔥 Ember' },
-  { value: 'ocean', label: '🌊 Ocean' },
-  { value: 'void', label: '🌑 Void' },
-  { value: 'golden', label: '✨ Golden' }
+  { value: 'dark', label: '🌿 Ironveil' },
+  { value: 'light', label: '🌸 Silverlight' },
+  { value: 'ember', label: '🔥 Emberforge' },
+  { value: 'ocean', label: '🌊 Abyssal Tide' },
+  { value: 'void', label: '🌑 Voidweave' },
+  { value: 'golden', label: '⚜️ Sunken Throne' }
 ] as const
 
 const ACCENT_OPTIONS = [
@@ -192,9 +228,12 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Settings</h1>
-        <p className="text-surface-400 text-sm mt-1">Customize your productivity experience.</p>
+        <h1 className="page-title">Settings</h1>
+        <p className="page-subtitle">Customize your productivity experience.</p>
       </div>
+
+      {/* Identity group */}
+      <div className="section-divider">Identity</div>
 
       {/* Appearance */}
       <Card>
@@ -246,6 +285,9 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Rhythm group */}
+      <div className="section-divider">Rhythm</div>
+
       {/* Notifications */}
       <Card>
         <CardHeader><CardTitle>Notifications</CardTitle></CardHeader>
@@ -269,20 +311,19 @@ export function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>App Launch</CardTitle></CardHeader>
         <CardContent>
-          <label className="flex items-center justify-between gap-4 rounded-xl border border-surface-500 bg-surface-800 px-4 py-3">
+          <div className="flex items-center justify-between gap-4 rounded-sm border border-surface-500 bg-surface-800 px-4 py-3">
             <div>
               <p className="text-sm font-medium text-[color:var(--app-interactive-fg-default)]">Start when computer starts</p>
               <p className="text-xs text-surface-400 mt-1">
                 Opens ProductivitApp automatically after login.
               </p>
             </div>
-            <input
-              type="checkbox"
+            <Toggle
               checked={startOnBootEnabled}
-              onChange={(e) => setSetting('start_on_boot', e.target.checked ? 'true' : 'false')}
-              className="h-4 w-4 rounded border-surface-400 bg-surface-900"
+              onChange={(v) => setSetting('start_on_boot', v ? 'true' : 'false')}
+              ariaLabel="Start when computer starts"
             />
-          </label>
+          </div>
         </CardContent>
       </Card>
 
@@ -330,6 +371,9 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Data group */}
+      <div className="section-divider">Data</div>
+
       {/* Data & Privacy */}
       <Card>
         <CardHeader><CardTitle>Data &amp; Privacy</CardTitle></CardHeader>
@@ -355,7 +399,12 @@ export function SettingsPage() {
               Import JSON backup
             </Button>
           </div>
-          {importStatus && <p className="text-xs text-surface-300">{importStatus}</p>}
+          {importStatus && (
+            <p className={cn(
+              'text-xs',
+              importStatus.includes('complete') ? 'text-emerald-400' : importStatus.includes('failed') || importStatus.includes('error') ? 'text-red-400' : 'text-surface-300'
+            )}>{importStatus}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -375,29 +424,42 @@ export function SettingsPage() {
               Install update
             </Button>
           </div>
-          {updateStatus && <p className="text-xs text-surface-300">{updateStatus}</p>}
+          {updateStatus && (
+            <div className={cn(
+              'rounded-sm px-3 py-2 text-xs border',
+              updateStatus.includes('Update found') || updateStatus.includes('Update downloaded')
+                ? 'bg-primary-600/10 border-primary-500/30 text-primary-300'
+                : updateStatus.includes('failed') || updateStatus.includes('error')
+                ? 'bg-red-900/20 border-red-500/30 text-red-300'
+                : 'bg-surface-700/60 border-surface-600/50 text-surface-300'
+            )}>
+              {updateStatus}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Advanced group */}
+      <div className="section-divider">Advanced</div>
 
       {/* Developer Mode */}
       <Card>
         <CardHeader><CardTitle>Developer Mode</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <label className="flex items-center justify-between gap-4 rounded-xl border border-surface-500 bg-surface-800 px-4 py-3">
+          <div className="flex items-center justify-between gap-4 rounded-sm border border-surface-500 bg-surface-800 px-4 py-3">
             <div>
               <p className="text-sm font-medium text-[color:var(--app-interactive-fg-default)]">Unlock everything for testing</p>
               <p className="text-xs text-surface-400 mt-1">
                 Bypasses cosmetic locks and catalog quest level requirements.
               </p>
             </div>
-            <input
-              type="checkbox"
+            <Toggle
               checked={developerModeEnabled}
-              onChange={(e) => void handleDeveloperModeToggle(e.target.checked)}
+              onChange={(v) => void handleDeveloperModeToggle(v)}
               disabled={developerModeBusy}
-              className="h-4 w-4 rounded border-surface-400 bg-surface-900"
+              ariaLabel="Unlock everything for testing"
             />
-          </label>
+          </div>
           <p className="text-xs text-surface-400">
             {developerModeEnabled
               ? 'Developer mode is active. Locked cosmetics and catalog quests are now available.'
@@ -407,7 +469,7 @@ export function SettingsPage() {
       </Card>
 
       {/* Reset */}
-      <Card>
+      <Card className="border-l-2 border-l-red-500/60">
         <CardHeader><CardTitle className="text-red-400">Danger Zone</CardTitle></CardHeader>
         <CardContent>
           <p className="text-surface-400 text-sm mb-4">This will clear your journey data, mark onboarding as incomplete, and restart the setup flow.</p>

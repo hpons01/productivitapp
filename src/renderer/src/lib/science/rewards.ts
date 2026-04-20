@@ -12,6 +12,7 @@ export interface LootItem {
   name: string
   description: string
   value?: number
+  levelFraction?: number
 }
 
 /** Probability of reward trigger for a given context */
@@ -73,32 +74,40 @@ export function rollLootTier(evolutionTier = 0): LootTier {
 const LOOT_POOLS: Record<LootTier, LootItem[]> = {
   common: [
     { tier: 'common', type: 'xp_boost', name: 'Minor XP Scroll', description: '+50 bonus XP', value: 50 },
+    { tier: 'common', type: 'xp_boost', name: 'Novice Sigil', description: 'Gain 25% of a level', levelFraction: 0.25 },
+    { tier: 'common', type: 'power_up', name: 'Long XP Tonic', description: '+25% XP for 6 hours' },
     { tier: 'common', type: 'title', name: 'The Diligent', description: 'A modest title for your efforts' },
     { tier: 'common', type: 'cosmetic', name: 'Bronze Accent', description: 'Unlock bronze UI accents' }
   ],
   uncommon: [
     { tier: 'uncommon', type: 'xp_boost', name: 'XP Tome', description: '+150 bonus XP', value: 150 },
+    { tier: 'uncommon', type: 'xp_boost', name: 'Adept Sigil', description: 'Gain 50% of a level', levelFraction: 0.5 },
+    { tier: 'uncommon', type: 'power_up', name: 'Long XP Elixir', description: '+50% XP for 6 hours' },
     { tier: 'uncommon', type: 'power_up', name: 'Focus Potion', description: '+25% XP on your next 3 Pomodoros' },
     { tier: 'uncommon', type: 'cosmetic', name: 'Silver Accent', description: 'Unlock silver UI accents' },
     { tier: 'uncommon', type: 'title', name: 'The Persistent', description: 'A green title for the consistent' }
   ],
   rare: [
     { tier: 'rare', type: 'xp_boost', name: 'Ancient XP Crystal', description: '+500 bonus XP', value: 500 },
+    { tier: 'rare', type: 'xp_boost', name: 'Master Sigil', description: 'Gain 75% of a level', levelFraction: 0.75 },
+    { tier: 'rare', type: 'power_up', name: 'Long XP Infusion', description: '+75% XP for 6 hours' },
     { tier: 'rare', type: 'power_up', name: 'Streak Shield', description: 'Protect a streak from breaking once' },
     { tier: 'rare', type: 'theme', name: 'Ember Theme', description: 'Unlock the warm Emberforge palette' },
-    { tier: 'rare', type: 'theme', name: 'Ocean Theme', description: 'Unlock the Ocean dark theme' },
+    { tier: 'rare', type: 'theme', name: 'Ocean Theme', description: 'Unlock the Abyssal Tide theme' },
     { tier: 'rare', type: 'title', name: 'The Relentless', description: 'A blue title for the focused' }
   ],
   epic: [
     { tier: 'epic', type: 'xp_boost', name: 'Epic XP Orb', description: '+1500 bonus XP', value: 1500 },
+    { tier: 'epic', type: 'xp_boost', name: 'Ascendant Sigil', description: 'Gain a full level', levelFraction: 1 },
+    { tier: 'epic', type: 'power_up', name: 'Long XP Overdrive', description: '+100% XP for 6 hours' },
     { tier: 'epic', type: 'power_up', name: 'Double XP Elixir', description: '2× XP for the next 30 minutes' },
-    { tier: 'epic', type: 'theme', name: 'Void Theme', description: 'Unlock the ultra-dark Void theme' },
+    { tier: 'epic', type: 'theme', name: 'Void Theme', description: 'Unlock the sinister Voidweave theme' },
     { tier: 'epic', type: 'title', name: 'Champion of Focus', description: 'A purple title for the elite' }
   ],
   legendary: [
     { tier: 'legendary', type: 'xp_boost', name: 'Legendary XP Tome', description: '+5000 bonus XP', value: 5000 },
     { tier: 'legendary', type: 'cosmetic', name: 'Gold Accent', description: 'Unlock royal gold UI accents' },
-    { tier: 'legendary', type: 'theme', name: 'Golden Theme', description: 'Unlock the legendary Gold UI theme' },
+    { tier: 'legendary', type: 'theme', name: 'Golden Theme', description: 'Unlock the Sunken Throne legendary theme' },
     { tier: 'legendary', type: 'title', name: 'Productivity God', description: 'The rarest title in the game' },
     { tier: 'legendary', type: 'power_up', name: 'Time Warp', description: '3× XP for the next hour' }
   ]
@@ -110,16 +119,44 @@ export function rollLoot(tier?: LootTier, evolutionTier = 0): LootItem {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
+/** Focus awarded instead of a duplicate cosmetic/theme drop */
+export const DUPLICATE_FOCUS_BY_TIER: Record<LootTier, number> = {
+  common: 15,
+  uncommon: 30,
+  rare: 60,
+  epic: 120,
+  legendary: 250
+}
+
+/**
+ * Roll loot with deduplication for cosmetic/theme items.
+ * If the rolled item is a theme or cosmetic already owned (by name),
+ * returns { loot: null, focusInstead: number } so the caller can award Focus instead.
+ */
+export function rollLootDeduped(
+  ownedNames: Set<string>,
+  tier?: LootTier,
+  evolutionTier = 0
+): { loot: LootItem; focusInstead: null } | { loot: null; focusInstead: number } {
+  const loot = rollLoot(tier, evolutionTier)
+
+  if ((loot.type === 'theme' || loot.type === 'cosmetic') && ownedNames.has(loot.name)) {
+    return { loot: null, focusInstead: DUPLICATE_FOCUS_BY_TIER[loot.tier] }
+  }
+
+  return { loot, focusInstead: null }
+}
+
 /** Check if a streak number is a milestone */
 export function isStreakMilestone(streak: number): boolean {
   return STREAK_MILESTONES.includes(streak)
 }
 
-/** Get tier colors for UI */
+/** Get tier colors for UI — heraldic palette */
 export const TIER_COLORS: Record<LootTier, { text: string; border: string; bg: string; glow: string }> = {
-  common: { text: 'text-gray-300', border: 'border-gray-500', bg: 'bg-gray-500/10', glow: '' },
-  uncommon: { text: 'text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-500/10', glow: 'shadow-emerald-500/20' },
-  rare: { text: 'text-blue-400', border: 'border-blue-500', bg: 'bg-blue-500/10', glow: 'shadow-blue-500/30' },
-  epic: { text: 'text-purple-400', border: 'border-purple-500', bg: 'bg-purple-500/10', glow: 'shadow-purple-500/40' },
-  legendary: { text: 'text-amber-400', border: 'border-amber-500', bg: 'bg-amber-500/10', glow: 'shadow-amber-500/50' }
+  common:    { text: 'text-[#8a9ba8]',  border: 'border-[#8a9ba8]',  bg: 'bg-[rgba(138,155,168,0.08)]', glow: '' },
+  uncommon:  { text: 'text-[#2ea87e]',  border: 'border-[#2ea87e]',  bg: 'bg-[rgba(46,168,126,0.10)]',  glow: 'shadow-[0_0_8px_rgba(46,168,126,0.25)]' },
+  rare:      { text: 'text-[#4a9fd4]',  border: 'border-[#4a9fd4]',  bg: 'bg-[rgba(74,159,212,0.10)]',  glow: 'shadow-[0_0_10px_rgba(74,159,212,0.30)]' },
+  epic:      { text: 'text-[#9b59b6]',  border: 'border-[#9b59b6]',  bg: 'bg-[rgba(155,89,182,0.12)]',  glow: 'shadow-[0_0_12px_rgba(155,89,182,0.40)]' },
+  legendary: { text: 'text-[#c8972a]',  border: 'border-[#c8972a]',  bg: 'bg-[rgba(200,151,42,0.10)]',  glow: 'shadow-[0_0_16px_rgba(200,151,42,0.50)]' }
 }

@@ -16,19 +16,19 @@ const PRESETS = [
 ]
 
 const STATUS_COLORS: Record<string, string> = {
-  idle: 'text-surface-400',
-  running: 'text-emerald-400',
-  paused: 'text-amber-400',
-  break: 'text-blue-400',
-  completed: 'text-purple-400'
+  idle: 'text-[color:var(--app-muted)]',
+  running: 'text-[color:var(--app-primary)]',
+  paused: 'text-[color:var(--app-amber)]',
+  break: 'text-[color:var(--app-ring-break,#3b82f6)]',
+  completed: 'text-[color:var(--app-primary)]'
 }
 
 const STATUS_BG: Record<string, string> = {
   idle: 'from-surface-700 to-surface-800',
-  running: 'from-emerald-900/20 to-surface-800',
+  running: 'from-primary-900/20 to-surface-800',
   paused: 'from-amber-900/20 to-surface-800',
   break: 'from-blue-900/20 to-surface-800',
-  completed: 'from-purple-900/20 to-surface-800'
+  completed: 'from-primary-900/20 to-surface-800'
 }
 
 interface SessionRow {
@@ -142,8 +142,8 @@ export function PomodoroPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Focus Timer</h1>
-        <p className="text-surface-400 text-sm mt-1">
+        <h1 className="page-title">Focus Timer</h1>
+        <p className="page-subtitle">
           {todayPomodoros} sessions · {todayMinutes} min focused today
         </p>
       </div>
@@ -157,7 +157,7 @@ export function PomodoroPage() {
               value={sessionLabel}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="What are you working on? (optional)"
-              className="bg-surface-800/60 border border-surface-500 rounded-xl px-4 py-2.5 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)] w-full max-w-xs text-center"
+              className="bg-surface-800/60 border border-surface-500 rounded-sm px-4 py-2.5 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)] w-full max-w-xs text-center"
             />
           )}
 
@@ -165,21 +165,26 @@ export function PomodoroPage() {
           <div className="relative w-64 h-64">
             <svg className="w-full h-full -rotate-90 overflow-visible" viewBox="0 0 240 240" overflow="visible">
               {/* Track */}
-              <circle cx="120" cy="120" r="110" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+              <circle cx="120" cy="120" r="110" fill="none" stroke="var(--app-ring-track)" strokeWidth="8" />
               {/* Progress */}
               <motion.circle
                 cx="120" cy="120" r="110"
                 fill="none"
-                stroke={
-                  status === 'break' ? '#3b82f6'
-                  : status === 'paused' ? '#f59e0b'
-                  : '#7c3aed'
-                }
+                stroke="currentColor"
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
                 strokeDashoffset={circumference - (circumference * progressPct) / 100}
-                style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
+                style={{
+                  color: status === 'break'
+                    ? 'var(--app-ring-break, #3b82f6)'
+                    : status === 'paused'
+                    ? 'var(--app-amber)'
+                    : 'var(--app-primary)',
+                  ...(status === 'running'
+                    ? { animation: 'timerPulse 2s ease-in-out infinite' }
+                    : { filter: 'drop-shadow(0 0 8px currentColor)' })
+                }}
                 transition={{ duration: 0.5 }}
               />
             </svg>
@@ -189,11 +194,11 @@ export function PomodoroPage() {
               <div className={cn('text-5xl font-mono font-bold tabular-nums', STATUS_COLORS[status])}>
                 {formatDuration(timeLeft)}
               </div>
-              <div className="text-xs text-surface-400 mt-2 capitalize">
+              <div className="text-xs text-[color:var(--app-muted)] mt-2 capitalize">
                 {status === 'break' ? '☕ Break' : status === 'running' ? '🎯 Focusing' : status === 'paused' ? '⏸ Paused' : status === 'completed' ? '🎉 Done!' : '🍅 Pomodoro'}
               </div>
               {status !== 'idle' && (
-                <div className="text-[11px] text-surface-400 mt-1">
+                <div className="text-[11px] text-[color:var(--app-muted)] mt-1">
                   {endlessMode
                     ? `Endless enabled · loops done ${loopsCompletedInRun}`
                     : `Loops done ${Math.min(loopsCompletedInRun, repetitionTarget)} / ${repetitionTarget}`}
@@ -226,8 +231,8 @@ export function PomodoroPage() {
                 <Button variant="secondary" size="icon" onClick={increment} title="Mark interruption">
                   <AlertCircle size={16} />
                 </Button>
-                <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
-                  {endlessMode ? 'Endless On' : 'Endless'}
+                <Button variant={endlessMode ? 'amber' : 'secondary'} onClick={toggleEndlessMode}>
+                  {endlessMode ? '∞ Endless On' : 'Endless'}
                 </Button>
                 <Button variant="danger" size="icon" onClick={() => void stop()}><StopCircle size={16} /></Button>
               </>
@@ -235,8 +240,8 @@ export function PomodoroPage() {
             {status === 'paused' && (
               <>
                 <Button onClick={resume}><Play size={16} /> Resume</Button>
-                <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
-                  {endlessMode ? 'Endless On' : 'Endless'}
+                <Button variant={endlessMode ? 'amber' : 'secondary'} onClick={toggleEndlessMode}>
+                  {endlessMode ? '∞ Endless On' : 'Endless'}
                 </Button>
                 <Button variant="danger" size="icon" onClick={() => void stop()}><StopCircle size={16} /></Button>
               </>
@@ -244,8 +249,8 @@ export function PomodoroPage() {
             {status === 'break' && (
               <>
                 <Button onClick={() => void endBreak()}><SkipForward size={16} /> Skip Break</Button>
-                <Button variant={endlessMode ? 'default' : 'secondary'} onClick={toggleEndlessMode}>
-                  {endlessMode ? 'Endless On' : 'Endless'}
+                <Button variant={endlessMode ? 'amber' : 'secondary'} onClick={toggleEndlessMode}>
+                  {endlessMode ? '∞ Endless On' : 'Endless'}
                 </Button>
                 <Button variant="danger" size="icon" onClick={() => void stop()}><StopCircle size={16} /></Button>
               </>
@@ -264,7 +269,7 @@ export function PomodoroPage() {
         <Card>
           <CardHeader><CardTitle className="text-sm">Presets</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-xl border border-surface-600 bg-surface-800/40 p-3">
+            <div className="rounded-sm border border-surface-600 bg-surface-800/40 p-3">
               <label className="text-xs text-surface-300 block mb-2">Repetitions (work sessions total)</label>
               <div className="flex items-center gap-2">
                 <input
@@ -273,7 +278,7 @@ export function PomodoroPage() {
                   max={99}
                   value={repetitionTarget}
                   onChange={(e) => setRepetitionTarget(Number(e.target.value || 1))}
-                  className="w-24 rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
+                  className="w-24 rounded-sm bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
                 />
                 <span className="text-xs text-surface-400">Each loop is counted when break ends or is skipped.</span>
               </div>
@@ -288,7 +293,7 @@ export function PomodoroPage() {
                       key={preset.label}
                       onClick={() => applyPreset(preset.work, preset.break)}
                       className={cn(
-                        'px-3 py-2 rounded-xl text-sm border transition-all',
+                        'px-3 py-2 rounded-sm text-sm border transition-all',
                         isSelected
                           ? 'bg-primary-600/20 border-primary-500/40 text-primary-300'
                           : 'bg-surface-800 border-surface-600 text-surface-300 hover:border-surface-400'
@@ -303,7 +308,7 @@ export function PomodoroPage() {
               <button
                 onClick={() => setShowCustom((v) => !v)}
                 className={cn(
-                  'px-3 py-2 rounded-xl text-sm border transition-all whitespace-nowrap ml-auto',
+                  'px-3 py-2 rounded-sm text-sm border transition-all whitespace-nowrap ml-auto',
                   showCustom
                     ? 'bg-primary-600/20 border-primary-500/40 text-primary-300'
                     : 'bg-surface-800 border-dashed border-surface-500 text-surface-300 hover:border-surface-400'
@@ -322,7 +327,7 @@ export function PomodoroPage() {
                       <button
                         onClick={() => applyPreset(preset.work_mins, preset.break_mins)}
                         className={cn(
-                          'px-3 py-2 rounded-xl text-sm border transition-all',
+                          'px-3 py-2 rounded-sm text-sm border transition-all',
                           isSelected
                             ? 'bg-primary-600/20 border-primary-500/40 text-primary-300'
                             : 'bg-surface-800 border-surface-600 text-surface-300 hover:border-surface-400'
@@ -332,7 +337,7 @@ export function PomodoroPage() {
                       </button>
                       <button
                         onClick={() => deletePreset(preset.id)}
-                        className="p-2 rounded-lg border border-surface-600 text-surface-300 hover:text-red-300 hover:border-red-500/40 transition-colors"
+                        className="p-2 rounded-sm border border-surface-600 text-surface-300 hover:text-red-300 hover:border-red-500/40 transition-colors"
                         title="Delete preset"
                         aria-label={`Delete ${preset.name}`}
                       >
@@ -345,7 +350,7 @@ export function PomodoroPage() {
             )}
 
             {showCustom && (
-              <div className="rounded-xl border border-surface-600 bg-surface-800/50 p-3 space-y-3">
+              <div className="rounded-sm border border-surface-600 bg-surface-800/50 p-3 space-y-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <input
                     type="number"
@@ -354,7 +359,7 @@ export function PomodoroPage() {
                     value={customWork}
                     onChange={(e) => setCustomWork(Number(e.target.value || 0))}
                     placeholder="Work (min)"
-                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
+                    className="w-full rounded-sm bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
                   />
                   <input
                     type="number"
@@ -363,7 +368,7 @@ export function PomodoroPage() {
                     value={customBreak}
                     onChange={(e) => setCustomBreak(Number(e.target.value || 0))}
                     placeholder="Break (min)"
-                    className="w-full rounded-xl bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
+                    className="w-full rounded-sm bg-surface-800 border border-surface-500 px-3 py-2 text-sm text-[color:var(--app-interactive-fg-default)] placeholder:text-[color:var(--app-interactive-fg-muted)] focus:outline-none focus:border-[color:var(--app-focus-ring)]"
                   />
                 </div>
 
@@ -395,7 +400,7 @@ export function PomodoroPage() {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: todayPomodoros }).map((_, i) => (
-                <div key={i} className="w-8 h-8 rounded-lg bg-primary-600/20 border border-primary-500/20 flex items-center justify-center text-sm">
+                <div key={i} title={`Session ${i + 1}`} className="w-8 h-8 rounded-sm bg-primary-600/20 border border-primary-500/20 flex items-center justify-center text-sm">
                   🍅
                 </div>
               ))}
@@ -421,7 +426,7 @@ export function PomodoroPage() {
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl border text-sm',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-sm border text-sm',
                     s.completed
                       ? 'bg-surface-800/40 border-surface-700/50'
                       : 'bg-surface-800/20 border-surface-700/30 opacity-50'
@@ -440,12 +445,12 @@ export function PomodoroPage() {
 
                   <div className="flex items-center gap-2 shrink-0">
                     {s.interruptions > 0 && (
-                      <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md">
+                      <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-sm">
                         <AlertCircle size={10} />{s.interruptions}
                       </span>
                     )}
                     {s.completed && s.xp_awarded > 0 && (
-                      <span className="flex items-center gap-1 text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded-md">
+                      <span className="flex items-center gap-1 text-xs text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded-sm">
                         <Zap size={10} />+{s.xp_awarded}
                       </span>
                     )}

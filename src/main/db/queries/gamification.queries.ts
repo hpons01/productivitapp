@@ -29,9 +29,69 @@ export interface XpAwardResult {
   bonusAmount: number
   classIdApplied: CharacterClassId | null
   petMultiplier: number
+  powerupMultiplier: number
   petXpGain: number
   petLeveledUp: boolean
   equippedPetId: string | null
+  levelBefore: number
+  levelAfter: number
+  levelUpFocusAwarded: number
+}
+
+const LEVEL_UP_FOCUS_REWARD = 10
+
+interface ActivePowerupConfig {
+  type: string
+  multiplier: number
+  expires_at: number | null
+  uses_left: number | null
+}
+
+function levelFromTotalXP(totalXP: number): number {
+  return Math.max(1, Math.floor(Math.sqrt(totalXP / 10)))
+}
+
+function focusForLevel(level: number): number {
+  // Keep level-up Focus predictable so players can plan purchases.
+  return level >= 2 ? LEVEL_UP_FOCUS_REWARD : 0
+}
+
+function getXpPowerupMultiplier(db: Database.Database, source: string): number {
+  const raw = getSetting(db, 'active_powerup')
+  if (!raw) return 1
+
+  let pu: ActivePowerupConfig
+  try {
+    pu = JSON.parse(raw) as ActivePowerupConfig
+  } catch {
+    return 1
+  }
+
+  const hasMultiplier = typeof pu.multiplier === 'number' && Number.isFinite(pu.multiplier)
+  if (!hasMultiplier || pu.multiplier <= 1) return 1
+
+  const now = Date.now()
+  const expired = pu.expires_at !== null && now > pu.expires_at
+  const depleted = pu.uses_left !== null && pu.uses_left <= 0
+  if (expired || depleted) {
+    return 1
+  }
+
+  const appliesToSource =
+    pu.type === 'focus_potion'
+      ? source === 'pomodoro'
+      : pu.type === 'habit_boost'
+        ? source === 'habit'
+        : ['double_xp', 'time_warp', 'xp_boost'].includes(pu.type)
+
+  if (!appliesToSource) return 1
+
+  if (pu.uses_left !== null) {
+    const usesLeft = Math.max(0, pu.uses_left - 1)
+    setSetting(db, 'active_powerup', JSON.stringify({ ...pu, uses_left: usesLeft }))
+  }
+
+  return pu.multiplier
 }
 
 export interface CharacterClassConfig {
@@ -104,14 +164,42 @@ export function awardXP(
     petLeveledUp = petResult.leveledUp
   }
 
-  const multiplier = classCappedMultiplier * petMultiplier
+  const powerupMultiplier = getXpPowerupMultiplier(db, source)
+  const multiplier = classCappedMultiplier * petMultiplier * powerupMultiplier
   const finalAmount = Math.max(0, Math.round(baseAmount * multiplier))
   const bonusAmount = Math.max(0, finalAmount - baseAmount)
+
+  const totalXpBeforeRow = db
+    .prepare('SELECT COALESCE(SUM(amount), 0) as total FROM xp_log')
+    .get() as { total: number }
+  const totalXPBefore = totalXpBeforeRow.total || 0
+  const levelBefore = levelFromTotalXP(totalXPBefore)
 
   db.prepare(`
     INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, source, sourceId, finalAmount, baseAmount, multiplier, classIdApplied, evolutionTierApplied, Date.now())
+
+  const totalXPAfter = totalXPBefore + finalAmount
+  const levelAfter = levelFromTotalXP(totalXPAfter)
+  let levelUpFocusAwarded = 0
+
+  if (levelAfter > levelBefore) {
+    for (let level = levelBefore + 1; level <= levelAfter; level += 1) {
+      const focusAmount = focusForLevel(level)
+      if (focusAmount <= 0) continue
+
+      const focusSourceId = `level_up_focus_${level}`
+      const alreadyAwarded = db
+        .prepare("SELECT COUNT(*) as n FROM focus_log WHERE source = 'level_up' AND source_id = ?")
+        .get(focusSourceId) as { n: number }
+
+      if (alreadyAwarded.n > 0) continue
+
+      awardFocus(db, 'level_up', focusSourceId, focusAmount)
+      levelUpFocusAwarded += focusAmount
+    }
+  }
 
   logEvent(db, 'xp_awarded', source, sourceId, {
     baseAmount,
@@ -149,9 +237,13 @@ export function awardXP(
     bonusAmount,
     classIdApplied,
     petMultiplier,
+    powerupMultiplier,
     petXpGain,
     petLeveledUp,
-    equippedPetId
+    equippedPetId,
+    levelBefore,
+    levelAfter,
+    levelUpFocusAwarded
   }
 }
 

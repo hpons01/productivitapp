@@ -7,7 +7,9 @@ import { TIER_COLORS, type LootTier, type LootItem as RewardLootItem } from '../
 import { cn } from '../../lib/utils'
 import { format } from 'date-fns'
 import { useSettingsStore } from '../../stores/settings.store'
-import { activateLootItem, getAccentKeyFromLootName, getPowerupTypeFromName, getThemeKeyFromLootName } from '../../lib/loot-activation'
+import { useGamificationStore } from '../../stores/gamification.store'
+import { activateLootItem, getPowerupTypeFromName } from '../../lib/loot-activation'
+import { levelFromXP, xpForLevel } from '../../lib/science/xp'
 
 interface LootItem {
   id: string
@@ -23,6 +25,10 @@ interface ParsedPayload {
   description?: string
   type?: string
   value?: number
+  levelFraction?: number
+  effectType?: string
+  effectDuration?: number
+  effectMagnitude?: number
 }
 
 const TIER_LABELS: Record<LootTier, string> = {
@@ -48,6 +54,7 @@ const TYPE_ICONS: Record<string, string> = {
   title: '📜',
   cosmetic: '✨'
 }
+const CONSUMABLE_LOOT_TYPES: RewardLootItem['type'][] = ['xp_boost', 'power_up']
 
 export function InventoryPage() {
   const [items, setItems] = useState<LootItem[]>([])
@@ -57,8 +64,6 @@ export function InventoryPage() {
 
   const { getSetting, setSetting } = useSettingsStore()
   const equippedTitle = getSetting('equipped_title', '')
-  const activeTheme = getSetting('theme', 'dark')
-  const activeAccent = getSetting('active_accent', 'default')
   const activePowerupRaw = getSetting('active_powerup', '')
 
   useEffect(() => {
@@ -77,17 +82,26 @@ export function InventoryPage() {
     try { return JSON.parse(raw) } catch { return {} }
   }
 
+  async function resolveLevelGrantXP(levelFraction: number): Promise<number> {
+    const dashboard = await window.api.analytics.dashboard() as { totalXP: number }
+    const totalXP = Math.max(0, Number(dashboard?.totalXP ?? 0))
+    const level = levelFromXP(totalXP)
+    const levelSpan = Math.max(1, xpForLevel(level + 1) - xpForLevel(level))
+    return Math.max(1, Math.round(levelSpan * levelFraction))
+  }
+
   function getItemStatus(item: LootItem, payload: ParsedPayload): 'equipped' | 'active' | 'used' | 'available' {
     if (item.type === 'title') {
+      if (item.used_at) return payload.name === equippedTitle ? 'equipped' : 'used'
       return payload.name === equippedTitle ? 'equipped' : 'available'
     }
     if (item.type === 'theme') {
-      const key = getThemeKeyFromLootName(payload.name)
-      return key === activeTheme ? 'equipped' : 'available'
+      if (item.used_at) return 'used'
+      return 'available'
     }
     if (item.type === 'cosmetic') {
-      const key = getAccentKeyFromLootName(payload.name)
-      return key !== undefined && key === activeAccent ? 'equipped' : 'available'
+      if (item.used_at) return 'used'
+      return 'available'
     }
     if (item.type === 'power_up') {
       try {
@@ -107,18 +121,57 @@ export function InventoryPage() {
     try {
       const payload = parsePayload(item.payload)
       const payloadName = typeof payload.name === 'string' && payload.name.trim() ? payload.name : undefined
-      const requiresName = item.type === 'title' || item.type === 'theme' || item.type === 'power_up'
+      const requiresName = item.type === 'title' || item.type === 'theme' || (item.type === 'power_up' && !payload.effectType)
       if (requiresName && !payloadName) {
         console.error('Cannot activate loot item: payload is missing required name', item)
         return
       }
 
-      const isPersistent = ['title', 'theme', 'cosmetic'].includes(item.type)
-      if (!isPersistent) {
+      if (item.type === 'xp_boost') {
+        let xpToAward = typeof payload.value === 'number' ? Math.max(0, Math.round(payload.value)) : 0
+
+        if (typeof payload.levelFraction === 'number' && payload.levelFraction > 0) {
+          xpToAward = await resolveLevelGrantXP(Math.min(1, payload.levelFraction))
+        }
+
+        if (xpToAward > 0) {
+          await window.api.analytics.addXp('loot', `loot_${item.id}`, xpToAward)
+          await useGamificationStore.getState().refreshFromDB()
+        }
+      }
+
+      if (item.type === 'power_up' && payload.effectType === 'level_grant') {
+        const fraction = Math.max(0, Math.min(1, Number(payload.effectMagnitude ?? 0)))
+        if (fraction > 0) {
+          const xpToAward = await resolveLevelGrantXP(fraction)
+          await window.api.analytics.addXp('loot', `loot_${item.id}`, xpToAward)
+          await useGamificationStore.getState().refreshFromDB()
+        }
+      }
+
+      if (item.type === 'power_up' && payload.effectType === 'focus_regen') {
+        const focusAmount = Math.max(0, Math.round(Number(payload.effectMagnitude ?? 0)))
+        if (focusAmount > 0) {
+          await window.api.shop.awardFocus('loot_focus_regen', item.id, focusAmount)
+        }
+      }
+
+      await activateLootItem(
+        {
+          type: item.type,
+          name: payloadName,
+          effectType: payload.effectType,
+          effectDuration: payload.effectDuration,
+          effectMagnitude: payload.effectMagnitude
+        },
+        setSetting,
+        getSetting
+      )
+
+      if (CONSUMABLE_LOOT_TYPES.includes(item.type)) {
         await window.api.loot.activate(item.id)
         setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
       }
-      await activateLootItem({ type: item.type, name: payloadName }, setSetting, getSetting)
     } catch (error) {
       console.error('Failed to activate loot item', error)
     }
@@ -141,11 +194,11 @@ export function InventoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] flex items-center gap-2">
+          <h1 className="page-title flex items-center gap-2">
             <Package size={22} className="text-amber-400" />
             Loot Inventory
           </h1>
-          <p className="text-surface-400 text-sm mt-1">
+          <p className="page-subtitle">
             {availableCount} item{availableCount !== 1 ? 's' : ''} available · {items.length} total earned
           </p>
         </div>

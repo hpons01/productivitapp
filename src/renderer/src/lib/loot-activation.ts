@@ -17,7 +17,11 @@ const POWERUP_TYPE_MAP: Record<string, string> = {
   'Focus Potion': 'focus_potion',
   'Streak Shield': 'streak_shield',
   'Double XP Elixir': 'double_xp',
-  'Time Warp': 'time_warp'
+  'Time Warp': 'time_warp',
+  'Long XP Tonic': 'xp_boost',
+  'Long XP Elixir': 'xp_boost',
+  'Long XP Infusion': 'xp_boost',
+  'Long XP Overdrive': 'xp_boost'
 }
 
 interface PowerupConfig {
@@ -72,7 +76,12 @@ async function ensureUnlocked(
 }
 
 export async function activateLootItem(
-  loot: Pick<LootItem, 'type'> & { name?: string },
+  loot: Pick<LootItem, 'type'> & {
+    name?: string
+    effectType?: string
+    effectDuration?: number
+    effectMagnitude?: number
+  },
   setSetting: (key: string, val: string) => Promise<void>,
   getSetting?: (key: string, defaultValue?: string) => string
 ): Promise<void> {
@@ -99,16 +108,41 @@ export async function activateLootItem(
     }
 
     case 'power_up': {
-      if (!loot.name) return
       let config: PowerupConfig | null = null
       const now = Date.now()
 
-      if (POWERUP_BASE[loot.name]) {
+      if (loot.effectType === 'xp_boost' && typeof loot.effectMagnitude === 'number' && loot.effectMagnitude > 1) {
+        const durationMinutes = Math.max(1, Math.round(loot.effectDuration ?? 360))
+        config = {
+          type: 'xp_boost',
+          multiplier: loot.effectMagnitude,
+          expires_at: now + durationMinutes * 60 * 1000,
+          uses_left: null
+        }
+      } else if (loot.effectType === 'habit_boost' && typeof loot.effectMagnitude === 'number' && loot.effectMagnitude > 1) {
+        const durationMinutes = Math.max(1, Math.round(loot.effectDuration ?? 120))
+        config = {
+          type: 'habit_boost',
+          multiplier: loot.effectMagnitude,
+          expires_at: now + durationMinutes * 60 * 1000,
+          uses_left: null
+        }
+      }
+
+      if (!config && loot.name && POWERUP_BASE[loot.name]) {
         config = { ...POWERUP_BASE[loot.name] }
-      } else if (loot.name === 'Double XP Elixir') {
+      } else if (!config && loot.name === 'Double XP Elixir') {
         config = { type: 'double_xp', multiplier: 2, expires_at: now + 30 * 60 * 1000, uses_left: null }
-      } else if (loot.name === 'Time Warp') {
+      } else if (!config && loot.name === 'Time Warp') {
         config = { type: 'time_warp', multiplier: 3, expires_at: now + 60 * 60 * 1000, uses_left: null }
+      } else if (!config && loot.name === 'Long XP Tonic') {
+        config = { type: 'xp_boost', multiplier: 1.25, expires_at: now + 6 * 60 * 60 * 1000, uses_left: null }
+      } else if (!config && loot.name === 'Long XP Elixir') {
+        config = { type: 'xp_boost', multiplier: 1.5, expires_at: now + 6 * 60 * 60 * 1000, uses_left: null }
+      } else if (!config && loot.name === 'Long XP Infusion') {
+        config = { type: 'xp_boost', multiplier: 1.75, expires_at: now + 6 * 60 * 60 * 1000, uses_left: null }
+      } else if (!config && loot.name === 'Long XP Overdrive') {
+        config = { type: 'xp_boost', multiplier: 2, expires_at: now + 6 * 60 * 60 * 1000, uses_left: null }
       }
 
       if (config) await setSetting('active_powerup', JSON.stringify(config))

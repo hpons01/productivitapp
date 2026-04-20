@@ -97,7 +97,8 @@ const api = {
   loot: {
     list: () => ipcRenderer.invoke('loot:list'),
     activate: (id: string) => ipcRenderer.invoke('loot:activate', id),
-    save: (item: unknown) => ipcRenderer.invoke('loot:save', item)
+    save: (item: unknown) => ipcRenderer.invoke('loot:save', item),
+    claimBossLoot: (item: unknown) => ipcRenderer.invoke('boss:claimLoot', item)
   },
 
   // Pets
@@ -116,7 +117,8 @@ const api = {
     focusBalance: () => ipcRenderer.invoke('shop:focusBalance'),
     dailyShop: (dateSeed: string) => ipcRenderer.invoke('shop:dailyShop', dateSeed),
     purchase: (itemId: string, dateSeed: string) => ipcRenderer.invoke('shop:purchase', itemId, dateSeed),
-    focusLog: (limit?: number) => ipcRenderer.invoke('shop:focusLog', limit)
+    focusLog: (limit?: number) => ipcRenderer.invoke('shop:focusLog', limit),
+    awardFocus: (source: string, sourceId: string, amount: number) => ipcRenderer.invoke('shop:awardFocus', source, sourceId, amount)
   },
 
   // Data export

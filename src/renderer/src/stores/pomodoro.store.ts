@@ -178,7 +178,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       const { refreshFromDB, triggerLootBox, checkAndUnlockBadges } = useGamificationStore.getState()
       await refreshFromDB()
 
-      triggerLootBox('pomodoro')
+      void triggerLootBox('pomodoro')
 
       const lifetimeStats = await api().pomodoro.lifetimeStats()
 

@@ -216,8 +216,8 @@ export function TasksPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Tasks</h1>
-          <p className="text-surface-400 text-sm mt-1">{tasks.length} pending tasks</p>
+          <h1 className="page-title">Tasks</h1>
+          <p className="page-subtitle">{tasks.length} pending tasks</p>
         </div>
         <Button onClick={() => setShowForm(true)}><Plus size={16} /> Add Task</Button>
       </div>

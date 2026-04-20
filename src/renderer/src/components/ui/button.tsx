@@ -4,27 +4,27 @@ import { cn } from '../../lib/utils'
 import { Loader2 } from 'lucide-react'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--app-focus-ring)] disabled:opacity-50 disabled:pointer-events-none select-none',
+  'inline-flex items-center justify-center gap-2 rounded-sm font-[family:var(--font-display)] font-semibold tracking-wide uppercase transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--app-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-transparent disabled:opacity-40 disabled:pointer-events-none select-none',
   {
     variants: {
       variant: {
         primary:
-          'bg-primary-600 text-[color:var(--app-on-primary)] hover:bg-primary-500 shadow-lg hover:shadow-primary-600/30 hover:-translate-y-0.5 active:translate-y-0',
+          'bg-teal-700 text-white border border-teal-600 hover:bg-teal-600 hover:border-teal-500 shadow-[0_2px_0_rgba(0,0,0,0.5)] hover:shadow-[0_1px_0_rgba(0,0,0,0.5),0_0_12px_rgba(13,148,136,0.3)] active:translate-y-px active:shadow-none',
         secondary:
-          'bg-surface-700 text-[color:var(--app-interactive-fg-default)] hover:bg-[color:var(--app-interactive-bg-hover)] border border-[color:var(--app-interactive-border)]',
+          'bg-surface-600/80 text-[color:var(--app-text)] border border-surface-500/60 hover:bg-surface-500/80 hover:border-surface-400/60 shadow-[var(--shadow-inset)]',
         ghost:
-          'bg-transparent text-[color:var(--app-interactive-fg-muted)] hover:bg-[color:var(--app-interactive-bg-hover)] hover:text-[color:var(--app-interactive-fg-hover)]',
+          'bg-transparent text-[color:var(--app-muted)] border border-transparent hover:text-[color:var(--app-text)] hover:bg-surface-600/50',
         danger:
-          'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30',
+          'bg-red-950/60 text-red-400 border border-red-800/40 hover:bg-red-900/60 hover:border-red-700/50 hover:text-red-300 shadow-[inset_0_1px_0_rgba(255,80,80,0.08)]',
         success:
-          'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30',
+          'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 hover:bg-emerald-900/60 hover:border-emerald-700/50 hover:text-emerald-300',
         amber:
-          'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 font-bold'
+          'bg-amber-950/60 text-amber-400 border border-amber-800/40 hover:bg-amber-900/60 hover:border-amber-700/50 hover:text-amber-300'
       },
       size: {
-        sm: 'h-8 px-3 text-xs',
-        md: 'h-10 px-4 text-sm',
-        lg: 'h-12 px-6 text-base',
+        sm:   'h-7 px-3 text-[10px]',
+        md:   'h-9 px-4 text-[11px]',
+        lg:   'h-11 px-6 text-[11px]',
         icon: 'h-9 w-9 p-0'
       }
     },
@@ -49,7 +49,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled={disabled || loading}
       {...props}
     >
-      {loading && <Loader2 size={14} className="animate-spin" />}
+      {loading && <Loader2 size={13} className="animate-spin" />}
       {children}
     </button>
   )

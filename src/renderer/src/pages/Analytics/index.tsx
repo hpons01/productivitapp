@@ -108,10 +108,10 @@ function buildYearMonthRows(year: number, countByDate: Map<string, number>): Mon
 function heatColor(count: number, maxCount: number): string {
   if (count === 0) return 'var(--app-border)'
   const intensity = count / maxCount
-  if (intensity < 0.25) return '#312e81'
-  if (intensity < 0.5) return '#4c1d95'
-  if (intensity < 0.75) return '#6d28d9'
-  return '#7c3aed'
+  if (intensity < 0.25) return 'color-mix(in srgb, var(--app-primary) 30%, var(--app-surface-700))'
+  if (intensity < 0.5)  return 'color-mix(in srgb, var(--app-primary) 50%, var(--app-surface-700))'
+  if (intensity < 0.75) return 'color-mix(in srgb, var(--app-primary) 72%, var(--app-surface-700))'
+  return 'var(--app-primary)'
 }
 
 const HeatmapGrid = memo(function HeatmapGrid({
@@ -503,8 +503,8 @@ export function AnalyticsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)]">Profile Command Center</h1>
-        <p className="text-surface-400 text-sm mt-1">Own your identity, tune your class, and level with intention.</p>
+        <h1 className="page-title">Profile Command Center</h1>
+        <p className="page-subtitle">Own your identity, tune your class, and level with intention.</p>
       </div>
 
       <Card>
@@ -632,9 +632,9 @@ export function AnalyticsPage() {
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <RadarChart data={radarData}>
-                <PolarGrid stroke="#2d2d4a" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#8888aa', fontSize: 11 }} />
-                <Radar dataKey="value" fill="#7c3aed" fillOpacity={0.3} stroke="#8b5cf6" strokeWidth={2} />
+                <PolarGrid stroke="var(--app-border)" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--app-muted)', fontSize: 11 }} />
+                <Radar dataKey="value" fill="var(--app-primary)" fillOpacity={0.25} stroke="var(--app-primary)" strokeWidth={2} />
               </RadarChart>
             </ResponsiveContainer>
           </CardContent>

@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-  /* Runtime-themable color tokens */
   --color-primary: var(--app-primary);
   --color-primary-50: color-mix(in srgb, var(--app-primary) 15%, white);
   --color-primary-100: color-mix(in srgb, var(--app-primary) 25%, white);
@@ -25,24 +24,26 @@
   --color-surface-800: var(--app-surface-800);
   --color-surface-900: var(--app-surface-900);
 
-  /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans:    'Crimson Pro', Georgia, serif;
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --font-ui:      'JetBrains Mono', monospace;
 
-  /* Animations */
-  --animate-float-up: floatUp 1.2s ease-out forwards;
+  --animate-float-up:   emberRise 1.4s ease-out forwards;
   --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
-  --animate-shake: shake 0.5s ease-in-out;
-  --animate-bounce-in: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --animate-shake:      shake 0.5s ease-in-out;
+  --animate-bounce-in:  bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --animate-rune-glow:  runeGlow 2.5s ease-in-out infinite;
 }
 
-@keyframes floatUp {
-  0%   { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-60px); }
+@keyframes emberRise {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  70%  { opacity: 0.8; transform: translateY(-40px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-70px) scale(0.8); filter: blur(2px); }
 }
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 8px rgba(124, 58, 237, 0.4); }
-  50%       { box-shadow: 0 0 24px rgba(124, 58, 237, 0.8); }
+  0%, 100% { box-shadow: 0 0 8px var(--glow-color, rgba(18, 181, 168, 0.30)); }
+  50%       { box-shadow: 0 0 24px var(--glow-color, rgba(18, 181, 168, 0.30)); }
 }
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
@@ -55,52 +56,145 @@
   70%  { transform: scale(0.9); }
   100% { transform: scale(1); }
 }
+@keyframes subtlePulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.7; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes legendaryShimmer {
+  0%, 100% { box-shadow: 0 0 6px rgba(200, 151, 42, 0.3), inset 0 0 12px rgba(200, 151, 42, 0.05); }
+  50%       { box-shadow: 0 0 18px rgba(200, 151, 42, 0.5), inset 0 0 24px rgba(200, 151, 42, 0.10); }
+}
+@keyframes arcanePulse {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 1; }
+}
+@keyframes runeGlow {
+  0%, 100% { box-shadow: inset 0 0 0 1px var(--app-primary-dim), 0 0 4px var(--app-primary-dim); }
+  50%       { box-shadow: inset 0 0 0 1px var(--app-primary-glow), 0 0 12px var(--app-primary-glow); }
+}
+@keyframes flameFlicker {
+  0%, 100% { transform: scaleY(1) rotate(-2deg); opacity: 0.85; }
+  33%       { transform: scaleY(1.05) rotate(1deg); opacity: 1; }
+  66%       { transform: scaleY(0.95) rotate(-0.5deg); opacity: 0.9; }
+}
+@keyframes timerPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px currentColor); }
+  50%       { filter: drop-shadow(0 0 18px currentColor); }
+}
 
 @layer base {
   :root {
-    --app-surface-900: #0f0f1a;
-    --app-surface-800: #16162a;
-    --app-surface-700: #1e1e35;
-    --app-surface-600: #25253d;
-    --app-surface-500: #2d2d4a;
-    --app-surface-400: #7777b8;
+    /* === Ironveil Chronicle — Obsidian Stone Surface Scale === */
+    --app-surface-900: #060a09;
+    --app-surface-800: #0d1614;
+    --app-surface-700: #152019;
+    --app-surface-600: #1e2d24;
+    --app-surface-500: #2c4035;
+    --app-surface-400: #527a68;
 
-    --app-bg: var(--app-surface-900);
+    --app-bg:     var(--app-surface-900);
     --app-surface: var(--app-surface-800);
-    --app-card: var(--app-surface-700);
+    --app-card:   var(--app-surface-700);
     --app-border: var(--app-surface-500);
-    --app-primary: #7c3aed;
-    --app-primary-glow: rgba(124, 58, 237, 0.35);
-    --app-amber: #f59e0b;
-    --app-text: #f0f0ff;
-    --app-muted: #8888aa;
-    --app-success: #10b981;
-    --app-danger: #ef4444;
-    --scrollbar-color: var(--app-surface-500);
 
-    --app-on-primary: #ffffff;
-    --app-focus-ring: var(--app-primary);
-    --app-interactive-fg-default: var(--app-text);
-    --app-interactive-fg-muted: var(--app-muted);
-    --app-interactive-fg-hover: var(--app-text);
-    --app-interactive-fg-active: var(--app-primary);
-    --app-interactive-bg-hover: var(--app-surface-700);
-    --app-interactive-bg-active: color-mix(in srgb, var(--app-primary) 22%, transparent);
-    --app-interactive-border: var(--app-border);
+    /* === Primary: Verdigris — oxidized copper, more distinctive than plain teal === */
+    --app-primary:      #12b5a8;
+    --app-primary-glow: rgba(18, 181, 168, 0.30);
+    --app-primary-dim:  rgba(18, 181, 168, 0.10);
+
+    /* === Gold: Burnished Amber (XP / rewards) === */
+    --app-amber:      #d4a832;
+    --app-amber-glow: rgba(212, 168, 50, 0.32);
+
+    /* === Text hierarchy — improved contrast === */
+    --app-text:  #dfe8e4;
+    --app-muted: #89a89e;
+    --app-faint: #4a6458;
+
+    /* === Semantic states === */
+    --app-success: #22c55e;
+    --app-danger:  #f04f3e;
+    --app-info:    #38bdf8;
+    --app-warning: #d4a832;
+
+    /* === Status (aliased) === */
+    --app-status-success: #22c55e;
+    --app-status-warning: #d4a832;
+    --app-status-danger:  #f04f3e;
+    --app-status-info:    #38bdf8;
+
+    /* === Rarity — Heraldic tier colors === */
+    --rarity-common:         #9eafb8;
+    --rarity-uncommon:       #34c48e;
+    --rarity-rare:           #5aaedf;
+    --rarity-epic:           #b06de0;
+    --rarity-legendary:      #d4a832;
+    --rarity-legendary-glow: rgba(212, 168, 50, 0.45);
+    --rarity-epic-glow:      rgba(176, 109, 224, 0.35);
+
+    /* === Stone panels (no blur-glass) === */
+    --app-glass:        rgba(18, 28, 24, 0.90);
+    --app-glass-border: rgba(18, 181, 168, 0.14);
+    --app-glass-hover:  rgba(26, 40, 34, 0.95);
+
+    /* === Sidebar === */
+    --app-sidebar-bg:     #050908;
+    --app-sidebar-border: rgba(18, 181, 168, 0.18);
+
+    /* === Atmospheric background — arcane cathedral depth === */
+    --app-bg-radial:
+      radial-gradient(ellipse 55% 35% at 50% -5%, rgba(18, 181, 168, 0.10) 0%, transparent 65%),
+      radial-gradient(ellipse 70% 30% at 50% 108%, rgba(212, 168, 50, 0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 35% 80% at -5% 50%, rgba(0, 0, 0, 0.45) 0%, transparent 60%),
+      radial-gradient(ellipse 35% 80% at 105% 50%, rgba(0, 0, 0, 0.45) 0%, transparent 60%);
+
+    /* === Theme-adaptive grid line === */
+    --app-grid-line: rgba(18, 181, 168, 0.018);
+
+    /* === Unit frame (TopBar character panel) === */
+    --app-unit-frame-border: rgba(18, 181, 168, 0.26);
+    --app-unit-frame-bg:     rgba(18, 181, 168, 0.07);
+
+    /* === Pomodoro ring === */
+    --app-ring-default: var(--app-primary);
+    --app-ring-break:   #38bdf8;
+    --app-ring-paused:  #d4a832;
+    --app-ring-track:   rgba(255, 255, 255, 0.06);
+
+    /* === Shadows & Glows === */
+    --shadow-panel:   0 4px 32px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+    --shadow-inset:   inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+    --glow-primary:   0 0 0 1px var(--app-primary-glow), 0 4px 24px -4px var(--app-primary-glow);
+    --glow-legendary: 0 0 12px var(--rarity-legendary-glow), 0 0 40px rgba(212, 168, 50, 0.15);
+
+    /* === Interactive states === */
+    --app-on-primary:               #021312;
+    --app-focus-ring:               var(--app-primary);
+    --app-interactive-fg-default:   var(--app-text);
+    --app-interactive-fg-muted:     var(--app-muted);
+    --app-interactive-fg-hover:     #f2f7f5;
+    --app-interactive-fg-active:    var(--app-primary);
+    --app-interactive-bg-hover:     var(--app-surface-600);
+    --app-interactive-bg-active:    rgba(18, 181, 168, 0.16);
+    --app-interactive-border:       var(--app-border);
     --app-interactive-border-hover: var(--app-surface-400);
-    --app-icon-default: var(--app-muted);
-    --app-icon-hover: var(--app-text);
-
-    --app-control-bg: color-mix(in srgb, var(--app-surface-700) 70%, transparent);
-    --app-control-bg-hover: var(--app-interactive-bg-hover);
+    --app-icon-default:             var(--app-muted);
+    --app-icon-hover:               var(--app-text);
+    --app-control-bg:               rgba(24, 38, 32, 0.70);
+    --app-control-bg-hover:         var(--app-surface-600);
+    --scrollbar-color:              var(--app-surface-500);
   }
 
   .light {
-    --app-surface-900: #f8f7ff;
+    --app-surface-900: #f4f2ff;
     --app-surface-800: #ffffff;
-    --app-surface-700: #ffffff;
-    --app-surface-600: #ece8f6;
-    --app-surface-500: #d9d2e8;
+    --app-surface-700: #f5f2ff;
+    --app-surface-600: #ede9f8;
+    --app-surface-500: #d8d2ed;
     --app-surface-400: #7d7697;
 
     --app-bg: var(--app-surface-900);
@@ -108,23 +202,41 @@
     --app-card: var(--app-surface-700);
     --app-border: var(--app-surface-500);
     --app-primary: #5b3df5;
-    --app-primary-glow: rgba(91, 61, 245, 0.24);
-    --app-amber: #c98017;
+    --app-primary-glow: rgba(91, 61, 245, 0.22);
+    --app-primary-dim:  rgba(91, 61, 245, 0.10);
+    --app-amber: #8b5e0a;
     --app-text: #1a1a2e;
     --app-muted: #6b6b8a;
+    --app-faint: #c0b8d8;
     --scrollbar-color: var(--app-surface-500);
+
+    --app-glass: rgba(255, 255, 255, 0.85);
+    --app-glass-border: rgba(91, 61, 245, 0.10);
+    --app-glass-hover: rgba(255, 255, 255, 0.95);
+    --app-sidebar-bg: #eeeafd;
+    --app-sidebar-border: rgba(91, 61, 245, 0.10);
+    --app-bg-radial: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(91, 61, 245, 0.06) 0%, transparent 70%);
+    --app-grid-line: rgba(91, 61, 245, 0.012);
+    --app-unit-frame-border: rgba(91, 61, 245, 0.22);
+    --app-unit-frame-bg: rgba(91, 61, 245, 0.06);
+
+    --app-ring-break: #2563eb;
+    --app-status-warning: #8b5e0a;
 
     --app-on-primary: #ffffff;
     --app-interactive-fg-hover: #0f172a;
     --app-interactive-bg-hover: var(--app-surface-600);
-    --app-interactive-border-hover: #b9b0cc;
+    --app-interactive-border-hover: #c0b8d8;
     --app-icon-hover: var(--app-primary);
 
     --app-control-bg: color-mix(in srgb, var(--app-surface-600) 72%, transparent);
     --app-control-bg-hover: #e2dcef;
+
+    --app-ring-track:   rgba(91, 61, 245, 0.12);
+    --shadow-panel:     0 2px 12px rgba(91, 61, 245, 0.08), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    --shadow-inset-card: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(91, 61, 245, 0.10);
   }
 
-  /* Many screens use hardcoded text-white utilities; remap for readable light mode. */
   .light .text-white,
   .light .text-white\/90,
   .light .text-white\/80,
@@ -142,94 +254,185 @@
   }
 
   .ocean {
-    --app-surface-900: #061a20;
-    --app-surface-800: #0b2430;
-    --app-surface-700: #0e2e3c;
-    --app-surface-600: #134457;
-    --app-surface-500: #1a4a5a;
-    --app-surface-400: #72aebd;
+    --app-surface-900: #040f14;
+    --app-surface-800: #081c28;
+    --app-surface-700: #0c2535;
+    --app-surface-600: #103347;
+    --app-surface-500: #174459;
+    --app-surface-400: #5fa8bc;
 
     --app-bg: var(--app-surface-900);
     --app-surface: var(--app-surface-800);
     --app-card: var(--app-surface-700);
     --app-border: var(--app-surface-500);
-    --app-primary: #0891b2;
-    --app-primary-glow: rgba(8, 145, 178, 0.35);
-    --app-amber: #06b6d4;
-    --app-text: #e0f7fa;
-    --app-muted: #6baab8;
-    --app-success: #10b981;
-    --app-danger: #ef4444;
+    --app-primary: #06b6d4;
+    --app-primary-glow: rgba(6, 182, 212, 0.30);
+    --app-primary-dim:  rgba(6, 182, 212, 0.12);
+    --app-amber: #38bdf8;
+    --app-amber-glow: rgba(56, 189, 248, 0.30);
+    --app-text: #d0f4fb;
+    --app-muted: #5a9aaa;
+    --app-faint: #1e4a5a;
+    --app-success: #14b8a6;
+    --app-danger: #f43f5e;
     --scrollbar-color: var(--app-surface-500);
+
+    --app-glass: rgba(8, 28, 40, 0.72);
+    --app-glass-border: rgba(6, 182, 212, 0.12);
+    --app-glass-hover: rgba(12, 37, 53, 0.82);
+    --app-sidebar-bg: #050e14;
+    --app-sidebar-border: rgba(6, 182, 212, 0.10);
+    --app-bg-radial: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(6, 182, 212, 0.10) 0%, transparent 70%);
+    --app-grid-line: rgba(6, 182, 212, 0.015);
+    --app-unit-frame-border: rgba(6, 182, 212, 0.25);
+    --app-unit-frame-bg: rgba(6, 182, 212, 0.08);
+
+    --app-ring-break: #0ea5e9;
+    --app-status-info: #0ea5e9;
   }
 
   .void {
     --app-surface-900: #000000;
-    --app-surface-800: #080808;
-    --app-surface-700: #0f0f0f;
-    --app-surface-600: #151515;
-    --app-surface-500: #1c1c1c;
-    --app-surface-400: #5a5a5a;
+    --app-surface-800: #070707;
+    --app-surface-700: #0e0e0e;
+    --app-surface-600: #141414;
+    --app-surface-500: #1a1a1a;
+    --app-surface-400: #4a4a4a;
 
     --app-bg: var(--app-surface-900);
     --app-surface: var(--app-surface-800);
     --app-card: var(--app-surface-700);
     --app-border: var(--app-surface-500);
-    --app-primary: #9333ea;
-    --app-primary-glow: rgba(147, 51, 234, 0.30);
-    --app-amber: #a855f7;
-    --app-text: #e5e5e5;
-    --app-muted: #555555;
-    --app-success: #10b981;
-    --app-danger: #ef4444;
-    --scrollbar-color: var(--app-surface-500);
-  }
-
-  .golden {
-    --app-surface-900: #0f0a00;
-    --app-surface-800: #1a1200;
-    --app-surface-700: #211700;
-    --app-surface-600: #2d2100;
-    --app-surface-500: #3d2e00;
-    --app-surface-400: #92713a;
-
-    --app-bg: var(--app-surface-900);
-    --app-surface: var(--app-surface-800);
-    --app-card: var(--app-surface-700);
-    --app-border: var(--app-surface-500);
-    --app-primary: #d97706;
-    --app-primary-glow: rgba(217, 119, 6, 0.40);
-    --app-amber: #f59e0b;
-    --app-text: #fef3c7;
-    --app-muted: #92713a;
-    --app-success: #10b981;
-    --app-danger: #ef4444;
-    --scrollbar-color: var(--app-surface-500);
-  }
-
-  .ember {
-    --app-surface-900: #120b07;
-    --app-surface-800: #1b110b;
-    --app-surface-700: #25170f;
-    --app-surface-600: #321d12;
-    --app-surface-500: #4a2b18;
-    --app-surface-400: #b59172;
-
-    --app-bg: var(--app-surface-900);
-    --app-surface: var(--app-surface-800);
-    --app-card: var(--app-surface-700);
-    --app-border: var(--app-surface-500);
-    --app-primary: #f97316;
-    --app-primary-glow: rgba(249, 115, 22, 0.35);
-    --app-amber: #f59e0b;
-    --app-text: #ffe9d5;
-    --app-muted: #c2a182;
+    --app-primary: #a855f7;
+    --app-primary-glow: rgba(168, 85, 247, 0.28);
+    --app-primary-dim:  rgba(168, 85, 247, 0.10);
+    --app-amber: #c084fc;
+    --app-amber-glow: rgba(192, 132, 252, 0.28);
+    --app-text: #d4d4d4;
+    --app-muted: #787878;
+    --app-faint: #2a2a2a;
     --app-success: #22c55e;
     --app-danger: #ef4444;
     --scrollbar-color: var(--app-surface-500);
+
+    --app-glass: rgba(14, 14, 14, 0.85);
+    --app-glass-border: rgba(168, 85, 247, 0.08);
+    --app-glass-hover: rgba(20, 20, 20, 0.90);
+    --app-sidebar-bg: #030303;
+    --app-sidebar-border: rgba(168, 85, 247, 0.07);
+    --app-bg-radial: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(168, 85, 247, 0.06) 0%, transparent 70%);
+    --app-grid-line: rgba(168, 85, 247, 0.012);
+    --app-unit-frame-border: rgba(168, 85, 247, 0.22);
+    --app-unit-frame-bg: rgba(168, 85, 247, 0.06);
   }
 
-  /* Bronze accent: overrides --app-primary on any base theme */
+  .golden {
+    /* Sunken Throne — drowned palace, oxidized gold on midnight obsidian */
+    --app-surface-900: #080b12;
+    --app-surface-800: #0e1320;
+    --app-surface-700: #141c2e;
+    --app-surface-600: #1c2640;
+    --app-surface-500: #283554;
+    --app-surface-400: #6b7fa8;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
+    --app-primary: #c9972b;
+    --app-primary-glow: rgba(201, 151, 43, 0.36);
+    --app-primary-dim:  rgba(201, 151, 43, 0.12);
+    --app-amber: #e8b84b;
+    --app-text: #ddd5b8;
+    --app-muted: #7a8baa;
+    --app-faint: #1c2640;
+    --app-success: #2d9e6b;
+    --app-danger: #c0392b;
+    --scrollbar-color: var(--app-surface-500);
+
+    --app-glass: rgba(14, 19, 32, 0.82);
+    --app-glass-border: rgba(201, 151, 43, 0.16);
+    --app-glass-hover: rgba(20, 28, 46, 0.90);
+    --app-sidebar-bg: #060810;
+    --app-sidebar-border: rgba(201, 151, 43, 0.12);
+    --app-bg-radial:
+      radial-gradient(ellipse 60% 40% at 50% -8%, rgba(201, 151, 43, 0.10) 0%, transparent 65%),
+      radial-gradient(ellipse 80% 60% at 50% 110%, rgba(30, 50, 100, 0.18) 0%, transparent 60%);
+    --app-grid-line: rgba(201, 151, 43, 0.018);
+    --app-unit-frame-border: rgba(201, 151, 43, 0.28);
+    --app-unit-frame-bg: rgba(201, 151, 43, 0.07);
+
+    --app-ring-break: #3b82f6;
+    --app-ring-paused: #c9972b;
+    --app-status-info: #3b82f6;
+    --app-status-warning: #c9972b;
+
+    --app-on-primary: #080b12;
+    --app-interactive-fg-hover: #f0e8cc;
+    --app-interactive-bg-hover: var(--app-surface-600);
+    --app-interactive-bg-active: rgba(201, 151, 43, 0.15);
+    --app-icon-hover: var(--app-text);
+    --app-control-bg: rgba(20, 28, 46, 0.65);
+    --app-control-bg-hover: var(--app-surface-600);
+
+    --shadow-panel: 0 4px 32px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(201, 151, 43, 0.06) inset;
+    --glow-primary: 0 0 0 1px var(--app-primary-glow), 0 4px 24px -4px var(--app-primary-glow);
+  }
+
+  .ember {
+    /* Emberforge — forged steel, volcanic rock, vivid ember-orange on near-black */
+    --app-surface-900: #0a0908;
+    --app-surface-800: #121110;
+    --app-surface-700: #1c1a18;
+    --app-surface-600: #272421;
+    --app-surface-500: #38332e;
+    --app-surface-400: #7a6e62;
+
+    --app-bg: var(--app-surface-900);
+    --app-surface: var(--app-surface-800);
+    --app-card: var(--app-surface-700);
+    --app-border: var(--app-surface-500);
+    --app-primary: #f26419;
+    --app-primary-glow: rgba(242, 100, 25, 0.34);
+    --app-primary-dim:  rgba(242, 100, 25, 0.12);
+    --app-amber: #f5a623;
+    --app-amber-glow: rgba(245, 166, 35, 0.32);
+    --app-text: #e8ddd4;
+    --app-muted: #8c7e72;
+    --app-faint: #302b26;
+    --app-success: #34a85a;
+    --app-danger: #e03e3e;
+    --scrollbar-color: var(--app-surface-500);
+
+    --app-glass: rgba(24, 22, 20, 0.82);
+    --app-glass-border: rgba(242, 100, 25, 0.14);
+    --app-glass-hover: rgba(34, 30, 27, 0.90);
+    --app-sidebar-bg: #080706;
+    --app-sidebar-border: rgba(242, 100, 25, 0.12);
+    --app-bg-radial:
+      radial-gradient(ellipse 55% 35% at 50% -5%, rgba(242, 100, 25, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 50% at 100% 80%, rgba(180, 60, 10, 0.06) 0%, transparent 55%);
+    --app-grid-line: rgba(242, 100, 25, 0.016);
+    --app-unit-frame-border: rgba(242, 100, 25, 0.26);
+    --app-unit-frame-bg: rgba(242, 100, 25, 0.07);
+
+    --app-ring-break: #0ea5e9;
+    --app-ring-paused: #f5a623;
+    --app-status-info: #0ea5e9;
+    --app-status-warning: #f5a623;
+
+    --app-on-primary: #ffffff;
+    --app-interactive-fg-hover: #f5ede6;
+    --app-interactive-bg-hover: var(--app-surface-600);
+    --app-interactive-bg-active: rgba(242, 100, 25, 0.16);
+    --app-icon-hover: var(--app-text);
+    --app-control-bg: rgba(28, 26, 24, 0.65);
+    --app-control-bg-hover: var(--app-surface-600);
+
+    --shadow-panel: 0 4px 32px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+    --glow-primary: 0 0 0 1px var(--app-primary-glow), 0 4px 24px -4px var(--app-primary-glow);
+  }
+
   .accent-bronze {
     --app-primary: #cd7f32;
     --app-primary-glow: rgba(205, 127, 50, 0.35);
@@ -254,159 +457,283 @@
     box-sizing: border-box;
   }
 
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  a[href],
+  summary,
+  label[for],
+  input[type='button'],
+  input[type='submit'],
+  input[type='reset'],
+  input[type='checkbox'],
+  input[type='radio'],
+  select {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
   html, body, #root {
     height: 100%;
     margin: 0;
     padding: 0;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Crimson Pro', Georgia, serif;
     background: var(--app-bg);
     color: var(--app-text);
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
     background: var(--scrollbar-color);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--app-primary);
+    box-shadow: 0 0 6px var(--app-primary-glow);
   }
 
-  /* Remove default focus outline, use custom */
   *:focus-visible {
     outline: 2px solid var(--app-primary);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 2px;
   }
 }
 
 @layer utilities {
-  .no-scrollbar {
-    scrollbar-width: none;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  .ui-fg-default  { color: var(--app-interactive-fg-default); }
+  .ui-fg-muted    { color: var(--app-interactive-fg-muted); }
+  .ui-fg-hover:hover   { color: var(--app-interactive-fg-hover); }
+  .ui-bg-hover:hover   { background-color: var(--app-interactive-bg-hover); }
+  .ui-border-default   { border-color: var(--app-interactive-border); }
+  .ui-border-hover:hover { border-color: var(--app-interactive-border-hover); }
+  .ui-icon-default  { color: var(--app-icon-default); }
+  .ui-icon-hover:hover { color: var(--app-icon-hover); }
+
+  /* Stone surface utility (replaces glass) */
+  .ui-glass {
+    background: var(--app-glass);
+    border: 1px solid var(--app-glass-border);
   }
 
-  .ui-fg-default {
+  /* Depth utilities */
+  .ui-glow-inset {
+    box-shadow: var(--shadow-inset-card, inset 0 1px 0 0 rgba(255, 255, 255, 0.04), 0 2px 8px 0 rgba(0, 0, 0, 0.4));
+  }
+
+  .ui-glow-primary {
+    box-shadow: 0 0 0 1px var(--app-primary-glow),
+                0 4px 20px -2px var(--app-primary-glow);
+  }
+
+  /* Typography */
+  .font-ui      { font-family: var(--font-ui); }
+  .font-display { font-family: var(--font-display); }
+
+  /* Page section header */
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
     color: var(--app-interactive-fg-default);
+    line-height: 1.2;
   }
 
-  .ui-fg-muted {
-    color: var(--app-interactive-fg-muted);
+  .page-subtitle {
+    font-size: 0.875rem;
+    color: var(--app-muted);
+    margin-top: 0.2rem;
   }
 
-  .ui-fg-hover:hover {
-    color: var(--app-interactive-fg-hover);
+  /* Timer ring pulse */
+  .timer-pulse {
+    animation: timerPulse 2s ease-in-out infinite;
   }
 
-  .ui-bg-hover:hover {
-    background-color: var(--app-interactive-bg-hover);
+  /* Atmospheric background */
+  .bg-atmospheric {
+    background-image: var(--app-bg-radial);
+    background-attachment: fixed;
   }
 
-  .ui-border-default {
-    border-color: var(--app-interactive-border);
+  /* Stone floor — obsidian bg + teal arcane grid + radial depth */
+  .bg-stone-floor {
+    background-color: var(--app-surface-900);
+    background-image:
+      var(--app-bg-radial),
+      linear-gradient(var(--app-grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--app-grid-line) 1px, transparent 1px);
+    background-size: auto, 80px 80px, 80px 80px;
+    background-attachment: fixed, fixed, fixed;
   }
 
-  .ui-border-hover:hover {
-    border-color: var(--app-interactive-border-hover);
+  /* Arcane crown — primary→amber gradient on top edge of panels */
+  .panel-crown {
+    position: relative;
+  }
+  .panel-crown::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--app-primary) 30%,
+      var(--app-amber-glow, rgba(212, 168, 50, 0.3)) 60%,
+      transparent 100%
+    );
+    opacity: 0.5;
+    z-index: 1;
   }
 
-  .ui-icon-default {
-    color: var(--app-icon-default);
+  /* Clickable panel hover */
+  .panel-interactive {
+    transition: border-color 200ms, box-shadow 200ms, transform 200ms;
+    cursor: pointer;
   }
-
-  .ui-icon-hover:hover {
-    color: var(--app-icon-hover);
+  .panel-interactive:hover {
+    border-color: var(--app-primary-glow);
+    box-shadow:
+      var(--shadow-panel),
+      0 0 0 1px var(--app-primary-dim),
+      0 0 18px var(--app-primary-dim);
+    transform: translateY(-1px);
   }
 }
 
 @layer components {
-  /* Glass card effect */
+  /* Stone card — replaces glass morphism */
   .glass-card {
-    background: rgba(30, 30, 53, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 16px;
+    background: var(--app-glass);
+    border: 1px solid var(--app-glass-border);
+    border-radius: 4px;
   }
 
-  .light .glass-card {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+  /* Sidebar */
+  .app-sidebar {
+    background: var(--app-sidebar-bg);
+    border-right: 2px solid var(--app-sidebar-border);
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.5), 2px 0 0 var(--app-primary-dim);
   }
 
-  /* Glow button */
+  /* Primary button */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-500 text-white font-semibold px-4 py-2 rounded-xl transition-all duration-200;
-    box-shadow: 0 0 0 0 var(--app-primary-glow);
+    @apply font-semibold px-4 py-2 rounded-sm transition-all duration-150;
+    background: var(--app-primary);
+    color: var(--app-on-primary);
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
   }
   .btn-primary:hover {
-    box-shadow: 0 0 20px var(--app-primary-glow);
-    transform: translateY(-1px);
+    filter: brightness(1.1);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 0 14px var(--app-primary-glow);
   }
   .btn-primary:active {
-    transform: translateY(0);
+    transform: translateY(1px);
+    box-shadow: none;
   }
 
-  /* XP bar gradient */
+  /* XP bar — verdigris to burnished gold */
   .xp-bar {
-    background: linear-gradient(90deg, #7c3aed, #a855f7, #ec4899);
+    background: linear-gradient(90deg, #12b5a8, #1dd6c8, #d4a832);
   }
 
-  /* Rarity colors */
-  .rarity-common { color: #9ca3af; border-color: #9ca3af; }
-  .rarity-uncommon { color: #22c55e; border-color: #22c55e; }
-  .rarity-rare { color: #3b82f6; border-color: #3b82f6; }
-  .rarity-epic { color: #a855f7; border-color: #a855f7; }
-  .rarity-legendary { color: #f59e0b; border-color: #f59e0b; }
+  /* Rarity system — heraldic tier colors */
+  .rarity-common    { color: #8a9ba8; border-color: #8a9ba8; }
+  .rarity-uncommon  { color: #2ea87e; border-color: #2ea87e; }
+  .rarity-rare      { color: #4a9fd4; border-color: #4a9fd4; }
+  .rarity-epic      { color: #9b59b6; border-color: #9b59b6; }
+  .rarity-legendary { color: #c8972a; border-color: #c8972a; }
 
-  .rarity-bg-common { background: rgba(156, 163, 175, 0.1); }
-  .rarity-bg-uncommon { background: rgba(34, 197, 94, 0.1); }
-  .rarity-bg-rare { background: rgba(59, 130, 246, 0.1); }
-  .rarity-bg-epic { background: rgba(168, 85, 247, 0.1); }
-  .rarity-bg-legendary { background: rgba(245, 158, 11, 0.15); }
-
-  /* Streak flame animation */
-  @keyframes flameFlicker {
-    0%, 100% { transform: scaleY(1) rotate(-2deg); }
-    25% { transform: scaleY(1.05) rotate(1deg); }
-    50% { transform: scaleY(0.95) rotate(-1deg); }
-    75% { transform: scaleY(1.03) rotate(2deg); }
+  .rarity-bg-common    { background: rgba(138, 155, 168, 0.08); }
+  .rarity-bg-uncommon  { background: rgba(46, 168, 126, 0.10); }
+  .rarity-bg-rare      { background: rgba(74, 159, 212, 0.10); }
+  .rarity-bg-epic      { background: rgba(155, 89, 182, 0.12); }
+  .rarity-bg-legendary {
+    background: rgba(200, 151, 42, 0.10);
+    animation: legendaryShimmer 3s ease-in-out infinite;
   }
+
+  /* Streak flame */
   .streak-flame {
     animation: flameFlicker 1.5s ease-in-out infinite;
     display: inline-block;
   }
 
-  /* Drag region for macOS */
-  .drag-region {
-    -webkit-app-region: drag;
-  }
-  .no-drag {
-    -webkit-app-region: no-drag;
-  }
+  /* Drag regions */
+  .drag-region { -webkit-app-region: drag; }
+  .no-drag     { -webkit-app-region: no-drag; }
 
+  /* Window controls */
   .window-control-btn {
-    @apply inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors;
+    @apply inline-flex h-7 w-7 items-center justify-center rounded-sm transition-colors;
     color: var(--app-muted);
     background: var(--app-control-bg);
   }
-
   .window-control-btn:hover {
     background: var(--app-control-bg-hover);
     color: var(--app-interactive-fg-hover);
   }
-
   .window-control-close:hover {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(192, 57, 43, 0.18);
     color: #fca5a5;
+  }
+
+  /* Status pill */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 2px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid;
+    font-family: var(--font-display);
+  }
+
+  /* Section divider */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--app-muted);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-family: var(--font-display);
+  }
+  .section-divider::before,
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--app-border);
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

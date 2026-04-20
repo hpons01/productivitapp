@@ -55,7 +55,7 @@ export interface DashboardStats {
   classEvolutionProgressPct: number
   playstyleClass: string
   dailyQuests: Array<{id: string; quest_type: string; description: string; target: number; progress: number; completed: number; xp_reward: number}>
-  weeklyBoss: { name: string; max_hp: number; current_hp: number; defeated: number } | null
+  weeklyBoss: { name: string; max_hp: number; current_hp: number; defeated: number; loot_claimed: number } | null
 }
 
 export function getDashboardStats(db: Database.Database): DashboardStats {
@@ -188,7 +188,7 @@ export function getDashboardStats(db: Database.Database): DashboardStats {
   weekStart.setDate(weekStart.getDate() - weekStart.getDay())
   const bossResult = db.prepare(`
     SELECT * FROM boss_battles WHERE week_start >= ? ORDER BY week_start DESC LIMIT 1
-  `).get(weekStart.getTime()) as { name: string; max_hp: number; current_hp: number; defeated: number } | undefined
+  `).get(weekStart.getTime()) as { name: string; max_hp: number; current_hp: number; defeated: number; loot_claimed: number } | undefined
 
   return {
     totalXP,

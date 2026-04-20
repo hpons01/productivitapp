@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db'
+import { getOrCreateWeeklyBoss } from '../db/queries/gamification.queries'
+import { awardFocus } from '../db/queries/shop.queries'
 
 export interface LootItem {
   id: string
@@ -73,6 +75,53 @@ export function registerLootIpc(): void {
     const db = getDb()
     db.prepare('UPDATE loot_inventory SET used_at = ? WHERE id = ?').run(Date.now(), id)
     return { success: true }
+  })
+
+  ipcMain.handle('boss:claimLoot', (_event, item: unknown) => {
+    try {
+      const validated = validateLootSaveInput(item)
+      if (!validated.ok) {
+        return { success: false, error: validated.error }
+      }
+
+      const db = getDb()
+      const focusAwarded = 150
+
+      const claimLoot = db.transaction(() => {
+        const boss = getOrCreateWeeklyBoss(db)
+
+        if (!boss.defeated) {
+          return { success: false as const, error: 'Boss is not defeated yet.' }
+        }
+
+        const claimResult = db
+          .prepare('UPDATE boss_battles SET loot_claimed = 1 WHERE id = ? AND loot_claimed = 0')
+          .run(boss.id)
+
+        if (claimResult.changes !== 1) {
+          return { success: false as const, error: 'Loot already claimed.' }
+        }
+
+        db.prepare(
+          'INSERT OR IGNORE INTO loot_inventory (id, type, tier, payload, earned_at) VALUES (?, ?, ?, ?, ?)'
+        ).run(
+          validated.value.id,
+          validated.value.type,
+          validated.value.tier,
+          validated.value.payload,
+          Date.now()
+        )
+
+        awardFocus(db, 'boss_defeat', boss.id, focusAwarded)
+
+        return { success: true as const, focusAwarded }
+      })
+
+      return claimLoot()
+    } catch (err) {
+      console.error('[boss:claimLoot] error:', err)
+      return { success: false, error: String(err) }
+    }
   })
 
   ipcMain.handle('loot:save', (_event, item: unknown) => {
