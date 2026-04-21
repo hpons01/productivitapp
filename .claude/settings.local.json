@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(grep -iE \"\\\\.pem$|\\\\.key$|\\\\.p12$|\\\\.pfx$|\\\\.cer$|signing_keys|secret|credential\")"
+    ]
+  }
+}

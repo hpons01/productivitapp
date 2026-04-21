@@ -14,10 +14,14 @@ import { PetsPage } from './pages/Pets'
 import { QuestsPage } from './pages/Quests'
 import { ShopPage } from './pages/Shop'
 import { OnboardingPage } from './pages/Onboarding'
+import { AuthPage } from './pages/Auth'
+import { ProfileCompletionPage } from './pages/ProfileCompletion'
 import { GamificationOverlay } from './components/feedback/GamificationOverlay'
 import { Button } from './components/ui/button'
 import { useSettingsStore } from './stores/settings.store'
 import { useGamificationStore } from './stores/gamification.store'
+import { useAuthStore } from './stores/auth.store'
+import { useSyncStore } from './stores/sync.store'
 
 function playTaskReminderSound(): void {
   const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -49,6 +53,8 @@ function playTaskReminderSound(): void {
 export default function App() {
   const { settings, initialized, loadSettings } = useSettingsStore()
   const { initialize, triggerQuestCompleted } = useGamificationStore()
+  const { status: authStatus, restoreSession, initSessionListener, profileCompleted } = useAuthStore()
+  const { inProgress: syncInProgress, lastSyncedAt: syncLastSyncedAt, initSyncListener } = useSyncStore()
   const [taskReminder, setTaskReminder] = useState<{ taskId: string; title: string; dueDate: number } | null>(null)
   const [updateState, setUpdateState] = useState<'available' | 'ready' | null>(null)
   const [installingUpdate, setInstallingUpdate] = useState(false)
@@ -57,6 +63,28 @@ export default function App() {
     void loadSettings()
     void initialize()
   }, [])
+
+  useEffect(() => {
+    const unsubscribe = initSessionListener()
+    void restoreSession()
+    return () => {
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null
+
+    void initSyncListener().then((fn) => {
+      unsubscribe = fn
+    })
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
+      }
+    }
+  }, [initSyncListener])
 
   useEffect(() => {
     const theme = settings['theme'] || 'dark'
@@ -113,8 +141,10 @@ export default function App() {
   }, [])
 
   const isOnboarded = settings['onboarding_completed'] === 'true'
+  const isAuthenticated = authStatus === 'authenticated'
+  const showRestoreOverlay = isAuthenticated && syncInProgress && syncLastSyncedAt === null
 
-  if (!initialized) {
+  if (!initialized || authStatus === 'loading') {
     return <div className="h-screen w-screen bg-surface-900" />
   }
 
@@ -200,18 +230,51 @@ export default function App() {
           </div>
         </div>
       )}
+      {showRestoreOverlay && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-surface-900/92 backdrop-blur-sm">
+          <div className="w-[min(92vw,520px)] rounded-2xl border border-primary-500/30 bg-surface-800/95 p-6 text-center shadow-2xl shadow-black/40">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-300">Cloud Sync</p>
+            <h2 className="mt-2 text-xl font-semibold text-[color:var(--app-interactive-fg-default)]">Restoring your progress...</h2>
+            <p className="mt-2 text-sm text-surface-300">
+              Fetching your habits, tasks, quests, and rewards from the cloud.
+            </p>
+          </div>
+        </div>
+      )}
       <Routes>
         <Route
+          path="/auth"
+          element={
+            isAuthenticated ? <Navigate to="/" replace /> : <AuthPage />
+          }
+        />
+        <Route
           path="/onboarding"
-          element={<OnboardingPage />}
+          element={
+            isAuthenticated
+              ? profileCompleted
+                ? <OnboardingPage />
+                : <Navigate to="/profile" replace />
+              : <Navigate to="/auth" replace />
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            isAuthenticated ? <ProfileCompletionPage /> : <Navigate to="/auth" replace />
+          }
         />
         <Route
           path="/"
           element={
-            isOnboarded ? (
-              <AppLayout />
+            isAuthenticated ? (
+              profileCompleted
+                ? isOnboarded
+                  ? <AppLayout />
+                  : <Navigate to="/onboarding" replace />
+                : <Navigate to="/profile" replace />
             ) : (
-              <Navigate to="/onboarding" replace />
+              <Navigate to="/auth" replace />
             )
           }
         >

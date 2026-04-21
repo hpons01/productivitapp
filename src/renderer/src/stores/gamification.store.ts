@@ -53,7 +53,7 @@ function resolveIdentityCue(coreValuesRaw: string | null, fallback: string): str
 
 export interface PendingReward {
   id: string
-  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked' | 'egg_hatch' | 'focus_earned' | 'quest_completed'
+  type: 'xp_popup' | 'badge_unlock' | 'loot_box' | 'level_up' | 'boss_defeated' | 'defeat_screen' | 'class_changed' | 'evolution_unlocked' | 'egg_hatch' | 'focus_earned' | 'quest_completed' | 'task_done'
   data: Record<string, unknown>
 }
 
@@ -89,6 +89,7 @@ interface GamificationState {
   loadCharacterClassConfig: () => Promise<void>
   triggerLootBox: (context?: string) => Promise<void>
   triggerQuestCompleted: (title: string, xpAwarded: number, focusAwarded?: number) => void
+  triggerTaskDone: (taskTitle: string, xpAwarded: number) => void
   dismissReward: (id: string) => void
   refreshFromDB: () => Promise<void>
 }
@@ -376,6 +377,14 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
 
     set((s) => ({ pendingRewards: [...s.pendingRewards, ...rewardsToAdd] }))
     setTimeout(() => get().dismissReward(id), 3500)
+  },
+
+  triggerTaskDone: (taskTitle: string, xpAwarded: number) => {
+    const id = `task_done_${Date.now()}`
+    set((s) => ({
+      pendingRewards: [...s.pendingRewards, { id, type: 'task_done', data: { taskTitle, xpAwarded } }]
+    }))
+    setTimeout(() => get().dismissReward(id), 3200)
   },
 
   dismissReward: (id: string) => {

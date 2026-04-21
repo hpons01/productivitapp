@@ -93,6 +93,22 @@ const api = {
     resetOnboarding: () => ipcRenderer.invoke('settings:resetOnboarding')
   },
 
+  // Auth
+  auth: {
+    signInWithGoogle: () => ipcRenderer.invoke('auth:signInWithGoogle'),
+    signInWithEmail: (email: string, password: string) => ipcRenderer.invoke('auth:signInWithEmail', email, password),
+    signUpWithEmail: (email: string, password: string) => ipcRenderer.invoke('auth:signUpWithEmail', email, password),
+    getSession: () => ipcRenderer.invoke('auth:getSession'),
+    restoreSession: () => ipcRenderer.invoke('auth:restoreSession'),
+    signOut: () => ipcRenderer.invoke('auth:signOut'),
+    getProfile: () => ipcRenderer.invoke('auth:getProfile'),
+    completeProfile: (displayName: string) => ipcRenderer.invoke('auth:completeProfile', displayName),
+    updateProfile: (payload: { displayName?: string | null; avatarUrl?: string | null; email?: string | null }) =>
+      ipcRenderer.invoke('auth:updateProfile', payload),
+    signOutAllDevices: () => ipcRenderer.invoke('auth:signOutAllDevices'),
+    deleteAccount: () => ipcRenderer.invoke('auth:deleteAccount')
+  },
+
   // Loot inventory
   loot: {
     list: () => ipcRenderer.invoke('loot:list'),
@@ -125,6 +141,11 @@ const api = {
   export: {
     exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('export:data', format),
     importData: (mode: 'replace' | 'merge') => ipcRenderer.invoke('export:importData', mode)
+  },
+
+  sync: {
+    trigger: () => ipcRenderer.invoke('sync:trigger'),
+    getStatus: () => ipcRenderer.invoke('sync:status')
   },
 
   updater: {
@@ -180,6 +201,50 @@ const api = {
     const listener = (_event: unknown, payload: { title: string; xpAwarded: number; focusAwarded: number }) => callback(payload)
     ipcRenderer.on('quest:completed', listener)
     return () => ipcRenderer.off('quest:completed', listener)
+  },
+
+  onAuthSessionChanged: (
+    callback: (payload: {
+      authenticated: boolean
+      user: {
+        id: string
+        email: string | null
+        displayName: string | null
+        avatarUrl: string | null
+        provider: string
+      } | null
+      expiresAt: number | null
+      profileCompleted: boolean
+    }) => void
+  ) => {
+    const listener = (
+      _event: unknown,
+      payload: {
+        authenticated: boolean
+        user: {
+          id: string
+          email: string | null
+          displayName: string | null
+          avatarUrl: string | null
+          provider: string
+        } | null
+        expiresAt: number | null
+        profileCompleted: boolean
+      }
+    ) => callback(payload)
+    ipcRenderer.on('auth:sessionChanged', listener)
+    return () => ipcRenderer.off('auth:sessionChanged', listener)
+  },
+
+  onSyncStatusChanged: (
+    callback: (payload: { inProgress: boolean; lastSyncedAt: number | null; error: string | null }) => void
+  ) => {
+    const listener = (
+      _event: unknown,
+      payload: { inProgress: boolean; lastSyncedAt: number | null; error: string | null }
+    ) => callback(payload)
+    ipcRenderer.on('sync:statusChanged', listener)
+    return () => ipcRenderer.off('sync:statusChanged', listener)
   }
 }
 

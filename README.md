@@ -108,6 +108,29 @@ Every feature maps to a peer-reviewed behavioral science concept:
 - Node.js 18+
 - npm 9+
 
+### One-command setup
+
+```bash
+npm run setup:dev
+```
+
+This command:
+- Creates `.env` from `.env.example` if needed
+- Installs dependencies
+- Runs TypeScript validation
+
+Then fill your Supabase credentials in `.env` and run `npm run dev`.
+
+### Auth environment
+
+Required variables in `.env`:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `AUTH_REDIRECT_URI` (optional, default: `productivitapp://auth/callback`)
+
+For full OAuth and remote DB setup, see `docs/AUTH_SETUP.md`.
+
 ### Install
 
 ```bash

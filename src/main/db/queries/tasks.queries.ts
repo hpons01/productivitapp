@@ -17,16 +17,17 @@ export interface Task {
 export function listTasks(db: Database.Database): Task[] {
   return db
     .prepare(
-      'SELECT * FROM tasks WHERE completed_at IS NULL ORDER BY priority ASC, created_at ASC'
+      'SELECT * FROM tasks WHERE completed_at IS NULL AND deleted_at IS NULL ORDER BY priority ASC, created_at ASC'
     )
     .all() as Task[]
 }
 
 export function createTask(db: Database.Database, data: Omit<Task, 'completed_at'>): Task {
+  const now = Date.now()
   db.prepare(`
-    INSERT INTO tasks (id, title, notes, priority, estimated_mins, due_date, created_at, habit_id, temptation_bundle)
-    VALUES (@id, @title, @notes, @priority, @estimated_mins, @due_date, @created_at, @habit_id, @temptation_bundle)
-  `).run(data)
+    INSERT INTO tasks (id, title, notes, priority, estimated_mins, due_date, created_at, habit_id, temptation_bundle, updated_at)
+    VALUES (@id, @title, @notes, @priority, @estimated_mins, @due_date, @created_at, @habit_id, @temptation_bundle, @updated_at)
+  `).run({ ...data, updated_at: now })
   return db.prepare('SELECT * FROM tasks WHERE id = ?').get(data.id) as Task
 }
 
@@ -38,12 +39,13 @@ export function updateTask(
   const fields = Object.keys(data)
     .map((k) => `${k} = @${k}`)
     .join(', ')
-  db.prepare(`UPDATE tasks SET ${fields} WHERE id = @id`).run({ ...data, id })
+  db.prepare(`UPDATE tasks SET ${fields}, updated_at = @updated_at WHERE id = @id`).run({ ...data, id, updated_at: Date.now() })
   return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task
 }
 
 export function completeTask(db: Database.Database, id: string): Task {
-  db.prepare('UPDATE tasks SET completed_at = ? WHERE id = ?').run(Date.now(), id)
+  const now = Date.now()
+  db.prepare('UPDATE tasks SET completed_at = ?, updated_at = ? WHERE id = ?').run(now, now, id)
   return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task
 }
 
@@ -52,13 +54,14 @@ export function getTaskById(db: Database.Database, id: string): Task | undefined
 }
 
 export function deleteTask(db: Database.Database, id: string): void {
-  db.prepare('DELETE FROM tasks WHERE id = ?').run(id)
+  const now = Date.now()
+  db.prepare('UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?').run(now, now, id)
 }
 
 export function listOpenScheduledTasks(db: Database.Database): Task[] {
   return db
     .prepare(
-      'SELECT * FROM tasks WHERE completed_at IS NULL AND due_date IS NOT NULL ORDER BY due_date ASC'
+      'SELECT * FROM tasks WHERE completed_at IS NULL AND deleted_at IS NULL AND due_date IS NOT NULL ORDER BY due_date ASC'
     )
     .all() as Task[]
 }

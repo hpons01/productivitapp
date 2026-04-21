@@ -24,3 +24,13 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+
+# Certificates & signing keys
+*.pem
+*.key
+*.p12
+*.pfx
+signing_keys.json
+
+# Supabase CLI generated
+supabase/.branches/
