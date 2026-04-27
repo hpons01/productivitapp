@@ -33,6 +33,9 @@ jobs:
         run: npm run package:publish:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          AUTH_REDIRECT_URI: ${{ secrets.AUTH_REDIRECT_URI }}
 
   release-linux:
     name: Release Linux
@@ -57,3 +60,6 @@ jobs:
         run: npm run package:publish:linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          AUTH_REDIRECT_URI: ${{ secrets.AUTH_REDIRECT_URI }}

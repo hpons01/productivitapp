@@ -49,7 +49,8 @@ function appendUnlockedSetting(
     unlocked.push(value)
   }
 
-  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, JSON.stringify(unlocked))
+  const now = Date.now()
+  db.prepare('UPDATE settings SET value = ?, updated_at = ? WHERE key = ?').run(JSON.stringify(unlocked), now, key)
 }
 
 // ── Balance ───────────────────────────────────────────────────────────────────
@@ -77,9 +78,9 @@ export function awardFocus(
     const currentBalance = getFocusBalance(db)
     const newBalance = currentBalance + amount
     db.prepare(`
-      INSERT INTO focus_log (id, type, source, source_id, amount, balance, logged_at)
-      VALUES (?, 'earn', ?, ?, ?, ?, ?)
-    `).run(id, source, sourceId, amount, newBalance, Date.now())
+      INSERT INTO focus_log (id, type, source, source_id, amount, balance, logged_at, updated_at)
+      VALUES (?, 'earn', ?, ?, ?, ?, ?, ?)
+    `).run(id, source, sourceId, amount, newBalance, Date.now(), Date.now())
     return newBalance
   })
 
@@ -103,9 +104,9 @@ export function spendFocus(
     const id = `focus_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const newBalance = current - amount
     db.prepare(`
-      INSERT INTO focus_log (id, type, source, source_id, amount, balance, logged_at)
-      VALUES (?, 'spend', ?, ?, ?, ?, ?)
-    `).run(id, source, sourceId, -amount, newBalance, Date.now())
+      INSERT INTO focus_log (id, type, source, source_id, amount, balance, logged_at, updated_at)
+      VALUES (?, 'spend', ?, ?, ?, ?, ?, ?)
+    `).run(id, source, sourceId, -amount, newBalance, Date.now(), Date.now())
     return { success: true, newBalance }
   })
 
@@ -116,13 +117,13 @@ export function spendFocus(
 
 export function getShopPurchasesForDate(db: Database.Database, dateSeed: string): ShopPurchaseRow[] {
   return db
-    .prepare('SELECT * FROM shop_purchases WHERE date_seed = ?')
+    .prepare('SELECT * FROM shop_purchases WHERE date_seed = ? AND deleted_at IS NULL')
     .all(dateSeed) as ShopPurchaseRow[]
 }
 
 export function getFocusLog(db: Database.Database, limit = 50): FocusLogRow[] {
   return db
-    .prepare('SELECT * FROM focus_log ORDER BY logged_at DESC LIMIT ?')
+    .prepare('SELECT * FROM focus_log WHERE deleted_at IS NULL ORDER BY logged_at DESC LIMIT ?')
     .all(limit) as FocusLogRow[]
 }
 
@@ -144,7 +145,7 @@ export function purchaseShopItem(
   const tx = db.transaction((): ShopPurchaseResult => {
     // Idempotency: already purchased today?
     const alreadyPurchased = db
-      .prepare('SELECT id FROM shop_purchases WHERE date_seed = ? AND item_id = ?')
+      .prepare('SELECT id FROM shop_purchases WHERE date_seed = ? AND item_id = ? AND deleted_at IS NULL')
       .get(dateSeed, itemId) as { id: string } | undefined
     if (alreadyPurchased) return { success: false, error: 'Already purchased today.' }
 
@@ -155,26 +156,27 @@ export function purchaseShopItem(
     // Record purchase
     const purchaseId = `purchase_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     db.prepare(`
-      INSERT INTO shop_purchases (id, date_seed, item_id, item_type, focus_cost, purchased_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(purchaseId, dateSeed, itemId, item.type, item.focusCost, Date.now())
+      INSERT INTO shop_purchases (id, date_seed, item_id, item_type, focus_cost, purchased_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(purchaseId, dateSeed, itemId, item.type, item.focusCost, Date.now(), Date.now())
 
     // Apply effect
     if (item.type === 'cosmetic') {
       if (item.cosmeticType === 'theme') {
-        db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('theme', item.cosmeticValue!)
+        db.prepare('UPDATE settings SET value = ?, updated_at = ? WHERE key = ?').run(item.cosmeticValue!, Date.now(), 'theme')
         appendUnlockedSetting(db, 'unlocked_themes', item.cosmeticValue!)
       } else if (item.cosmeticType === 'accent') {
-        db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('active_accent', item.cosmeticValue!)
+        db.prepare('UPDATE settings SET value = ?, updated_at = ? WHERE key = ?').run(item.cosmeticValue!, Date.now(), 'active_accent')
         appendUnlockedSetting(db, 'unlocked_accents', item.cosmeticValue!)
       } else if (item.cosmeticType === 'title') {
         db.prepare(`
-          INSERT OR IGNORE INTO loot_inventory (id, type, tier, payload, earned_at)
-          VALUES (?, 'title', ?, ?, ?)
+          INSERT OR IGNORE INTO loot_inventory (id, type, tier, payload, earned_at, updated_at)
+          VALUES (?, 'title', ?, ?, ?, ?)
         `).run(
           `shop_title_${itemId}_${Date.now()}`,
           item.rarity,
           JSON.stringify({ name: item.cosmeticValue, description: `Purchased from shop: ${item.name}` }),
+          Date.now(),
           Date.now()
         )
       }
@@ -183,13 +185,13 @@ export function purchaseShopItem(
       const eggId = `egg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
       const tier = item.eggTier ?? 'common'
       db.prepare(`
-        INSERT INTO pet_eggs (id, tier, source_quest_id, earned_at)
-        VALUES (?, ?, NULL, ?)
-      `).run(eggId, tier, Date.now())
+        INSERT INTO pet_eggs (id, tier, source_quest_id, earned_at, updated_at)
+        VALUES (?, ?, NULL, ?, ?)
+      `).run(eggId, tier, Date.now(), Date.now())
     } else if (item.type === 'potion') {
       db.prepare(`
-        INSERT INTO loot_inventory (id, type, tier, payload, earned_at)
-        VALUES (?, 'power_up', ?, ?, ?)
+        INSERT INTO loot_inventory (id, type, tier, payload, earned_at, updated_at)
+        VALUES (?, 'power_up', ?, ?, ?, ?)
       `).run(
         `shop_potion_${purchaseId}`,
         item.rarity,
@@ -200,6 +202,7 @@ export function purchaseShopItem(
           effectDuration: item.effectDuration,
           effectMagnitude: item.effectMagnitude
         }),
+        Date.now(),
         Date.now()
       )
     }

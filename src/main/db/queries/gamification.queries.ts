@@ -176,9 +176,9 @@ export function awardXP(
   const levelBefore = levelFromTotalXP(totalXPBefore)
 
   db.prepare(`
-    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, source, sourceId, finalAmount, baseAmount, multiplier, classIdApplied, evolutionTierApplied, Date.now())
+    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, source, sourceId, finalAmount, baseAmount, multiplier, classIdApplied, evolutionTierApplied, Date.now(), Date.now())
 
   const totalXPAfter = totalXPBefore + finalAmount
   const levelAfter = levelFromTotalXP(totalXPAfter)
@@ -277,7 +277,7 @@ export function unlockBadge(db: Database.Database, code: string): { unlocked: bo
   if (!badge) return { unlocked: false, badge: null }
   if (badge.unlocked_at) return { unlocked: false, badge: null } // Already unlocked
 
-  db.prepare('UPDATE badges SET unlocked_at = ? WHERE code = ?').run(Date.now(), code)
+  db.prepare('UPDATE badges SET unlocked_at = ?, updated_at = ? WHERE code = ?').run(Date.now(), Date.now(), code)
 
   // Award XP for the badge
   awardXP(db, 'badge', badge.id, badge.xp_value)
@@ -320,9 +320,9 @@ export function getOrCreateWeeklyBoss(db: Database.Database): {
   const id = `boss_${Date.now()}`
 
   db.prepare(`
-    INSERT INTO boss_battles (id, name, week_start, max_hp, current_hp, defeated, loot_tier)
-    VALUES (?, ?, ?, ?, ?, 0, 'epic')
-  `).run(id, boss.name, weekStart, boss.hp, boss.hp)
+    INSERT INTO boss_battles (id, name, week_start, max_hp, current_hp, defeated, loot_tier, updated_at)
+    VALUES (?, ?, ?, ?, ?, 0, 'epic', ?)
+  `).run(id, boss.name, weekStart, boss.hp, boss.hp, Date.now())
 
   return db.prepare('SELECT * FROM boss_battles WHERE id = ?').get(id) as {
     id: string; name: string; week_start: number; max_hp: number; current_hp: number; defeated: number; loot_tier: string
@@ -348,9 +348,10 @@ export function damageBoss(db: Database.Database, damage: number): { current_hp:
   const newHp = Math.max(0, boss.current_hp - effectiveDamage)
   const defeated = newHp === 0
 
-  db.prepare('UPDATE boss_battles SET current_hp = ?, defeated = ? WHERE id = ?').run(
+  db.prepare('UPDATE boss_battles SET current_hp = ?, defeated = ?, updated_at = ? WHERE id = ?').run(
     newHp,
     defeated ? 1 : 0,
+    Date.now(),
     boss.id
   )
 
@@ -374,7 +375,7 @@ export function hasBrokenStreakToday(db: Database.Database): boolean {
   const d3End = endOfDay(subDays(today, 3)).getTime()
 
   const habits = db
-    .prepare("SELECT id FROM habits WHERE archived_at IS NULL AND frequency = 'daily'")
+    .prepare("SELECT id FROM habits WHERE archived_at IS NULL AND deleted_at IS NULL AND frequency = 'daily'")
     .all() as Array<{ id: string }>
 
   for (const habit of habits) {
@@ -523,6 +524,8 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
         INSERT INTO daily_quests (id, date, quest_type, description, target, progress, completed, xp_reward, egg_reward_tier, focus_reward)
         VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
       `).run(id, Date.now(), q.type, q.description, q.target, q.xp, eggRewardTier, focusReward)
+
+      db.prepare('UPDATE daily_quests SET updated_at = ? WHERE id = ?').run(Date.now(), id)
     }
   }
 
@@ -539,6 +542,8 @@ export function getOrCreateDailyQuests(db: Database.Database): Array<{
       INSERT INTO daily_quests (id, date, quest_type, description, target, progress, completed, xp_reward)
       VALUES (?, ?, 'streak_recovery', ?, ?, 0, 0, 100)
     `).run(id, Date.now(), 'Complete all habits today to start your streak recovery!', totalHabits || 1)
+
+    db.prepare('UPDATE daily_quests SET updated_at = ? WHERE id = ?').run(Date.now(), id)
   }
 
   return db
@@ -555,9 +560,10 @@ export function updateQuestProgress(db: Database.Database, questId: string, prog
   if (!quest || quest.completed) return
 
   const completed = progress >= quest.target ? 1 : 0
-  db.prepare('UPDATE daily_quests SET progress = ?, completed = ? WHERE id = ?').run(
+  db.prepare('UPDATE daily_quests SET progress = ?, completed = ?, updated_at = ? WHERE id = ?').run(
     progress,
     completed,
+    Date.now(),
     questId
   )
 

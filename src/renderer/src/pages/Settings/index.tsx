@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Select } from '../../components/ui/select'
 import { Modal } from '../../components/ui/modal'
 import { useSettingsStore } from '../../stores/settings.store'
+import { useAuthStore } from '../../stores/auth.store'
 import { cn } from '../../lib/utils'
+import { SyncStatusBadge } from '../../components/ui/SyncStatusBadge'
 
 function Toggle({
   checked,
@@ -89,7 +92,9 @@ function parseUnlocked(raw: string, defaults: string[]): Set<string> {
 }
 
 export function SettingsPage() {
+  const navigate = useNavigate()
   const { getSetting, setSetting, loadSettings, resetOnboarding } = useSettingsStore()
+  const { user, signOut, signOutAllDevices, deleteAccount, updateProfile } = useAuthStore()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [showImportConfirm, setShowImportConfirm] = useState(false)
@@ -99,6 +104,13 @@ export function SettingsPage() {
   const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
   const [developerModeBusy, setDeveloperModeBusy] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [showSignOutAllConfirm, setShowSignOutAllConfirm] = useState(false)
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [signingOutAll, setSigningOutAll] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [accountActionError, setAccountActionError] = useState<string | null>(null)
 
   useEffect(() => { loadSettings() }, [])
 
@@ -225,6 +237,61 @@ export function SettingsPage() {
     }
   }
 
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    try {
+      await signOut()
+      navigate('/auth', { replace: true })
+    } finally {
+      setSigningOut(false)
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true)
+    setAccountActionError(null)
+    try {
+      const displayName = getSetting('user_name', '')
+      await updateProfile({
+        displayName: displayName.trim() || null,
+        email: user?.email ?? null,
+        avatarUrl: user?.avatarUrl ?? null
+      })
+    } catch {
+      setAccountActionError('Could not sync profile right now.')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const handleSignOutAllDevices = async () => {
+    setSigningOutAll(true)
+    setAccountActionError(null)
+    try {
+      await signOutAllDevices()
+      navigate('/auth', { replace: true })
+    } catch {
+      setAccountActionError('Failed to sign out from all devices.')
+    } finally {
+      setSigningOutAll(false)
+      setShowSignOutAllConfirm(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true)
+    setAccountActionError(null)
+    try {
+      await deleteAccount()
+      navigate('/auth', { replace: true })
+    } catch {
+      setAccountActionError('Failed to delete account. Please try again.')
+    } finally {
+      setDeletingAccount(false)
+      setShowDeleteAccountConfirm(false)
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -234,6 +301,38 @@ export function SettingsPage() {
 
       {/* Identity group */}
       <div className="section-divider">Identity</div>
+
+      {/* Appearance */}
+      <Card>
+        <CardHeader><CardTitle>Account</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-sm border border-surface-600/70 bg-surface-800 px-3 py-2">
+            <p className="text-xs text-surface-400">Signed in as</p>
+            <p className="text-sm text-[color:var(--app-interactive-fg-default)] font-medium">
+              {user?.email ?? user?.displayName ?? 'Unknown user'}
+            </p>
+            {user?.provider && (
+              <p className="text-xs text-surface-400 mt-1">Provider: {user.provider}</p>
+            )}
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => void handleSignOut()}
+            loading={signingOut}
+            disabled={signingOut}
+          >
+            Sign out
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setShowSignOutAllConfirm(true)}
+            disabled={signingOutAll}
+          >
+            Sign out all devices
+          </Button>
+          {accountActionError && <p className="text-xs text-red-300">{accountActionError}</p>}
+        </CardContent>
+      </Card>
 
       {/* Appearance */}
       <Card>
@@ -362,6 +461,14 @@ export function SettingsPage() {
             onChange={(e) => setSetting('user_name', e.target.value)}
             placeholder="Hero"
           />
+          <Button
+            variant="secondary"
+            onClick={() => void handleSaveProfile()}
+            loading={savingProfile}
+            disabled={savingProfile}
+          >
+            Save profile
+          </Button>
           <div className="pt-2 border-t border-surface-600">
             <p className="text-xs text-surface-400 mb-3">Your commitment statement:</p>
             <p className="text-sm text-primary-300 italic">
@@ -379,6 +486,7 @@ export function SettingsPage() {
         <CardHeader><CardTitle>Data &amp; Privacy</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-surface-400 text-sm">Export or import your complete productivity history.</p>
+          <SyncStatusBadge />
           <div className="flex flex-wrap gap-3">
             <Button
               variant="secondary"
@@ -471,10 +579,14 @@ export function SettingsPage() {
       {/* Reset */}
       <Card className="border-l-2 border-l-red-500/60">
         <CardHeader><CardTitle className="text-red-400">Danger Zone</CardTitle></CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <p className="text-surface-400 text-sm mb-4">This will clear your journey data, mark onboarding as incomplete, and restart the setup flow.</p>
           <Button variant="danger" onClick={() => setShowResetConfirm(true)}>
             Reset Onboarding
+          </Button>
+          <p className="text-surface-400 text-sm">Delete your remote account and sign out immediately.</p>
+          <Button variant="danger" onClick={() => setShowDeleteAccountConfirm(true)}>
+            Delete account
           </Button>
         </CardContent>
       </Card>
@@ -507,6 +619,67 @@ export function SettingsPage() {
               disabled={resetting}
             >
               Yes, Reset
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showSignOutAllConfirm}
+        onClose={() => !signingOutAll && setShowSignOutAllConfirm(false)}
+        title="Sign out all devices?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-surface-300">
+            This revokes your active sessions on other devices and signs you out here.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowSignOutAllConfirm(false)}
+              disabled={signingOutAll}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => void handleSignOutAllDevices()}
+              loading={signingOutAll}
+              disabled={signingOutAll}
+            >
+              Sign out all
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showDeleteAccountConfirm}
+        onClose={() => !deletingAccount && setShowDeleteAccountConfirm(false)}
+        title="Delete account?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-surface-300">
+            This permanently deletes your cloud account data and signs you out.
+          </p>
+          <p className="text-xs text-red-300/90">This cannot be undone.</p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowDeleteAccountConfirm(false)}
+              disabled={deletingAccount}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => void handleDeleteAccount()}
+              loading={deletingAccount}
+              disabled={deletingAccount}
+            >
+              Delete account
             </Button>
           </div>
         </div>

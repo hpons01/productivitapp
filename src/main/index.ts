@@ -1,5 +1,12 @@
+import { config as loadDotenv } from 'dotenv'
+import { join, resolve } from 'path'
+
+// Load .env in development — production uses real environment variables
+if (process.env.NODE_ENV !== 'production') {
+  loadDotenv({ path: resolve(process.cwd(), '.env') })
+}
+
 import { app, BrowserWindow, shell, ipcMain, screen } from 'electron'
-import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupTray } from './tray'
 import { getDb, initDatabase } from './db'
@@ -7,9 +14,38 @@ import { registerAllIpcHandlers } from './ipc'
 import { setupAutoUpdater } from './updater'
 import { rehydrateTaskReminders, scheduleNotifications } from './notifications'
 import { getSetting } from './db/queries/settings.queries'
+import { completeOAuthFromCallback, setAuthSessionListener } from './auth/supabase-auth'
+import { isNewDevice, runSync, setSyncStatusListener } from './sync'
 
 let mainWindow: BrowserWindow | null = null
 const appWithQuitFlag = app as typeof app & { isQuitting?: boolean }
+
+function extractDeepLink(commandLine: string[]): string | null {
+  return commandLine.find((arg) => arg.startsWith('productivitapp://')) ?? null
+}
+
+async function handleAuthDeepLink(url: string): Promise<void> {
+  if (!url.startsWith('productivitapp://auth/callback')) {
+    return
+  }
+
+  try {
+    await completeOAuthFromCallback(url)
+    mainWindow?.show()
+    mainWindow?.focus()
+  } catch (error) {
+    console.error('[Auth] Failed to complete OAuth callback', error)
+  }
+}
+
+function registerProtocolClient(): void {
+  if (process.defaultApp) {
+    app.setAsDefaultProtocolClient('productivitapp', process.execPath, [resolve(process.argv[1])])
+    return
+  }
+
+  app.setAsDefaultProtocolClient('productivitapp')
+}
 
 // Enforce single instance — second launch focuses the existing window instead of creating a new one
 const gotTheLock = app.requestSingleInstanceLock()
@@ -17,12 +53,22 @@ if (!gotTheLock) {
   app.quit()
 }
 
-app.on('second-instance', () => {
+app.on('second-instance', (_event, commandLine) => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.show()
     mainWindow.focus()
   }
+
+  const deepLink = extractDeepLink(commandLine)
+  if (deepLink) {
+    void handleAuthDeepLink(deepLink)
+  }
+})
+
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  void handleAuthDeepLink(url)
 })
 
 function createWindow(): BrowserWindow {
@@ -77,6 +123,7 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.productivitapp.app')
+  registerProtocolClient()
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -88,6 +135,21 @@ app.whenReady().then(() => {
   // Register IPC handlers
   registerAllIpcHandlers()
 
+  setSyncStatusListener((syncStatus) => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isLoading()) {
+      mainWindow.webContents.send('sync:statusChanged', syncStatus)
+    }
+  })
+
+  setAuthSessionListener((session) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('auth:sessionChanged', session)
+    }
+    if (session.authenticated) {
+      void runSync({ fullPull: isNewDevice() })
+    }
+  })
+
   const db = getDb()
   const startOnBoot = getSetting(db, 'start_on_boot')
   app.setLoginItemSettings({
@@ -96,12 +158,21 @@ app.whenReady().then(() => {
 
   const win = createWindow()
 
+  const initialDeepLink = extractDeepLink(process.argv)
+  if (initialDeepLink) {
+    void handleAuthDeepLink(initialDeepLink)
+  }
+
   // Setup system tray
   setupTray(win)
 
   // Schedule notifications
   scheduleNotifications()
   rehydrateTaskReminders()
+
+  setInterval(() => {
+    void runSync()
+  }, 5 * 60 * 1000)
 
   // Setup auto-updater (only in production)
   if (!is.dev) {
