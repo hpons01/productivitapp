@@ -36,6 +36,9 @@
   --animate-rune-glow:  runeGlow 2.5s ease-in-out infinite;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 @keyframes emberRise {
   0%   { opacity: 1; transform: translateY(0) scale(1); }
   70%  { opacity: 0.8; transform: translateY(-40px) scale(1.1); }

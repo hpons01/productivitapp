@@ -37,12 +37,14 @@ export interface PomodoroPreset {
 }
 
 export function startSession(db: Database.Database, data: StartPomodoroSessionInput): PomodoroSession {
+  const now = Date.now()
   db.prepare(`
-    INSERT INTO pomodoro_sessions (id, task_id, label, started_at, duration_mins, break_mins, endless_mode, completed, loop_completed)
-    VALUES (@id, @task_id, @label, @started_at, @duration_mins, @break_mins, @endless_mode, 0, 0)
+    INSERT INTO pomodoro_sessions (id, task_id, label, started_at, duration_mins, break_mins, endless_mode, completed, loop_completed, updated_at)
+    VALUES (@id, @task_id, @label, @started_at, @duration_mins, @break_mins, @endless_mode, 0, 0, @updated_at)
   `).run({
     ...data,
-    endless_mode: data.endless_mode ? 1 : 0
+    endless_mode: data.endless_mode ? 1 : 0,
+    updated_at: now
   })
   return db.prepare('SELECT * FROM pomodoro_sessions WHERE id = ?').get(data.id) as PomodoroSession
 }
@@ -56,23 +58,25 @@ export function completeSession(
 ): PomodoroSession {
   db.prepare(`
     UPDATE pomodoro_sessions
-    SET ended_at = ?, completed = 1, interruptions = ?, xp_awarded = ?
+    SET ended_at = ?, completed = 1, interruptions = ?, xp_awarded = ?, updated_at = ?
     WHERE id = ?
-  `).run(endedAt, interruptions, xpAwarded, id)
+  `).run(endedAt, interruptions, xpAwarded, Date.now(), id)
   return db.prepare('SELECT * FROM pomodoro_sessions WHERE id = ?').get(id) as PomodoroSession
 }
 
 export function abandonSession(db: Database.Database, id: string): void {
-  db.prepare('UPDATE pomodoro_sessions SET ended_at = ?, completed = 0 WHERE id = ?').run(Date.now(), id)
+  const now = Date.now()
+  db.prepare('UPDATE pomodoro_sessions SET ended_at = ?, completed = 0, updated_at = ? WHERE id = ?').run(now, now, id)
 }
 
 export function markLoopCompleted(db: Database.Database, id: string, endlessMode: boolean): void {
   db.prepare(`
     UPDATE pomodoro_sessions
     SET loop_completed = 1,
-        endless_mode = ?
+        endless_mode = ?,
+        updated_at = ?
     WHERE id = ? AND completed = 1
-  `).run(endlessMode ? 1 : 0, id)
+  `).run(endlessMode ? 1 : 0, Date.now(), id)
 }
 
 export function listSessions(db: Database.Database, date?: string): PomodoroSession[] {
@@ -81,11 +85,11 @@ export function listSessions(db: Database.Database, date?: string): PomodoroSess
     const from = startOfDay(d).getTime()
     const to = endOfDay(d).getTime()
     return db
-      .prepare('SELECT * FROM pomodoro_sessions WHERE started_at >= ? AND started_at <= ? ORDER BY started_at DESC')
+      .prepare('SELECT * FROM pomodoro_sessions WHERE started_at >= ? AND started_at <= ? AND deleted_at IS NULL ORDER BY started_at DESC')
       .all(from, to) as PomodoroSession[]
   }
   return db
-    .prepare('SELECT * FROM pomodoro_sessions ORDER BY started_at DESC LIMIT 50')
+    .prepare('SELECT * FROM pomodoro_sessions WHERE deleted_at IS NULL ORDER BY started_at DESC LIMIT 50')
     .all() as PomodoroSession[]
 }
 
@@ -103,7 +107,7 @@ export function getTodayStats(db: Database.Database): {
       SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completedSessions,
       SUM(CASE WHEN completed = 1 THEN duration_mins ELSE 0 END) as totalMinutes
     FROM pomodoro_sessions
-    WHERE started_at >= ? AND started_at <= ?
+    WHERE started_at >= ? AND started_at <= ? AND deleted_at IS NULL
   `).get(from, to) as { totalSessions: number; completedSessions: number; totalMinutes: number }
 
   return {
@@ -114,7 +118,7 @@ export function getTodayStats(db: Database.Database): {
 }
 
 export function getTotalCompletedCount(db: Database.Database): number {
-  const result = db.prepare('SELECT COUNT(*) as count FROM pomodoro_sessions WHERE completed = 1').get() as { count: number }
+  const result = db.prepare('SELECT COUNT(*) as count FROM pomodoro_sessions WHERE completed = 1 AND deleted_at IS NULL').get() as { count: number }
   return result.count
 }
 
@@ -127,6 +131,7 @@ export function getLifetimeStats(db: Database.Database): {
       SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as totalPomodoros,
       SUM(CASE WHEN completed = 1 AND endless_mode = 1 AND loop_completed = 1 THEN 1 ELSE 0 END) as endlessLoopsCompleted
     FROM pomodoro_sessions
+    WHERE deleted_at IS NULL
   `).get() as {
     totalPomodoros: number | null
     endlessLoopsCompleted: number | null
@@ -140,7 +145,7 @@ export function getLifetimeStats(db: Database.Database): {
 
 export function listPresets(db: Database.Database): PomodoroPreset[] {
   return db
-    .prepare('SELECT * FROM pomodoro_presets ORDER BY user_created ASC, created_at ASC')
+    .prepare('SELECT * FROM pomodoro_presets WHERE deleted_at IS NULL ORDER BY user_created ASC, created_at ASC')
     .all() as PomodoroPreset[]
 }
 
@@ -149,7 +154,7 @@ export function createPreset(
   data: { name?: string; work_mins: number; break_mins: number; user_created?: number }
 ): PomodoroPreset {
   const existing = db
-    .prepare('SELECT * FROM pomodoro_presets WHERE work_mins = ? AND break_mins = ? LIMIT 1')
+    .prepare('SELECT * FROM pomodoro_presets WHERE work_mins = ? AND break_mins = ? AND deleted_at IS NULL LIMIT 1')
     .get(data.work_mins, data.break_mins) as PomodoroPreset | undefined
 
   if (existing) {
@@ -167,13 +172,14 @@ export function createPreset(
   }
 
   db.prepare(`
-    INSERT INTO pomodoro_presets (id, name, work_mins, break_mins, user_created, created_at)
-    VALUES (@id, @name, @work_mins, @break_mins, @user_created, @created_at)
-  `).run(preset)
+    INSERT INTO pomodoro_presets (id, name, work_mins, break_mins, user_created, created_at, updated_at)
+    VALUES (@id, @name, @work_mins, @break_mins, @user_created, @created_at, @updated_at)
+  `).run({ ...preset, updated_at: Date.now() })
 
   return db.prepare('SELECT * FROM pomodoro_presets WHERE id = ?').get(preset.id) as PomodoroPreset
 }
 
 export function deletePreset(db: Database.Database, id: string): void {
-  db.prepare('DELETE FROM pomodoro_presets WHERE id = ? AND user_created = 1').run(id)
+  const now = Date.now()
+  db.prepare('UPDATE pomodoro_presets SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_created = 1').run(now, now, id)
 }

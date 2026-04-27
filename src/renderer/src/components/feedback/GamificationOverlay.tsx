@@ -21,6 +21,7 @@ export function GamificationOverlay() {
   const evolutionToasts = pendingRewards.filter((r) => r.type === 'evolution_unlocked')
   const focusPopups = pendingRewards.filter((r) => r.type === 'focus_earned')
   const questCompletedToasts = pendingRewards.filter((r) => r.type === 'quest_completed')
+  const taskDoneToasts = pendingRewards.filter((r) => r.type === 'task_done')
 
   return (
     <>
@@ -40,6 +41,11 @@ export function GamificationOverlay() {
       {questCompletedToasts.map((r) => (
         <QuestCompletedToast key={r.id} reward={r} />
       ))}
+      <AnimatePresence>
+        {taskDoneToasts.map((r, i) => (
+          <TaskDoneToast key={r.id} reward={r} index={i} />
+        ))}
+      </AnimatePresence>
 
       {/* Full-screen events */}
       <AnimatePresence>
@@ -282,6 +288,8 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.8, opacity: 0 }}
         transition={{ type: 'spring', damping: 12 }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <p className="text-surface-400 uppercase tracking-widest text-xs mb-4 font-bold">Surprise Reward!</p>
 
@@ -373,6 +381,115 @@ function Particles() {
   )
 }
 
+function TaskDoneToast({ reward, index }: { reward: PendingReward; index: number }) {
+  const { dismissReward } = useGamificationStore()
+  const taskTitle = reward.data.taskTitle as string
+  const xpAwarded = reward.data.xpAwarded as number
+
+  useEffect(() => {
+    playSound('task')
+    const t = setTimeout(() => dismissReward(reward.id), 3200)
+    return () => clearTimeout(t)
+  }, [])
+
+  return (
+    <motion.div
+      className="fixed z-50 pointer-events-none"
+      style={{ bottom: `${24 + index * 88}px`, right: '24px' }}
+      initial={{ opacity: 0, x: 60, scale: 0.88 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 60, scale: 0.88 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 280 }}
+    >
+      <div
+        className="relative overflow-hidden rounded-sm backdrop-blur-md shadow-2xl"
+        style={{
+          background: 'linear-gradient(135deg, rgba(16,28,22,0.97) 0%, rgba(10,22,18,0.97) 100%)',
+          border: '1px solid rgba(52,211,153,0.35)',
+          minWidth: '220px',
+          maxWidth: '280px',
+          boxShadow: '0 0 24px rgba(52,211,153,0.12), 0 8px 32px rgba(0,0,0,0.5)'
+        }}
+      >
+        {/* Shimmer bar */}
+        <motion.div
+          className="absolute top-0 left-0 right-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(52,211,153,0.8), transparent)' }}
+          initial={{ x: '-100%' }}
+          animate={{ x: '200%' }}
+          transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 }}
+        />
+
+        <div className="px-4 py-3 flex items-start gap-3">
+          {/* Check icon with pulse ring */}
+          <div className="relative shrink-0 mt-0.5">
+            <motion.div
+              className="absolute inset-0 rounded-full"
+              style={{ background: 'rgba(52,211,153,0.2)' }}
+              initial={{ scale: 1, opacity: 0.8 }}
+              animate={{ scale: 2.2, opacity: 0 }}
+              transition={{ duration: 0.7, ease: 'easeOut' }}
+            />
+            <motion.div
+              className="w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(52,211,153,0.15)', border: '1.5px solid rgba(52,211,153,0.6)' }}
+              initial={{ scale: 0.5, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 12, stiffness: 300, delay: 0.05 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <motion.path
+                  d="M2.5 7L5.5 10L11.5 4"
+                  stroke="rgba(52,211,153,0.95)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 0.35, delay: 0.15, ease: 'easeOut' }}
+                />
+              </svg>
+            </motion.div>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-widest font-bold mb-0.5" style={{ color: 'rgba(52,211,153,0.7)' }}>
+              Done!
+            </div>
+            <div
+              className="text-sm font-semibold leading-snug truncate"
+              style={{ color: 'rgba(240,250,245,0.95)' }}
+              title={taskTitle}
+            >
+              {taskTitle}
+            </div>
+            <motion.div
+              className="flex items-center gap-1 mt-1"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <span className="text-xs font-bold" style={{ color: '#f59e0b' }}>+{xpAwarded} XP</span>
+              <span className="text-[10px]" style={{ color: 'rgba(245,158,11,0.6)' }}>⚡</span>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Progress drain bar */}
+        <div className="h-0.5 w-full" style={{ background: 'rgba(52,211,153,0.08)' }}>
+          <motion.div
+            className="h-full"
+            style={{ background: 'rgba(52,211,153,0.5)', transformOrigin: 'left' }}
+            initial={{ scaleX: 1 }}
+            animate={{ scaleX: 0 }}
+            transition={{ duration: 3.2, ease: 'linear' }}
+          />
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 function QuestCompletedToast({ reward }: { reward: PendingReward }) {
   const { dismissReward } = useGamificationStore()
   const title = reward.data.title as string
@@ -412,7 +529,7 @@ function QuestCompletedToast({ reward }: { reward: PendingReward }) {
   )
 }
 
-function playSound(type: 'levelup' | 'badge' | 'quest'): void {
+function playSound(type: 'levelup' | 'badge' | 'quest' | 'task'): void {
   // Gate on user preference
   if (localStorage.getItem('soundEnabled') === 'false') return
 
@@ -444,6 +561,15 @@ function playSound(type: 'levelup' | 'badge' | 'quest'): void {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55)
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.55)
+    } else if (type === 'task') {
+      // Crisp two-note tick: a soft click then a bright confirm tone
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(600, ctx.currentTime)
+      osc.frequency.setValueAtTime(900, ctx.currentTime + 0.06)
+      gain.gain.setValueAtTime(0.14, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.28)
     } else {
       // Short chime for badge/loot
       osc.frequency.setValueAtTime(880, ctx.currentTime)

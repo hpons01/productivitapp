@@ -1,5 +1,9 @@
 appId: com.productivitapp.app
 productName: ProductivitApp
+protocols:
+  - name: ProductivitApp Auth
+    schemes:
+      - productivitapp
 directories:
   output: dist
   buildResources: resources

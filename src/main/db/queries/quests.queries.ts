@@ -120,7 +120,7 @@ function makeId(prefix: string): string {
 
 function hasXpLog(db: Database.Database, source: string, sourceId: string): boolean {
   const row = db
-    .prepare('SELECT COUNT(*) as n FROM xp_log WHERE source = ? AND source_id = ?')
+    .prepare('SELECT COUNT(*) as n FROM xp_log WHERE source = ? AND source_id = ? AND deleted_at IS NULL')
     .get(source, sourceId) as { n: number }
   return row.n > 0
 }
@@ -134,8 +134,8 @@ function recordOutcome(
   metadata: Record<string, unknown> | null = null
 ): void {
   db.prepare(`
-    INSERT OR IGNORE INTO quest_outcomes (id, quest_id, outcome_type, milestone_index, xp_delta, recorded_at, metadata)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO quest_outcomes (id, quest_id, outcome_type, milestone_index, xp_delta, recorded_at, metadata, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     makeId('quest_outcome'),
     questId,
@@ -143,7 +143,8 @@ function recordOutcome(
     milestoneIndex,
     xpDelta,
     Date.now(),
-    metadata ? JSON.stringify(metadata) : null
+    metadata ? JSON.stringify(metadata) : null,
+    Date.now()
   )
 }
 
@@ -172,9 +173,9 @@ function applyQuestSanction(db: Database.Database, quest: QuestRow): number {
 
   const penalty = computePenalty(quest.xp_reward)
   db.prepare(`
-    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
-    VALUES (?, 'quest_sanction', ?, ?, ?, 1, NULL, NULL, ?)
-  `).run(makeId('xp'), quest.id, -penalty, -penalty, Date.now())
+    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at, updated_at)
+    VALUES (?, 'quest_sanction', ?, ?, ?, 1, NULL, NULL, ?, ?)
+  `).run(makeId('xp'), quest.id, -penalty, -penalty, Date.now(), Date.now())
 
   return penalty
 }
@@ -217,6 +218,7 @@ export function syncExpiredEnrolledQuests(db: Database.Database, nowMs = Date.no
     SELECT *
     FROM daily_quests
     WHERE status IN ('enrolled', 'active')
+      AND deleted_at IS NULL
       AND deadline_at IS NOT NULL
       AND deadline_at < ?
   `).all(nowMs) as QuestRow[]
@@ -244,6 +246,7 @@ export function listQuestBoard(db: Database.Database): QuestRow[] {
     SELECT *
     FROM daily_quests
     WHERE date >= ? AND date <= ?
+      AND deleted_at IS NULL
     ORDER BY
       CASE status
         WHEN 'active' THEN 0
@@ -271,13 +274,14 @@ export function enrollQuest(
       SELECT COUNT(*) as n
       FROM daily_quests
       WHERE status IN ('enrolled', 'active')
+        AND deleted_at IS NULL
     `).get() as { n: number }
 
     if (activeCount.n >= ENROLLMENT_CAP) {
       throw new Error(`Enrollment cap reached (${ENROLLMENT_CAP} active quests).`)
     }
 
-    const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ?').get(questId) as QuestRow | undefined
+    const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ? AND deleted_at IS NULL').get(questId) as QuestRow | undefined
     if (!quest) {
       throw new Error('Quest not found.')
     }
@@ -321,7 +325,7 @@ export function enrollQuest(
 
   tx()
 
-  const updated = db.prepare('SELECT * FROM daily_quests WHERE id = ?').get(questId) as QuestRow | undefined
+  const updated = db.prepare('SELECT * FROM daily_quests WHERE id = ? AND deleted_at IS NULL').get(questId) as QuestRow | undefined
   if (!updated) throw new Error('Quest enrollment failed.')
   return updated
 }
@@ -331,7 +335,7 @@ export function abandonQuest(db: Database.Database, questId: string): QuestProgr
 
   const nowMs = Date.now()
   const tx = db.transaction(() => {
-    const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ?').get(questId) as QuestRow | undefined
+    const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ? AND deleted_at IS NULL').get(questId) as QuestRow | undefined
     if (!quest) throw new Error('Quest not found.')
 
     if (!ACTIVE_STATUSES.includes(quest.status)) {
@@ -357,7 +361,7 @@ export function abandonQuest(db: Database.Database, questId: string): QuestProgr
 
   tx()
 
-  const row = db.prepare('SELECT * FROM daily_quests WHERE id = ?').get(questId) as QuestRow
+  const row = db.prepare('SELECT * FROM daily_quests WHERE id = ? AND deleted_at IS NULL').get(questId) as QuestRow
   return {
     questId,
     status: row.status,
@@ -377,7 +381,7 @@ export function recordQuestProgress(db: Database.Database, questId: string, prog
   let result: QuestProgressResult | null = null
 
   const tx = db.transaction(() => {
-    const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ?').get(questId) as QuestRow | undefined
+    const quest = db.prepare('SELECT * FROM daily_quests WHERE id = ? AND deleted_at IS NULL').get(questId) as QuestRow | undefined
     if (!quest) {
       throw new Error('Quest not found.')
     }
@@ -435,7 +439,7 @@ export function recordQuestProgress(db: Database.Database, questId: string, prog
 
       if (quest.egg_reward_tier) {
         const existingEgg = db
-          .prepare('SELECT COUNT(*) as n FROM pet_eggs WHERE source_quest_id = ?')
+          .prepare('SELECT COUNT(*) as n FROM pet_eggs WHERE source_quest_id = ? AND deleted_at IS NULL')
           .get(quest.id) as { n: number }
         if (existingEgg.n === 0) {
           awardEgg(db, quest.id)
@@ -447,7 +451,7 @@ export function recordQuestProgress(db: Database.Database, questId: string, prog
       if (quest.focus_reward > 0) {
         const focusSourceId = `quest_focus_${quest.id}`
         const alreadyAwarded = db
-          .prepare('SELECT COUNT(*) as n FROM focus_log WHERE source_id = ?')
+          .prepare('SELECT COUNT(*) as n FROM focus_log WHERE source_id = ? AND deleted_at IS NULL')
           .get(focusSourceId) as { n: number }
         if (alreadyAwarded.n === 0) {
           awardFocus(db, 'quest_completion', focusSourceId, quest.focus_reward)
@@ -560,6 +564,7 @@ export function incrementQuestProgressByType(db: Database.Database, questType: s
     FROM catalog_enrollments ce
     JOIN quest_definitions qd ON qd.id = ce.definition_id
     WHERE qd.target_type = ?
+      AND ce.deleted_at IS NULL
       AND ce.status IN ('enrolled', 'active')
   `).all(questType) as Array<{ id: string; progress: number }>
 
@@ -621,6 +626,8 @@ export function getQuestHistory(db: Database.Database, limit = 100): Array<{
       q.description
     FROM quest_outcomes o
     INNER JOIN daily_quests q ON q.id = o.quest_id
+    WHERE o.deleted_at IS NULL
+      AND q.deleted_at IS NULL
     ORDER BY o.recorded_at DESC
     LIMIT ?
   `).all(limit) as Array<{
@@ -650,9 +657,9 @@ function applyCatalogSanction(db: Database.Database, enrollment: CatalogEnrollme
   const raw = Math.round(scaledXP * 0.75)
   const penalty = Math.max(20, Math.min(250, raw))
   db.prepare(`
-    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at)
-    VALUES (?, 'catalog_sanction', ?, ?, ?, 1, NULL, NULL, ?)
-  `).run(`xp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, sourceId, -penalty, -penalty, Date.now())
+    INSERT INTO xp_log (id, source, source_id, amount, base_amount, multiplier, class_id_applied, evolution_tier, logged_at, updated_at)
+    VALUES (?, 'catalog_sanction', ?, ?, ?, 1, NULL, NULL, ?, ?)
+  `).run(`xp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, sourceId, -penalty, -penalty, Date.now(), Date.now())
   return penalty
 }
 
@@ -662,6 +669,7 @@ export function syncExpiredCatalogEnrollments(db: Database.Database, nowMs = Dat
     FROM catalog_enrollments ce
     JOIN quest_definitions qd ON qd.id = ce.definition_id
     WHERE ce.status IN ('enrolled', 'active')
+      AND ce.deleted_at IS NULL
       AND ce.deadline_at < ?
   `).all(nowMs) as Array<CatalogEnrollmentRow & { xp_reward: number; difficulty: QuestDifficulty }>
 
@@ -707,6 +715,7 @@ export function getCatalogQuests(db: Database.Database): CatalogQuestView[] {
       FROM catalog_enrollments
       GROUP BY definition_id
     ) latest ON ce.definition_id = latest.definition_id AND ce.enrolled_at = latest.latest
+    WHERE ce.deleted_at IS NULL
   `).all() as CatalogEnrollmentRow[]
 
   const enrollmentMap = new Map<string, CatalogEnrollmentRow>()
@@ -744,7 +753,7 @@ export function enrollCatalogQuest(db: Database.Database, definitionId: string):
 
     const existing = db.prepare(`
       SELECT id FROM catalog_enrollments
-      WHERE definition_id = ? AND status IN ('enrolled', 'active')
+      WHERE definition_id = ? AND status IN ('enrolled', 'active') AND deleted_at IS NULL
     `).get(definitionId) as { id: string } | undefined
     if (existing) throw new Error('Already enrolled in this quest.')
 
@@ -770,7 +779,7 @@ export function enrollCatalogQuest(db: Database.Database, definitionId: string):
 export function abandonCatalogQuest(db: Database.Database, enrollmentId: string): CatalogEnrollmentRow {
   const nowMs = Date.now()
 
-  const row = db.prepare('SELECT * FROM catalog_enrollments WHERE id = ?').get(enrollmentId) as CatalogEnrollmentRow | undefined
+  const row = db.prepare('SELECT * FROM catalog_enrollments WHERE id = ? AND deleted_at IS NULL').get(enrollmentId) as CatalogEnrollmentRow | undefined
   if (!row) throw new Error('Enrollment not found.')
   if (row.status !== 'enrolled' && row.status !== 'active') {
     throw new Error(`Cannot abandon quest with status: ${row.status}`)
@@ -880,7 +889,7 @@ export function recordCatalogQuestProgress(
 
       if (enrollment.egg_reward_tier) {
         const existingEgg = db
-          .prepare('SELECT COUNT(*) as n FROM pet_eggs WHERE source_quest_id = ?')
+          .prepare('SELECT COUNT(*) as n FROM pet_eggs WHERE source_quest_id = ? AND deleted_at IS NULL')
           .get(enrollment.id) as { n: number }
         if (existingEgg.n === 0) {
           awardEgg(db, enrollment.id)
@@ -892,7 +901,7 @@ export function recordCatalogQuestProgress(
       if (enrollment.focus_reward > 0) {
         const focusSourceId = `catalog_focus_${enrollment.id}`
         const alreadyAwarded = db
-          .prepare('SELECT COUNT(*) as n FROM focus_log WHERE source_id = ?')
+          .prepare('SELECT COUNT(*) as n FROM focus_log WHERE source_id = ? AND deleted_at IS NULL')
           .get(focusSourceId) as { n: number }
         if (alreadyAwarded.n === 0) {
           awardFocus(db, 'quest_completion', focusSourceId, enrollment.focus_reward)
@@ -954,6 +963,7 @@ export function incrementCatalogProgressByType(db: Database.Database, questType:
     FROM catalog_enrollments ce
     JOIN quest_definitions qd ON qd.id = ce.definition_id
     WHERE qd.target_type = ?
+      AND ce.deleted_at IS NULL
       AND ce.status IN ('enrolled', 'active')
   `).all(questType) as Array<{ id: string; progress: number }>
 
@@ -979,6 +989,7 @@ export function setCatalogProgressByType(db: Database.Database, questType: strin
     FROM catalog_enrollments ce
     JOIN quest_definitions qd ON qd.id = ce.definition_id
     WHERE qd.target_type = ?
+      AND ce.deleted_at IS NULL
       AND ce.status IN ('enrolled', 'active')
   `).all(questType) as Array<{ id: string }>
 

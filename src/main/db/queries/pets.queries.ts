@@ -67,7 +67,7 @@ export function getEquippedPet(db: Database.Database): PetWithDefinition | null 
     SELECT p.*, d.icon, d.rarity, d.boosted_source, d.bonus_rate, d.flavor_text, d.max_level
     FROM pets p
     JOIN pet_definitions d ON p.definition_id = d.id
-    WHERE p.equipped = 1
+    WHERE p.equipped = 1 AND p.deleted_at IS NULL
     LIMIT 1
   `).get() as PetWithDefinition | undefined
 
@@ -109,11 +109,11 @@ export function awardPetXP(
 
   const logId = `petxp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
   db.prepare(`
-    INSERT INTO pet_xp_log (id, pet_id, source, source_xp, pet_xp_gain, logged_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(logId, petId, source, baseActivityXp, petXpGain, Date.now())
+    INSERT INTO pet_xp_log (id, pet_id, source, source_xp, pet_xp_gain, logged_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(logId, petId, source, baseActivityXp, petXpGain, Date.now(), Date.now())
 
-  db.prepare('UPDATE pets SET total_xp = ?, level = ? WHERE id = ?').run(newTotalXp, newLevel, petId)
+  db.prepare('UPDATE pets SET total_xp = ?, level = ?, updated_at = ? WHERE id = ?').run(newTotalXp, newLevel, Date.now(), petId)
 
   return { petXpGain, newLevel, leveledUp }
 }
@@ -124,6 +124,7 @@ export function getAllPets(db: Database.Database): PetWithDefinition[] {
     SELECT p.*, d.icon, d.rarity, d.boosted_source, d.bonus_rate, d.flavor_text, d.max_level
     FROM pets p
     JOIN pet_definitions d ON p.definition_id = d.id
+    WHERE p.deleted_at IS NULL
     ORDER BY p.obtained_at DESC
   `).all() as PetWithDefinition[]
 }
@@ -131,22 +132,23 @@ export function getAllPets(db: Database.Database): PetWithDefinition[] {
 /** Returns all unhatched eggs, oldest first */
 export function getUnhatchedEggs(db: Database.Database): EggRow[] {
   return db.prepare(`
-    SELECT * FROM pet_eggs WHERE hatched_at IS NULL ORDER BY earned_at ASC
+    SELECT * FROM pet_eggs WHERE hatched_at IS NULL AND deleted_at IS NULL ORDER BY earned_at ASC
   `).all() as EggRow[]
 }
 
 /** Sets one pet as equipped, unequips all others */
 export function equipPet(db: Database.Database, petId: string): void {
   const tx = db.transaction(() => {
-    db.prepare('UPDATE pets SET equipped = 0').run()
-    db.prepare('UPDATE pets SET equipped = 1 WHERE id = ?').run(petId)
+    const now = Date.now()
+    db.prepare('UPDATE pets SET equipped = 0, updated_at = ? WHERE deleted_at IS NULL').run(now)
+    db.prepare('UPDATE pets SET equipped = 1, updated_at = ? WHERE id = ?').run(now, petId)
   })
   tx()
 }
 
 /** Unequips all pets */
 export function unequipAll(db: Database.Database): void {
-  db.prepare('UPDATE pets SET equipped = 0').run()
+  db.prepare('UPDATE pets SET equipped = 0, updated_at = ? WHERE deleted_at IS NULL').run(Date.now())
 }
 
 const DUPLICATE_PET_FOCUS: Record<string, number> = {
@@ -184,8 +186,8 @@ export function hatchEgg(db: Database.Database, eggId: string): HatchResult | nu
 
     const tx = db.transaction(() => {
       // Mark egg as hatched with pet_id = NULL (duplicate outcome)
-      db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = NULL WHERE id = ?')
-        .run(chosenDef.rarity, now, eggId)
+      db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = NULL, updated_at = ? WHERE id = ?')
+        .run(chosenDef.rarity, now, now, eggId)
       awardFocus(db, 'duplicate_pet', `dup_pet_${eggId}`, focusAmount)
     })
     tx()
@@ -198,11 +200,11 @@ export function hatchEgg(db: Database.Database, eggId: string): HatchResult | nu
   const petId = `pet_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
 
   db.prepare(`
-    INSERT INTO pets (id, definition_id, egg_id, name, total_xp, level, obtained_at, equipped)
-    VALUES (?, ?, ?, ?, 0, 1, ?, 0)
-  `).run(petId, chosenDef.id, eggId, chosenDef.name, now)
+    INSERT INTO pets (id, definition_id, egg_id, name, total_xp, level, obtained_at, equipped, updated_at)
+    VALUES (?, ?, ?, ?, 0, 1, ?, 0, ?)
+  `).run(petId, chosenDef.id, eggId, chosenDef.name, now, now)
 
-  db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = ? WHERE id = ?').run(chosenDef.rarity, now, petId, eggId)
+  db.prepare('UPDATE pet_eggs SET tier = ?, hatched_at = ?, pet_id = ?, updated_at = ? WHERE id = ?').run(chosenDef.rarity, now, petId, now, eggId)
 
   const updatedEgg = db.prepare('SELECT * FROM pet_eggs WHERE id = ?').get(eggId) as EggRow
   const newPet = db.prepare(`
@@ -219,16 +221,16 @@ export function hatchEgg(db: Database.Database, eggId: string): HatchResult | nu
 export function awardEgg(db: Database.Database, questId: string): EggRow {
   const id = `egg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
   db.prepare(`
-    INSERT INTO pet_eggs (id, tier, source_quest_id, earned_at)
-    VALUES (?, ?, ?, ?)
-  `).run(id, 'mystery', questId, Date.now())
+    INSERT INTO pet_eggs (id, tier, source_quest_id, earned_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, 'mystery', questId, Date.now(), Date.now())
 
   return db.prepare('SELECT * FROM pet_eggs WHERE id = ?').get(id) as EggRow
 }
 
 /** Renames a pet */
 export function renamePet(db: Database.Database, petId: string, name: string): void {
-  db.prepare('UPDATE pets SET name = ? WHERE id = ?').run(name.trim(), petId)
+  db.prepare('UPDATE pets SET name = ?, updated_at = ? WHERE id = ?').run(name.trim(), Date.now(), petId)
 }
 
 /** Returns XP needed to reach next level from current total */

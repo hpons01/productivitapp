@@ -2,12 +2,14 @@ import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, readdirSync } from 'fs'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import { ALL_PET_DEFINITIONS } from '../domain/pets'
 
 const require = createRequire(import.meta.url)
 const Database = require('better-sqlite3') as typeof import('better-sqlite3')
+type BetterSqliteDatabase = import('better-sqlite3').Database
 
-let db: Database.Database
+let db: BetterSqliteDatabase
 
 export function initDatabase(): void {
   const dbPath = join(app.getPath('userData'), 'productivitapp.db')
@@ -30,8 +32,10 @@ export function initDatabase(): void {
   ensureTinyHabitColumns()
   ensureHabitMicroCheckinSchema()
   ensureEventLogSchema()
+  ensureUsersSchema()
   ensureShopSchema()   // must run before seedCatalogQuests so focus_reward column exists
   ensureBossLootClaimedColumn()
+  ensureSyncSchema()
   ensureDefaultSettings()
   seedBadges()
   seedPetDefinitions()
@@ -39,7 +43,7 @@ export function initDatabase(): void {
 }
 
 
-export function getDb(): Database.Database {
+export function getDb(): BetterSqliteDatabase {
   if (!db) {
     throw new Error('Database not initialized. Call initDatabase() first.')
   }
@@ -325,6 +329,41 @@ function ensureEventLogSchema(): void {
   `)
 }
 
+function ensureUsersSchema(): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id                TEXT PRIMARY KEY,
+      provider          TEXT NOT NULL,
+      provider_user_id  TEXT NOT NULL UNIQUE,
+      email             TEXT,
+      display_name      TEXT,
+      avatar_url        TEXT,
+      profile_completed_at INTEGER,
+      profile_last_synced_at INTEGER,
+      remote_updated_at INTEGER,
+      created_at        INTEGER NOT NULL,
+      updated_at        INTEGER NOT NULL,
+      last_login_at     INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_users_provider
+      ON users(provider, last_login_at DESC);
+  `)
+
+  const tableInfo = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>
+  const columns = new Set(tableInfo.map((c) => c.name))
+
+  if (!columns.has('profile_completed_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN profile_completed_at INTEGER')
+  }
+  if (!columns.has('profile_last_synced_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN profile_last_synced_at INTEGER')
+  }
+  if (!columns.has('remote_updated_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN remote_updated_at INTEGER')
+  }
+}
+
 function ensureTinyHabitColumns(): void {
   const tableInfo = db.prepare('PRAGMA table_info(habits)').all() as Array<{ name: string }>
   const columns = new Set(tableInfo.map((c) => c.name))
@@ -400,6 +439,145 @@ function ensureBossLootClaimedColumn(): void {
   if (!cols.includes('loot_claimed')) {
     db.exec('ALTER TABLE boss_battles ADD COLUMN loot_claimed INTEGER NOT NULL DEFAULT 0')
   }
+}
+
+function ensureSyncSchema(): void {
+  const tablesNeedingUpdatedAt = [
+    'habits',
+    'habit_completions',
+    'habit_micro_checkins',
+    'habit_lapse_reflections',
+    'tasks',
+    'pomodoro_sessions',
+    'pomodoro_presets',
+    'journal_entries',
+    'energy_logs',
+    'xp_log',
+    'badges',
+    'boss_battles',
+    'daily_quests',
+    'quest_enrollments',
+    'quest_outcomes',
+    'catalog_enrollments',
+    'pets',
+    'pet_eggs',
+    'pet_xp_log',
+    'focus_log',
+    'shop_purchases',
+    'loot_inventory'
+  ]
+
+  const tablesNeedingDeletedAt = [
+    'habits',
+    'habit_completions',
+    'habit_micro_checkins',
+    'habit_lapse_reflections',
+    'tasks',
+    'pomodoro_sessions',
+    'pomodoro_presets',
+    'journal_entries',
+    'energy_logs',
+    'xp_log',
+    'badges',
+    'boss_battles',
+    'daily_quests',
+    'quest_enrollments',
+    'quest_outcomes',
+    'catalog_enrollments',
+    'pets',
+    'pet_eggs',
+    'pet_xp_log',
+    'focus_log',
+    'shop_purchases',
+    'loot_inventory'
+  ]
+
+  for (const table of tablesNeedingUpdatedAt) {
+    const cols = (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name)
+    if (!cols.includes('updated_at')) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN updated_at INTEGER`)
+    }
+
+    const fallback = cols.includes('created_at')
+      ? 'created_at'
+      : cols.includes('logged_at')
+        ? 'logged_at'
+        : cols.includes('started_at')
+          ? 'started_at'
+          : cols.includes('earned_at')
+            ? 'earned_at'
+            : cols.includes('recorded_at')
+              ? 'recorded_at'
+              : cols.includes('purchased_at')
+                ? 'purchased_at'
+                : cols.includes('enrolled_at')
+                  ? 'enrolled_at'
+                  : null
+
+    if (fallback) {
+      db.exec(`UPDATE ${table} SET updated_at = ${fallback} WHERE updated_at IS NULL`)
+    } else {
+      db.exec(`UPDATE ${table} SET updated_at = ${Date.now()} WHERE updated_at IS NULL`)
+    }
+
+    ensureUpdatedAtTriggers(table)
+  }
+
+  for (const table of tablesNeedingDeletedAt) {
+    const cols = (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name)
+    if (!cols.includes('deleted_at')) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at INTEGER`)
+    }
+  }
+
+  const settingsCols = (db.prepare('PRAGMA table_info(settings)').all() as Array<{ name: string }>).map((c) => c.name)
+  if (!settingsCols.includes('id')) {
+    db.exec('ALTER TABLE settings ADD COLUMN id TEXT')
+  }
+
+  const settingsMissingId = db
+    .prepare("SELECT key FROM settings WHERE id IS NULL OR TRIM(id) = ''")
+    .all() as Array<{ key: string }>
+  if (settingsMissingId.length > 0) {
+    const fillIds = db.prepare('UPDATE settings SET id = ? WHERE key = ?')
+    db.transaction(() => {
+      for (const row of settingsMissingId) {
+        fillIds.run(randomUUID(), row.key)
+      }
+    })()
+  }
+
+  if (!settingsCols.includes('updated_at')) {
+    db.exec('ALTER TABLE settings ADD COLUMN updated_at INTEGER')
+  }
+  db.exec(`UPDATE settings SET updated_at = ${Date.now()} WHERE updated_at IS NULL`)
+  ensureUpdatedAtTriggers('settings')
+}
+
+function ensureUpdatedAtTriggers(table: string): void {
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS trg_${table}_set_updated_at_insert
+    AFTER INSERT ON ${table}
+    FOR EACH ROW
+    WHEN NEW.updated_at IS NULL
+    BEGIN
+      UPDATE ${table}
+      SET updated_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000
+      WHERE rowid = NEW.rowid;
+    END;
+  `)
+
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS trg_${table}_set_updated_at_update
+    AFTER UPDATE ON ${table}
+    FOR EACH ROW
+    WHEN NEW.updated_at IS NULL OR NEW.updated_at = OLD.updated_at
+    BEGIN
+      UPDATE ${table}
+      SET updated_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000
+      WHERE rowid = NEW.rowid;
+    END;
+  `)
 }
 
 function backfillCatalogQuestFocusRewards(): void {

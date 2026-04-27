@@ -77,43 +77,43 @@ export function getDashboardStats(db: Database.Database): DashboardStats {
   const habitsResult = db.prepare(`
     SELECT COUNT(DISTINCT habit_id) as count
     FROM habit_completions
-    WHERE completed_at >= ? AND completed_at <= ?
+    WHERE completed_at >= ? AND completed_at <= ? AND deleted_at IS NULL
   `).get(todayStart, todayEnd) as { count: number }
   const habitsCompletedToday = habitsResult.count
 
-  const totalHabitsResult = db.prepare('SELECT COUNT(*) as count FROM habits WHERE archived_at IS NULL').get() as { count: number }
+  const totalHabitsResult = db.prepare('SELECT COUNT(*) as count FROM habits WHERE archived_at IS NULL AND deleted_at IS NULL').get() as { count: number }
   const totalHabits = totalHabitsResult.count
 
   // Pomodoros
   const pomodoroResult = db.prepare(`
     SELECT COUNT(*) as count FROM pomodoro_sessions
-    WHERE completed = 1 AND started_at >= ? AND started_at <= ?
+    WHERE completed = 1 AND started_at >= ? AND started_at <= ? AND deleted_at IS NULL
   `).get(todayStart, todayEnd) as { count: number }
   const pomodorosToday = pomodoroResult.count
 
-  const totalPomodorosResult = db.prepare('SELECT COUNT(*) as count FROM pomodoro_sessions WHERE completed = 1').get() as { count: number }
+  const totalPomodorosResult = db.prepare('SELECT COUNT(*) as count FROM pomodoro_sessions WHERE completed = 1 AND deleted_at IS NULL').get() as { count: number }
   const totalPomodoros = totalPomodorosResult.count
 
   // Tasks
   const tasksResult = db.prepare(`
-    SELECT COUNT(*) as count FROM tasks WHERE completed_at >= ? AND completed_at <= ?
+    SELECT COUNT(*) as count FROM tasks WHERE completed_at >= ? AND completed_at <= ? AND deleted_at IS NULL
   `).get(todayStart, todayEnd) as { count: number }
   const tasksCompletedToday = tasksResult.count
 
   // Energy
   const energyResult = db.prepare(`
-    SELECT AVG(energy) as avg FROM energy_logs WHERE logged_at >= ?
+    SELECT AVG(energy) as avg FROM energy_logs WHERE logged_at >= ? AND deleted_at IS NULL
   `).get(subDays(new Date(), 6).getTime()) as { avg: number | null }
   const averageEnergy = energyResult.avg ? Math.round(energyResult.avg * 10) / 10 : 0
 
   // Badges (first 20 unlocked + any locked)
   const badges = db.prepare(`
-    SELECT code, name, icon, rarity, unlocked_at FROM badges ORDER BY unlocked_at DESC NULLS LAST LIMIT 30
+    SELECT code, name, icon, rarity, unlocked_at FROM badges WHERE deleted_at IS NULL ORDER BY unlocked_at DESC NULLS LAST LIMIT 30
   `).all() as Array<{ code: string; name: string; icon: string; rarity: string; unlocked_at: number | null }>
 
   // Recent XP gains
   const recentXpGains = db.prepare(`
-    SELECT source, amount, logged_at FROM xp_log ORDER BY logged_at DESC LIMIT 10
+    SELECT source, amount, logged_at FROM xp_log WHERE deleted_at IS NULL ORDER BY logged_at DESC LIMIT 10
   `).all() as Array<{ source: string; amount: number; logged_at: number }>
 
   // RPG Stats (rolling 30 days)

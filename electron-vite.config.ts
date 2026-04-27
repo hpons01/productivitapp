@@ -14,6 +14,11 @@ function isMainExternal(id: string): boolean {
 
 export default defineConfig({
   main: {
+    define: {
+      'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL ?? ''),
+      'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY ?? ''),
+      'process.env.AUTH_REDIRECT_URI': JSON.stringify(process.env.AUTH_REDIRECT_URI ?? '')
+    },
     plugins: [
       externalizeDepsPlugin({
         include: ['better-sqlite3', 'bindings']

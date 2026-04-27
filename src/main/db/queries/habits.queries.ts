@@ -64,11 +64,12 @@ type CreateHabitInput = {
 
 export function listHabits(db: Database.Database): Habit[] {
   return db
-    .prepare('SELECT * FROM habits WHERE archived_at IS NULL ORDER BY created_at ASC')
+    .prepare('SELECT * FROM habits WHERE archived_at IS NULL AND deleted_at IS NULL ORDER BY created_at ASC')
     .all() as Habit[]
 }
 
 export function createHabit(db: Database.Database, data: CreateHabitInput): Habit {
+  const now = Date.now()
   const { custom_days, ...rest } = data
   const resolvedCustomDays = custom_days ?? null
   const payload = {
@@ -87,9 +88,9 @@ export function createHabit(db: Database.Database, data: CreateHabitInput): Habi
   }
 
   db.prepare(`
-    INSERT INTO habits (id, name, description, cue, obstacle_plan, tiny_mode, tiny_started_at, tiny_graduated_at, category, frequency, custom_days, color, icon, created_at)
-    VALUES (@id, @name, @description, @cue, @obstacle_plan, @tiny_mode, @tiny_started_at, @tiny_graduated_at, @category, @frequency, @custom_days, @color, @icon, @created_at)
-  `).run(payload)
+    INSERT INTO habits (id, name, description, cue, obstacle_plan, tiny_mode, tiny_started_at, tiny_graduated_at, category, frequency, custom_days, color, icon, created_at, updated_at)
+    VALUES (@id, @name, @description, @cue, @obstacle_plan, @tiny_mode, @tiny_started_at, @tiny_graduated_at, @category, @frequency, @custom_days, @color, @icon, @created_at, @updated_at)
+  `).run({ ...payload, updated_at: now })
   return db.prepare('SELECT * FROM habits WHERE id = ?').get(payload.id) as Habit
 }
 
@@ -101,22 +102,24 @@ export function updateHabit(
   const fields = Object.keys(data)
     .map((k) => `${k} = @${k}`)
     .join(', ')
-  db.prepare(`UPDATE habits SET ${fields} WHERE id = @id`).run({ ...data, id })
+  db.prepare(`UPDATE habits SET ${fields}, updated_at = @updated_at WHERE id = @id`).run({ ...data, id, updated_at: Date.now() })
   return db.prepare('SELECT * FROM habits WHERE id = ?').get(id) as Habit
 }
 
 export function deleteHabit(db: Database.Database, id: string): void {
-  db.prepare('UPDATE habits SET archived_at = ? WHERE id = ?').run(Date.now(), id)
+  const now = Date.now()
+  db.prepare('UPDATE habits SET archived_at = ?, deleted_at = ?, updated_at = ? WHERE id = ?').run(now, now, now, id)
 }
 
 export function completeHabit(
   db: Database.Database,
   completion: Omit<HabitCompletion, 'id'> & { id: string }
 ): HabitCompletion {
+  const now = Date.now()
   db.prepare(`
-    INSERT INTO habit_completions (id, habit_id, completed_at, note, xp_awarded)
-    VALUES (@id, @habit_id, @completed_at, @note, @xp_awarded)
-  `).run(completion)
+    INSERT INTO habit_completions (id, habit_id, completed_at, note, xp_awarded, updated_at)
+    VALUES (@id, @habit_id, @completed_at, @note, @xp_awarded, @updated_at)
+  `).run({ ...completion, updated_at: now })
   return db
     .prepare('SELECT * FROM habit_completions WHERE id = ?')
     .get(completion.id) as HabitCompletion
@@ -125,9 +128,10 @@ export function completeHabit(
 export function uncompleteHabit(db: Database.Database, habitId: string, date: number): void {
   const dayStart = startOfDay(new Date(date)).getTime()
   const dayEnd = endOfDay(new Date(date)).getTime()
+  const now = Date.now()
   db.prepare(
-    'DELETE FROM habit_completions WHERE habit_id = ? AND completed_at >= ? AND completed_at <= ?'
-  ).run(habitId, dayStart, dayEnd)
+    'UPDATE habit_completions SET deleted_at = ?, updated_at = ? WHERE habit_id = ? AND completed_at >= ? AND completed_at <= ? AND deleted_at IS NULL'
+  ).run(now, now, habitId, dayStart, dayEnd)
 }
 
 export function isCompletedToday(db: Database.Database, habitId: string): boolean {
@@ -135,7 +139,7 @@ export function isCompletedToday(db: Database.Database, habitId: string): boolea
   const dayEnd = endOfDay(new Date()).getTime()
   const result = db
     .prepare(
-      'SELECT id FROM habit_completions WHERE habit_id = ? AND completed_at >= ? AND completed_at <= ?'
+      'SELECT id FROM habit_completions WHERE habit_id = ? AND completed_at >= ? AND completed_at <= ? AND deleted_at IS NULL'
     )
     .get(habitId, dayStart, dayEnd)
   return !!result
@@ -144,7 +148,7 @@ export function isCompletedToday(db: Database.Database, habitId: string): boolea
 export function getHabitStreak(db: Database.Database, habitId: string): number {
   const completions = db
     .prepare(
-      'SELECT completed_at FROM habit_completions WHERE habit_id = ? ORDER BY completed_at DESC'
+      'SELECT completed_at FROM habit_completions WHERE habit_id = ? AND deleted_at IS NULL ORDER BY completed_at DESC'
     )
     .all(habitId) as Array<{ completed_at: number }>
 
@@ -190,7 +194,7 @@ export function getCompletions(
 ): HabitCompletion[] {
   return db
     .prepare(
-      'SELECT * FROM habit_completions WHERE habit_id = ? AND completed_at >= ? AND completed_at <= ? ORDER BY completed_at DESC'
+      'SELECT * FROM habit_completions WHERE habit_id = ? AND completed_at >= ? AND completed_at <= ? AND deleted_at IS NULL ORDER BY completed_at DESC'
     )
     .all(habitId, from, to) as HabitCompletion[]
 }
@@ -202,7 +206,7 @@ export function getAllCompletionsRange(
 ): Array<{ habit_id: string; completed_at: number }> {
   return db
     .prepare(
-      'SELECT habit_id, completed_at FROM habit_completions WHERE completed_at >= ? AND completed_at <= ?'
+      'SELECT habit_id, completed_at FROM habit_completions WHERE completed_at >= ? AND completed_at <= ? AND deleted_at IS NULL'
     )
     .all(from, to) as Array<{ habit_id: string; completed_at: number }>
 }
@@ -212,7 +216,7 @@ export function getTodayCompletedCount(db: Database.Database): number {
   const dayEnd = endOfDay(new Date()).getTime()
   const result = db
     .prepare(
-      'SELECT COUNT(DISTINCT habit_id) as count FROM habit_completions WHERE completed_at >= ? AND completed_at <= ?'
+      'SELECT COUNT(DISTINCT habit_id) as count FROM habit_completions WHERE completed_at >= ? AND completed_at <= ? AND deleted_at IS NULL'
     )
     .get(dayStart, dayEnd) as { count: number }
   return result.count
@@ -222,9 +226,10 @@ export function graduateTinyHabit(db: Database.Database, habitId: string): Habit
   db.prepare(`
     UPDATE habits
     SET tiny_mode = 0,
-        tiny_graduated_at = ?
+        tiny_graduated_at = ?,
+        updated_at = ?
     WHERE id = ?
-  `).run(Date.now(), habitId)
+  `).run(Date.now(), Date.now(), habitId)
 
   return db.prepare('SELECT * FROM habits WHERE id = ?').get(habitId) as Habit
 }
@@ -238,6 +243,7 @@ export function listActiveHabitObstaclePlans(
       `SELECT name, obstacle_plan
        FROM habits
        WHERE archived_at IS NULL
+         AND deleted_at IS NULL
          AND obstacle_plan IS NOT NULL
          AND TRIM(obstacle_plan) <> ''
        ORDER BY created_at ASC
@@ -251,9 +257,9 @@ export function createHabitLapseReflection(
   reflection: HabitLapseReflection
 ): HabitLapseReflection {
   db.prepare(`
-    INSERT INTO habit_lapse_reflections (id, lapse_date, reason_code, note, suggested_action, created_at)
-    VALUES (@id, @lapse_date, @reason_code, @note, @suggested_action, @created_at)
-  `).run(reflection)
+    INSERT INTO habit_lapse_reflections (id, lapse_date, reason_code, note, suggested_action, created_at, updated_at)
+    VALUES (@id, @lapse_date, @reason_code, @note, @suggested_action, @created_at, @updated_at)
+  `).run({ ...reflection, updated_at: Date.now() })
 
   return db.prepare('SELECT * FROM habit_lapse_reflections WHERE id = ?').get(reflection.id) as HabitLapseReflection
 }
@@ -266,7 +272,7 @@ export function getHabitLapseReflectionsForDate(
   const dayEnd = endOfDay(new Date(date)).getTime()
   return db
     .prepare(
-      'SELECT * FROM habit_lapse_reflections WHERE lapse_date >= ? AND lapse_date <= ? ORDER BY created_at DESC'
+      'SELECT * FROM habit_lapse_reflections WHERE lapse_date >= ? AND lapse_date <= ? AND deleted_at IS NULL ORDER BY created_at DESC'
     )
     .all(dayStart, dayEnd) as HabitLapseReflection[]
 }
@@ -276,9 +282,9 @@ export function createHabitMicroCheckin(
   checkin: HabitMicroCheckin
 ): HabitMicroCheckin {
   db.prepare(`
-    INSERT INTO habit_micro_checkins (id, habit_id, completed_at, difficulty, focus_effort, created_at)
-    VALUES (@id, @habit_id, @completed_at, @difficulty, @focus_effort, @created_at)
-  `).run(checkin)
+    INSERT INTO habit_micro_checkins (id, habit_id, completed_at, difficulty, focus_effort, created_at, updated_at)
+    VALUES (@id, @habit_id, @completed_at, @difficulty, @focus_effort, @created_at, @updated_at)
+  `).run({ ...checkin, updated_at: Date.now() })
 
   return db.prepare('SELECT * FROM habit_micro_checkins WHERE id = ?').get(checkin.id) as HabitMicroCheckin
 }

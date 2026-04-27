@@ -36,9 +36,9 @@ export function saveJournalEntry(db: Database.Database, data: JournalEntryInput)
 
   db.prepare(`
     INSERT OR REPLACE INTO journal_entries
-    (id, type, date, intentions, wins, gratitude, energy_level, mood_emoji, reflection, tomorrow_prep, created_at)
-    VALUES (@id, @type, @date, @intentions, @wins, @gratitude, @energy_level, @mood_emoji, @reflection, @tomorrow_prep, @created_at)
-  `).run(payload)
+    (id, type, date, intentions, wins, gratitude, energy_level, mood_emoji, reflection, tomorrow_prep, created_at, updated_at)
+    VALUES (@id, @type, @date, @intentions, @wins, @gratitude, @energy_level, @mood_emoji, @reflection, @tomorrow_prep, @created_at, @updated_at)
+  `).run({ ...payload, updated_at: Date.now() })
   return db.prepare('SELECT * FROM journal_entries WHERE id = ?').get(data.id) as JournalEntry
 }
 
@@ -46,19 +46,19 @@ export function getTodayEntry(db: Database.Database, type: string): JournalEntry
   const from = startOfDay(new Date()).getTime()
   const to = endOfDay(new Date()).getTime()
   return db
-    .prepare('SELECT * FROM journal_entries WHERE type = ? AND date >= ? AND date <= ? ORDER BY created_at DESC LIMIT 1')
+    .prepare('SELECT * FROM journal_entries WHERE type = ? AND date >= ? AND date <= ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1')
     .get(type, from, to) as JournalEntry | undefined
 }
 
 export function listEntries(db: Database.Database, limit = 30): JournalEntry[] {
   return db
-    .prepare('SELECT * FROM journal_entries ORDER BY date DESC LIMIT ?')
+    .prepare('SELECT * FROM journal_entries WHERE deleted_at IS NULL ORDER BY date DESC LIMIT ?')
     .all(limit) as JournalEntry[]
 }
 
 export function getConsecutiveMorningDays(db: Database.Database): number {
   const entries = db
-    .prepare("SELECT date FROM journal_entries WHERE type = 'morning' ORDER BY date DESC")
+    .prepare("SELECT date FROM journal_entries WHERE type = 'morning' AND deleted_at IS NULL ORDER BY date DESC")
     .all() as Array<{ date: number }>
 
   if (!entries.length) return 0
