@@ -169,7 +169,7 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
       xp_awarded: 0
     })
 
-    const { xpAwarded, streak } = result
+    const { xpAwarded, streak, focusAwarded } = result as { xpAwarded: number; streak: number; focusAwarded: number }
     const habitBefore = get().habits.find((h) => h.id === habitId)
     const shouldSuggestGraduation = Boolean(habitBefore?.tiny_mode === 1 && streak >= 7)
 
@@ -183,6 +183,19 @@ export const useHabitsStore = create<HabitsState>((set, get) => ({
     }))
 
     await refreshFromDB()
+
+    // Emit Focus popup and refresh balance
+    if (focusAwarded > 0) {
+      const { dismissReward } = useGamificationStore.getState()
+      const focusId = `focus_habit_${habitId}_${Date.now()}`
+      useGamificationStore.setState((s) => ({
+        pendingRewards: [...s.pendingRewards, { id: focusId, type: 'focus_earned', data: { amount: focusAwarded } }]
+      }))
+      setTimeout(() => dismissReward(focusId), 2200)
+      void import('./shop.store').then(({ useShopStore }) => {
+        void useShopStore.getState().refreshBalance()
+      })
+    }
 
     // Check achievements
     await checkAndUnlockBadges({

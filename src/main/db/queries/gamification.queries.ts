@@ -56,6 +56,20 @@ function focusForLevel(level: number): number {
   return level >= 2 ? LEVEL_UP_FOCUS_REWARD : 0
 }
 
+function dequeueNextPowerup(db: Database.Database): ActivePowerupConfig | null {
+  const queueRaw = getSetting(db, 'powerup_queue')
+  if (!queueRaw) return null
+  try {
+    const queue = JSON.parse(queueRaw) as ActivePowerupConfig[]
+    if (!Array.isArray(queue) || queue.length === 0) return null
+    const [next, ...rest] = queue
+    setSetting(db, 'powerup_queue', JSON.stringify(rest))
+    return next
+  } catch {
+    return null
+  }
+}
+
 function getXpPowerupMultiplier(db: Database.Database, source: string): number {
   const raw = getSetting(db, 'active_powerup')
   if (!raw) return 1
@@ -68,12 +82,18 @@ function getXpPowerupMultiplier(db: Database.Database, source: string): number {
   }
 
   const hasMultiplier = typeof pu.multiplier === 'number' && Number.isFinite(pu.multiplier)
-  if (!hasMultiplier || pu.multiplier <= 1) return 1
+  if (!hasMultiplier || pu.multiplier <= 1) {
+    const next = dequeueNextPowerup(db)
+    if (next) setSetting(db, 'active_powerup', JSON.stringify(next))
+    return 1
+  }
 
   const now = Date.now()
   const expired = pu.expires_at !== null && now > pu.expires_at
   const depleted = pu.uses_left !== null && pu.uses_left <= 0
   if (expired || depleted) {
+    const next = dequeueNextPowerup(db)
+    if (next) setSetting(db, 'active_powerup', JSON.stringify(next))
     return 1
   }
 

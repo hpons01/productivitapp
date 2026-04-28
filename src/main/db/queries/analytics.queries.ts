@@ -35,6 +35,7 @@ export interface DashboardStats {
   totalPomodoros: number
   tasksCompletedToday: number
   averageEnergy: number
+  energyLogsToday: number
   badges: Array<{ code: string; name: string; icon: string; rarity: string; unlocked_at: number | null }>
   recentXpGains: Array<{ source: string; amount: number; logged_at: number }>
   focusPower: number
@@ -105,6 +106,11 @@ export function getDashboardStats(db: Database.Database): DashboardStats {
     SELECT AVG(energy) as avg FROM energy_logs WHERE logged_at >= ? AND deleted_at IS NULL
   `).get(subDays(new Date(), 6).getTime()) as { avg: number | null }
   const averageEnergy = energyResult.avg ? Math.round(energyResult.avg * 10) / 10 : 0
+
+  const energyLogsTodayResult = db.prepare(`
+    SELECT COUNT(*) as count FROM energy_logs WHERE logged_at >= ? AND logged_at <= ? AND deleted_at IS NULL
+  `).get(todayStart, todayEnd) as { count: number }
+  const energyLogsToday = energyLogsTodayResult.count
 
   // Badges (first 20 unlocked + any locked)
   const badges = db.prepare(`
@@ -222,7 +228,8 @@ export function getDashboardStats(db: Database.Database): DashboardStats {
     classEvolutionProgressPct: selectedEvolution.progressPct,
     playstyleClass,
     dailyQuests,
-    weeklyBoss: bossResult || null
+    weeklyBoss: bossResult || null,
+    energyLogsToday
   }
 }
 

@@ -145,7 +145,27 @@ export async function activateLootItem(
         config = { type: 'xp_boost', multiplier: 2, expires_at: now + 6 * 60 * 60 * 1000, uses_left: null }
       }
 
-      if (config) await setSetting('active_powerup', JSON.stringify(config))
+      if (config) {
+        const existing = getSetting?.('active_powerup', '')
+        if (existing) {
+          try {
+            const current = JSON.parse(existing) as PowerupConfig
+            const now = Date.now()
+            const isExpired = current.expires_at !== null && now > current.expires_at
+            const isDepleted = current.uses_left !== null && current.uses_left <= 0
+            if (!isExpired && !isDepleted) {
+              // Queue it: store as powerup_queue array
+              const queueRaw = getSetting?.('powerup_queue', '[]') ?? '[]'
+              let queue: PowerupConfig[] = []
+              try { queue = JSON.parse(queueRaw) as PowerupConfig[] } catch { queue = [] }
+              queue.push(config)
+              await setSetting('powerup_queue', JSON.stringify(queue))
+              break
+            }
+          } catch { /* fall through and overwrite */ }
+        }
+        await setSetting('active_powerup', JSON.stringify(config))
+      }
       break
     }
   }

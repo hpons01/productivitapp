@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { getDb } from '../db'
 import { getOrCreateWeeklyBoss } from '../db/queries/gamification.queries'
 import { awardFocus } from '../db/queries/shop.queries'
+import { incrementCatalogProgressByType } from '../db/queries/quests.queries'
 
 export interface LootItem {
   id: string
@@ -113,6 +114,7 @@ export function registerLootIpc(): void {
         )
 
         awardFocus(db, 'boss_defeat', boss.id, focusAwarded)
+        incrementCatalogProgressByType(db, 'boss_defeats', 1)
 
         return { success: true as const, focusAwarded }
       })

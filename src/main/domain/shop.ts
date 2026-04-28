@@ -166,6 +166,38 @@ export const SHOP_CATALOG: ShopItem[] = [
     icon: '🚀', focusCost: 380,
     effectType: 'xp_boost', effectDuration: 360, effectMagnitude: 2.0
   },
+  {
+    id: 'potion_habit_shield',
+    type: 'potion', rarity: 'uncommon',
+    name: 'Habit Shield',
+    description: 'Absorbs the next streak break — your streak survives one missed day',
+    icon: '🛡️', focusCost: 80,
+    effectType: 'habit_boost', effectDuration: 0, effectMagnitude: 1
+  },
+  {
+    id: 'potion_double_tap',
+    type: 'potion', rarity: 'rare',
+    name: 'Double Tap',
+    description: '+60% Task XP for next 5 tasks',
+    icon: '🎯', focusCost: 70,
+    effectType: 'xp_boost', effectDuration: 0, effectMagnitude: 1.6
+  },
+  {
+    id: 'potion_wellspring',
+    type: 'potion', rarity: 'common',
+    name: 'Wellspring',
+    description: '+50% Energy log XP for 24 hours',
+    icon: '💧', focusCost: 35,
+    effectType: 'xp_boost', effectDuration: 1440, effectMagnitude: 1.5
+  },
+  {
+    id: 'potion_boss_bait',
+    type: 'potion', rarity: 'rare',
+    name: 'Boss Bait',
+    description: 'Weakens the current weekly boss by 100 HP',
+    icon: '🪤', focusCost: 90,
+    effectType: 'xp_boost', effectDuration: 0, effectMagnitude: 1
+  },
 
   // ── Cosmetics (15 items) ──────────────────────────────────────────────────────
   {

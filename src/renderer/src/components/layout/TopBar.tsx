@@ -25,7 +25,7 @@ export function TopBar() {
   const [time, setTime] = useState(new Date())
   const [isMaximized, setIsMaximized] = useState(false)
   const isWindows = navigator.userAgent.includes('Windows')
-  const { level, totalXP, characterClass } = useGamificationStore()
+  const { level, totalXP, characterClass, classBonusSource } = useGamificationStore()
   const { status, timeLeft, pause, resume, stop, endBreak } = usePomodoroStore()
   const equippedTitle = useSettingsStore((s) => s.getSetting('equipped_title', ''))
   const { focusBalance, refreshBalance } = useShopStore()
@@ -95,11 +95,15 @@ export function TopBar() {
             <span className="text-[11px] font-[family:var(--font-display)] font-semibold text-[color:var(--app-text)] uppercase tracking-wider leading-none">
               {characterClass}
             </span>
-            {equippedTitle && (
+            {equippedTitle ? (
               <span className="text-[8px] font-[family:var(--font-display)] text-amber-500/70 leading-none italic">
                 {equippedTitle}
               </span>
-            )}
+            ) : classBonusSource && classBonusSource !== null ? (
+              <span className="text-[8px] font-mono text-primary-400/70 leading-none">
+                +25% {classBonusSource} XP
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -130,7 +134,7 @@ export function TopBar() {
         </div>
 
         {/* Panel 4: Focus currency */}
-        <div className="flex items-center gap-1.5 px-3">
+        <div className="flex items-center gap-1.5 px-3 group relative" title="Focus is a currency earned from level-ups, badges, quests, and boss defeats. Spend it in the Shop.">
           <Gem size={10} className="text-cyan-500/70" />
           <span className="text-[10px] font-mono font-bold text-cyan-400 tabular-nums">
             {focusBalance.toLocaleString()}

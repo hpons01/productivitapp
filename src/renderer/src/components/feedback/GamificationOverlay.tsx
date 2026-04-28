@@ -264,6 +264,7 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
         payload: JSON.stringify({
           name: loot.name,
           description: loot.description,
+          icon: loot.icon,
           value: loot.value,
           levelFraction: loot.levelFraction
         })
@@ -293,7 +294,7 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
       >
         <p className="text-surface-400 uppercase tracking-widest text-xs mb-4 font-bold">Surprise Reward!</p>
 
-        {/* Loot chest */}
+        {/* Loot item icon */}
         <motion.div
           className={cn('w-24 h-24 mx-auto mb-4 rounded-sm border-2 flex items-center justify-center text-5xl', colors.bg, colors.border)}
           initial={{ rotate: 0 }}
@@ -301,7 +302,7 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
           transition={{ duration: 0.6 }}
           style={{ boxShadow: `0 0 40px ${loot.tier === 'legendary' ? '#f59e0b' : loot.tier === 'epic' ? '#a855f7' : '#3b82f6'}44` }}
         >
-          📦
+          {loot.icon || '📦'}
         </motion.div>
 
         <div className={cn('text-xs uppercase tracking-widest font-bold mb-1', colors.text)}>

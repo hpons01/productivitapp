@@ -948,8 +948,16 @@ function seedBadges(): void {
 
 function seedPetDefinitions(): void {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO pet_definitions (id, name, icon, rarity, boosted_source, bonus_rate, flavor_text, max_level)
+    INSERT INTO pet_definitions (id, name, icon, rarity, boosted_source, bonus_rate, flavor_text, max_level)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      icon = excluded.icon,
+      rarity = excluded.rarity,
+      boosted_source = excluded.boosted_source,
+      bonus_rate = excluded.bonus_rate,
+      flavor_text = excluded.flavor_text,
+      max_level = excluded.max_level
   `)
 
   const insertMany = db.transaction(() => {
@@ -1074,6 +1082,14 @@ const CATALOG_QUEST_DEFINITIONS = [
   { slug: 'energy_transcendent',title: 'Energy Transcendent',description: 'Log your energy 100 times',           flavor_text: 'Self-knowledge is the highest knowledge.',          category: 'vitality',    difficulty: 'legendary', target_type: 'energy_logs',    target_count: 100, xp_reward: 750,  duration_days: 30, min_level_required: 15, egg_reward_tier: null,        loot_reward_tier: 'rare',      sort_order: 560 },
   { slug: 'the_blitz_legend',  title: 'The Blitz Legend',  description: 'Complete 300 tasks',                    flavor_text: 'Action upon action upon action. This is how legends are built.', category: 'discipline', difficulty: 'legendary', target_type: 'tasks', target_count: 300, xp_reward: 1500, duration_days: 30, min_level_required: 18, egg_reward_tier: 'legendary', loot_reward_tier: 'epic', sort_order: 570 },
   { slug: 'iron_monk',         title: 'Iron Monk',         description: 'Complete all habits 50 times',          flavor_text: 'Discipline is not a punishment. It is a form of self-respect.', category: 'discipline', difficulty: 'legendary', target_type: 'habits_all', target_count: 50, xp_reward: 950, duration_days: 21, min_level_required: 15, egg_reward_tier: 'mystery', loot_reward_tier: 'rare', sort_order: 580 },
+  // ── New additions ──
+  { slug: 'journal_spark',     title: 'Journal Spark',     description: 'Complete morning or evening ritual 2 times',  flavor_text: 'A pen to paper is the first act of self-authorship.', category: 'reflection', difficulty: 'easy', target_type: 'morning_ritual', target_count: 2, xp_reward: 30, duration_days: 2, min_level_required: 1, egg_reward_tier: null, loot_reward_tier: null, sort_order: 95 },
+  { slug: 'task_trio',         title: 'Task Trio',         description: 'Complete 3 tasks today',                       flavor_text: 'Three done. The day is already a win.', category: 'discipline', difficulty: 'easy', target_type: 'tasks', target_count: 3, xp_reward: 35, duration_days: 1, min_level_required: 1, egg_reward_tier: null, loot_reward_tier: null, sort_order: 45 },
+  { slug: 'pomodoro_dozen',    title: 'Pomodoro Dozen',    description: 'Complete 12 Pomodoros in 4 days',              flavor_text: 'Twelve sessions. A week forged in focus.', category: 'focus', difficulty: 'medium', target_type: 'pomodoros', target_count: 12, xp_reward: 140, duration_days: 4, min_level_required: 4, egg_reward_tier: null, loot_reward_tier: null, sort_order: 205 },
+  { slug: 'task_machine',      title: 'Task Machine',      description: 'Complete 50 tasks',                            flavor_text: 'Fifty done. The machine does not stop.', category: 'discipline', difficulty: 'hard', target_type: 'tasks', target_count: 50, xp_reward: 330, duration_days: 10, min_level_required: 8, egg_reward_tier: null, loot_reward_tier: null, sort_order: 405 },
+  { slug: 'boss_slayer',       title: 'Boss Slayer',       description: 'Defeat the weekly boss 2 times',               flavor_text: 'Defeat is not an end. It is a tutorial.', category: 'mastery', difficulty: 'hard', target_type: 'boss_defeats', target_count: 2, xp_reward: 380, duration_days: 14, min_level_required: 10, egg_reward_tier: 'mystery', loot_reward_tier: null, sort_order: 425 },
+  { slug: 'the_dawn_keeper',   title: 'The Dawn Keeper',   description: 'Complete morning ritual 60 times',             flavor_text: 'Sixty mornings surrendered. You have become the dawn.', category: 'mastery', difficulty: 'legendary', target_type: 'morning_ritual', target_count: 60, xp_reward: 2000, duration_days: 30, min_level_required: 20, egg_reward_tier: 'legendary', loot_reward_tier: 'legendary', sort_order: 590 },
+  { slug: 'pomodoro_centurion',title: 'Pomodoro Centurion',description: 'Complete 100 Pomodoros',                       flavor_text: 'A hundred fires. A hundred victories.', category: 'focus', difficulty: 'legendary', target_type: 'pomodoros', target_count: 100, xp_reward: 800, duration_days: 21, min_level_required: 15, egg_reward_tier: 'mystery', loot_reward_tier: null, sort_order: 525 },
 ] as const
 
 const CATALOG_FOCUS_REWARDS: Record<string, number> = {
@@ -1091,6 +1107,9 @@ const CATALOG_FOCUS_REWARDS: Record<string, number> = {
   // legendary
   the_unstoppable: 200, grandmaster_focus: 250, ascendant: 220, the_chronicler: 180,
   legendary_grind: 175, energy_transcendent: 175, the_blitz_legend: 300, iron_monk: 210,
+  // new quests
+  journal_spark: 5, task_trio: 5, pomodoro_dozen: 30, task_machine: 75,
+  boss_slayer: 85, the_dawn_keeper: 300, pomodoro_centurion: 200,
 }
 
 function seedCatalogQuests(): void {

@@ -18,6 +18,7 @@ import {
 import { awardXP, damageBoss, updateStreakRecoveryQuest, hasBrokenStreakToday } from '../db/queries/gamification.queries'
 import { getSetting, setSetting } from '../db/queries/settings.queries'
 import { setQuestProgressByType, incrementCatalogProgressByType, decrementCatalogProgressByType } from '../db/queries/quests.queries'
+import { awardFocus } from '../db/queries/shop.queries'
 import { logEvent } from '../db/queries/eventlog.queries'
 import { emitQuestCompletions } from './quest-notifications'
 
@@ -68,10 +69,16 @@ export function registerHabitsIpc(): void {
     const streakBonus = Math.min(50, streak * 2)
     const baseXP = 15 + streakBonus
     const xpAward = awardXP(db, 'habit', data.habit_id, baseXP)
+
+    // Award Focus based on streak tier
+    const focusAmount = streak >= 30 ? 5 : streak >= 14 ? 3 : streak >= 7 ? 2 : 1
+    const focusAward = awardFocus(db, 'habit_completion', `habit_focus_${completion.id}`, focusAmount)
+
     logEvent(db, 'habit_completed', 'habit', data.habit_id, {
       streak,
       baseXP,
-      xpAwarded: xpAward.finalAmount
+      xpAwarded: xpAward.finalAmount,
+      focusAwarded: focusAward.awarded
     })
 
     // Damage the weekly boss
@@ -95,7 +102,8 @@ export function registerHabitsIpc(): void {
       xpAwarded: xpAward.finalAmount,
       baseXP: xpAward.baseAmount,
       multiplier: xpAward.multiplier,
-      streak
+      streak,
+      focusAwarded: focusAward.awarded
     }
   })
 

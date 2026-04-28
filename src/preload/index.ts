@@ -134,7 +134,9 @@ const api = {
     dailyShop: (dateSeed: string) => ipcRenderer.invoke('shop:dailyShop', dateSeed),
     purchase: (itemId: string, dateSeed: string) => ipcRenderer.invoke('shop:purchase', itemId, dateSeed),
     focusLog: (limit?: number) => ipcRenderer.invoke('shop:focusLog', limit),
-    awardFocus: (source: string, sourceId: string, amount: number) => ipcRenderer.invoke('shop:awardFocus', source, sourceId, amount)
+    awardFocus: (source: string, sourceId: string, amount: number) => ipcRenderer.invoke('shop:awardFocus', source, sourceId, amount),
+    activateBossBait: () => ipcRenderer.invoke('shop:activateBossBait'),
+    activateHabitShield: () => ipcRenderer.invoke('shop:activateHabitShield')
   },
 
   // Data export

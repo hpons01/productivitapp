@@ -10,11 +10,16 @@ import { Modal } from '../../components/ui/modal'
 import { cn } from '../../lib/utils'
 
 const PRESET_HABITS = [
-  { name: 'Morning walk', icon: '🚶', cue: 'I wake up', color: '#10b981', category: 'fitness' },
-  { name: 'Drink 8 glasses of water', icon: '💧', cue: 'I eat breakfast', color: '#3b82f6', category: 'health' },
-  { name: 'Read 10 pages', icon: '📚', cue: 'I sit down after dinner', color: '#7c3aed', category: 'learning' },
-  { name: 'Meditate 5 minutes', icon: '🧘', cue: 'I get ready for bed', color: '#f59e0b', category: 'mindfulness' },
-  { name: 'Review daily intentions', icon: '🎯', cue: 'I start my workday', color: '#ec4899', category: 'productivity' }
+  { name: 'Morning walk', icon: '🚶', cue: 'wake up', color: '#10b981', category: 'fitness' },
+  { name: 'Drink 8 glasses of water', icon: '💧', cue: 'eat breakfast', color: '#3b82f6', category: 'health' },
+  { name: 'Read 10 pages', icon: '📚', cue: 'sit down after dinner', color: '#7c3aed', category: 'learning' },
+  { name: 'Meditate 5 minutes', icon: '🧘', cue: 'get ready for bed', color: '#f59e0b', category: 'mindfulness' },
+  { name: 'Review daily intentions', icon: '🎯', cue: 'start my workday', color: '#ec4899', category: 'productivity' },
+  { name: 'Write in my journal', icon: '✍️', cue: 'finish my morning coffee', color: '#8b5cf6', category: 'reflection' },
+  { name: 'Cold shower', icon: '🚿', cue: 'finish my workout', color: '#06b6d4', category: 'health' },
+  { name: 'No social media before noon', icon: '📵', cue: 'wake up', color: '#f97316', category: 'discipline' },
+  { name: '30 min deep work block', icon: '🧠', cue: 'open my laptop', color: '#3b82f6', category: 'productivity' },
+  { name: 'Evening walk', icon: '🌇', cue: 'finish dinner', color: '#10b981', category: 'fitness' }
 ]
 
 const SCIENCE_FACTS = [
@@ -35,6 +40,57 @@ const CORE_VALUES = [
   { id: 'calm', icon: '🧘', label: 'Calm', description: 'Stay grounded under pressure.' }
 ]
 
+const CHARACTER_CLASSES = [
+  {
+    id: 'apprentice',
+    name: 'Apprentice',
+    icon: '🌱',
+    description: 'Jack of all trades. Balanced growth across all disciplines.',
+    bonus: 'No class bonus — pure versatility.',
+    flavor: 'The road to mastery begins with breadth.'
+  },
+  {
+    id: 'time_mage',
+    name: 'Time Mage',
+    icon: '⚡',
+    description: 'Masters focus cycles and earns more from Pomodoros.',
+    bonus: '+25% XP from Pomodoro sessions',
+    flavor: 'Time is the only resource you can never refill.'
+  },
+  {
+    id: 'iron_warrior',
+    name: 'Iron Warrior',
+    icon: '⚔️',
+    description: 'Thrives on execution pressure and earns more from tasks.',
+    bonus: '+25% XP from completed tasks',
+    flavor: 'Discipline is doing what needs to be done, not what feels good.'
+  },
+  {
+    id: 'zen_master',
+    name: 'Zen Master',
+    icon: '🌿',
+    description: 'Builds consistency through rituals and earns more from habits.',
+    bonus: '+25% XP from habit completions',
+    flavor: 'The chains of habit are too light to feel until too heavy to break.'
+  },
+  {
+    id: 'arcane_scholar',
+    name: 'Arcane Scholar',
+    icon: '🧙',
+    description: 'Reflects deeply and earns more from journaling.',
+    bonus: '+25% XP from journal entries',
+    flavor: 'The unexamined life is not worth living.'
+  },
+  {
+    id: 'grand_tactician',
+    name: 'Grand Tactician',
+    icon: '🎯',
+    description: 'Reads momentum and earns more from energy logs.',
+    bonus: '+25% XP from energy tracking',
+    flavor: 'He who knows others is wise. He who knows himself is enlightened.'
+  }
+]
+
 export function OnboardingPage() {
   const { setSetting, loadSettings } = useSettingsStore()
   const { create: createHabit } = useHabitsStore()
@@ -45,6 +101,7 @@ export function OnboardingPage() {
   const [name, setName] = useState('')
   const [selectedHabits, setSelectedHabits] = useState<number[]>([])
   const [selectedValues, setSelectedValues] = useState<string[]>([])
+  const [selectedClass, setSelectedClass] = useState('apprentice')
   const [commitment, setCommitment] = useState('')
   const [loading, setLoading] = useState(false)
   const [showImportConfirm, setShowImportConfirm] = useState(false)
@@ -52,18 +109,15 @@ export function OnboardingPage() {
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  const steps = ['Welcome', 'Science', 'Habits', 'Values', 'Commitment']
+  // Steps: 0=Welcome, 1=Science, 2=Habits, 3=Values, 4=Class, 5=Commitment
+  const steps = ['Welcome', 'Science', 'Habits', 'Values', 'Class', 'Commitment']
 
   const toggleValue = (valueId: string) => {
     setSelectedValues((current) => {
       if (current.includes(valueId)) {
         return current.filter((id) => id !== valueId)
       }
-
-      if (current.length >= 3) {
-        return current
-      }
-
+      if (current.length >= 3) return current
       return [...current, valueId]
     })
   }
@@ -78,14 +132,14 @@ export function OnboardingPage() {
       await setSetting('commitment_statement', commitment || 'I commit to growing 1% every day.')
       await setSetting('core_values', JSON.stringify(valuesToSave))
       await setSetting('primary_value', valuesToSave[0])
+      await setSetting('selected_character_class', selectedClass)
 
-      // Create selected habits
       for (const idx of selectedHabits) {
         const h = PRESET_HABITS[idx]
         await createHabit({
           name: h.name,
           description: null,
-          cue: h.cue,
+          cue: `After I ${h.cue}`,
           obstacle_plan: null,
           tiny_mode: 0,
           tiny_started_at: null,
@@ -153,7 +207,7 @@ export function OnboardingPage() {
               key={s}
               className={cn(
                 'h-1.5 rounded-full transition-all duration-300',
-                i <= step ? 'bg-primary-500 w-16' : 'bg-surface-600 w-8'
+                i <= step ? 'bg-primary-500 w-12' : 'bg-surface-600 w-6'
               )}
             />
           ))}
@@ -225,9 +279,9 @@ export function OnboardingPage() {
               <div className="text-center">
                 <div className="text-4xl mb-3">🌱</div>
                 <h2 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Seed Your Habits</h2>
-                <p className="text-surface-400 text-sm">Pick 2-3 habits to start. You can add more later.</p>
+                <p className="text-surface-400 text-sm">Pick 2–3 habits to start. You can add more later.</p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {PRESET_HABITS.map((h, i) => (
                   <button
                     key={i}
@@ -295,7 +349,9 @@ export function OnboardingPage() {
                 })}
               </div>
               <p className="text-xs text-surface-400 text-center">
-                {selectedValues.length}/3 selected
+                {selectedValues.length === 0
+                  ? 'Select at least 1 value to continue'
+                  : `${selectedValues.length}/3 selected`}
               </p>
               <div className="flex gap-2">
                 <Button variant="secondary" className="flex-1" onClick={() => setStep(2)}>← Back</Button>
@@ -306,9 +362,64 @@ export function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 4: Commitment */}
+          {/* Step 4: Class Selection */}
           {step === 4 && (
             <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
+              <div className="text-center">
+                <div className="text-4xl mb-3">🏛️</div>
+                <h2 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Choose Your Path</h2>
+                <p className="text-surface-400 text-sm">Your class gives a permanent +25% XP bonus to your focus area. You can switch later.</p>
+              </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                {CHARACTER_CLASSES.map((cls) => {
+                  const selected = selectedClass === cls.id
+                  return (
+                    <button
+                      key={cls.id}
+                      onClick={() => setSelectedClass(cls.id)}
+                      className={cn(
+                        'w-full flex items-start gap-4 p-4 rounded-xl border transition-all text-left',
+                        selected
+                          ? 'bg-primary-600/20 border-primary-500/50 shadow-md shadow-primary-900/30'
+                          : 'bg-surface-800 border-surface-600 hover:border-surface-400'
+                      )}
+                    >
+                      <span className="text-3xl mt-0.5 shrink-0">{cls.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className={cn('font-semibold text-sm', selected ? 'text-[color:var(--app-interactive-fg-default)]' : 'text-surface-200')}>
+                          {cls.name}
+                        </div>
+                        <div className="text-xs text-surface-400 mt-0.5">{cls.description}</div>
+                        <div className={cn(
+                          'text-xs font-medium mt-1.5 px-2 py-0.5 rounded-full w-fit',
+                          selected
+                            ? 'bg-primary-500/20 text-primary-300'
+                            : 'bg-surface-700 text-surface-400'
+                        )}>
+                          {cls.bonus}
+                        </div>
+                      </div>
+                      {selected && <span className="text-primary-400 shrink-0 mt-1">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedClass && (() => {
+                const cls = CHARACTER_CLASSES.find((c) => c.id === selectedClass)
+                return cls ? (
+                  <p className="text-xs text-surface-400 text-center italic">"{cls.flavor}"</p>
+                ) : null
+              })()}
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setStep(3)}>← Back</Button>
+                <Button className="flex-1" onClick={() => setStep(5)}>Continue →</Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 5: Commitment */}
+          {step === 5 && (
+            <motion.div key="step5" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
               <div className="text-center">
                 <div className="text-4xl mb-3">🤝</div>
                 <h2 className="text-2xl font-bold text-[color:var(--app-interactive-fg-default)] mb-2">Make a Commitment</h2>
@@ -316,6 +427,21 @@ export function OnboardingPage() {
                   Research shows written commitments dramatically increase follow-through (Ariely, 2008).
                 </p>
               </div>
+
+              {/* Class recap */}
+              {(() => {
+                const cls = CHARACTER_CLASSES.find((c) => c.id === selectedClass)
+                return cls ? (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-primary-600/10 border border-primary-500/20">
+                    <span className="text-2xl">{cls.icon}</span>
+                    <div>
+                      <div className="text-sm font-semibold text-[color:var(--app-interactive-fg-default)]">{cls.name}</div>
+                      <div className="text-xs text-primary-400">{cls.bonus}</div>
+                    </div>
+                  </div>
+                ) : null
+              })()}
+
               <Textarea
                 label="I commit to using ProductivitApp every day because..."
                 value={commitment}
@@ -324,7 +450,7 @@ export function OnboardingPage() {
                 rows={4}
               />
               <div className="flex gap-2">
-                <Button variant="secondary" className="flex-1" onClick={() => setStep(3)}>← Back</Button>
+                <Button variant="secondary" className="flex-1" onClick={() => setStep(4)}>← Back</Button>
                 <Button
                   className="flex-1"
                   loading={loading}
