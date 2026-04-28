@@ -1,9 +1,47 @@
 import type Database from 'better-sqlite3'
 import { getDb } from '../db'
-import { loadStoredSession } from '../auth/token-store'
+import { loadStoredSession, saveStoredSession } from '../auth/token-store'
 import type { SyncTableName } from './types'
 
 const BATCH_SIZE = 500
+const REFRESH_BUFFER_MS = 60 * 1000
+
+async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string; expiresAt: number }> {
+  const { url, anonKey } = getSupabaseConfig()
+  const response = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+    method: 'POST',
+    headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  })
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Token refresh failed: ${response.status} ${details}`)
+  }
+  const data = await response.json() as { access_token: string; refresh_token: string; expires_in: number }
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: Date.now() + data.expires_in * 1000
+  }
+}
+
+async function getValidSession(): Promise<{ userId: string; accessToken: string }> {
+  const session = await loadStoredSession()
+  if (!session?.accessToken) throw new Error('No active session token for sync.')
+
+  if (session.expiresAt > Date.now() + REFRESH_BUFFER_MS) {
+    return { userId: session.userId, accessToken: session.accessToken }
+  }
+
+  const refreshed = await refreshAccessToken(session.refreshToken)
+  await saveStoredSession({
+    userId: session.userId,
+    accessToken: refreshed.accessToken,
+    refreshToken: refreshed.refreshToken,
+    expiresAt: refreshed.expiresAt
+  })
+  return { userId: session.userId, accessToken: refreshed.accessToken }
+}
 
 function getSupabaseConfig(): { url: string; anonKey: string } {
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL
@@ -181,10 +219,7 @@ async function postUpsert(
 }
 
 export async function pushTable(table: SyncTableName, userId: string, since: number): Promise<void> {
-  const session = await loadStoredSession()
-  if (!session?.accessToken) {
-    throw new Error('No active session token for push.')
-  }
+  const { accessToken } = await getValidSession()
 
   const db = getDb()
   const rows = selectPushRows(db, table, since)
@@ -192,7 +227,7 @@ export async function pushTable(table: SyncTableName, userId: string, since: num
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const page = rows.slice(i, i + BATCH_SIZE)
-    await postUpsert(table, userId, session.accessToken, page)
+    await postUpsert(table, userId, accessToken, page)
   }
 }
 
@@ -267,16 +302,13 @@ function upsertLocal(db: Database.Database, table: SyncTableName, row: Record<st
 }
 
 export async function pullTable(table: SyncTableName, userId: string, since: number): Promise<void> {
-  const session = await loadStoredSession()
-  if (!session?.accessToken) {
-    throw new Error('No active session token for pull.')
-  }
+  const { accessToken } = await getValidSession()
 
   const db = getDb()
   let offset = 0
 
   while (true) {
-    const rows = await pullPage(table, userId, since, offset, session.accessToken)
+    const rows = await pullPage(table, userId, since, offset, accessToken)
     if (!rows.length) break
 
     const tx = db.transaction(() => {
