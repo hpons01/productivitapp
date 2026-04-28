@@ -130,10 +130,10 @@ describe('TIER_COLORS', () => {
   })
 
   it('legendary has amber color class', () => {
-    expect(TIER_COLORS.legendary.text).toContain('amber')
+    expect(TIER_COLORS.legendary.text).toContain('#c8972a')
   })
 
   it('rare has blue color class', () => {
-    expect(TIER_COLORS.rare.text).toContain('blue')
+    expect(TIER_COLORS.rare.text).toContain('#4a9fd4')
   })
 })
