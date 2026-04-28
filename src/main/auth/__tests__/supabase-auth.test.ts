@@ -97,7 +97,7 @@ describe('supabase-auth refresh behavior', () => {
   })
 
   it('skips refresh when token is still valid', async () => {
-    vi.mocked(loadStoredSession).mockResolvedValue({
+    vi.mocked(loadStoredSession).mockResolvedValueOnce({
       userId: 'u_1',
       accessToken: 'a',
       refreshToken: 'r',
