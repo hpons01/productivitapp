@@ -11,6 +11,7 @@ export interface LootItem {
   type: 'xp_boost' | 'theme' | 'title' | 'power_up' | 'cosmetic'
   name: string
   description: string
+  icon: string
   value?: number
   levelFraction?: number
 }
@@ -73,43 +74,43 @@ export function rollLootTier(evolutionTier = 0): LootTier {
 
 const LOOT_POOLS: Record<LootTier, LootItem[]> = {
   common: [
-    { tier: 'common', type: 'xp_boost', name: 'Minor XP Scroll', description: '+50 bonus XP', value: 50 },
-    { tier: 'common', type: 'xp_boost', name: 'Novice Sigil', description: 'Gain 25% of a level', levelFraction: 0.25 },
-    { tier: 'common', type: 'power_up', name: 'Long XP Tonic', description: '+25% XP for 6 hours' },
-    { tier: 'common', type: 'title', name: 'The Diligent', description: 'A modest title for your efforts' },
-    { tier: 'common', type: 'cosmetic', name: 'Bronze Accent', description: 'Unlock bronze UI accents' }
+    { tier: 'common', type: 'xp_boost', name: 'Minor XP Scroll', description: '+50 bonus XP', icon: '📜', value: 50 },
+    { tier: 'common', type: 'xp_boost', name: 'Novice Sigil', description: 'Gain 25% of a level', icon: '🔰', levelFraction: 0.25 },
+    { tier: 'common', type: 'power_up', name: 'Long XP Tonic', description: '+25% XP for 6 hours', icon: '🧃' },
+    { tier: 'common', type: 'title', name: 'The Diligent', description: 'A modest title for your efforts', icon: '🏷️' },
+    { tier: 'common', type: 'cosmetic', name: 'Bronze Accent', description: 'Unlock bronze UI accents', icon: '🟤' }
   ],
   uncommon: [
-    { tier: 'uncommon', type: 'xp_boost', name: 'XP Tome', description: '+150 bonus XP', value: 150 },
-    { tier: 'uncommon', type: 'xp_boost', name: 'Adept Sigil', description: 'Gain 50% of a level', levelFraction: 0.5 },
-    { tier: 'uncommon', type: 'power_up', name: 'Long XP Elixir', description: '+50% XP for 6 hours' },
-    { tier: 'uncommon', type: 'power_up', name: 'Focus Potion', description: '+25% XP on your next 3 Pomodoros' },
-    { tier: 'uncommon', type: 'cosmetic', name: 'Silver Accent', description: 'Unlock silver UI accents' },
-    { tier: 'uncommon', type: 'title', name: 'The Persistent', description: 'A green title for the consistent' }
+    { tier: 'uncommon', type: 'xp_boost', name: 'XP Tome', description: '+150 bonus XP', icon: '📚', value: 150 },
+    { tier: 'uncommon', type: 'xp_boost', name: 'Adept Sigil', description: 'Gain 50% of a level', icon: '⭐', levelFraction: 0.5 },
+    { tier: 'uncommon', type: 'power_up', name: 'Long XP Elixir', description: '+50% XP for 6 hours', icon: '🧪' },
+    { tier: 'uncommon', type: 'power_up', name: 'Focus Potion', description: '+25% XP on your next 3 Pomodoros', icon: '🍵' },
+    { tier: 'uncommon', type: 'cosmetic', name: 'Silver Accent', description: 'Unlock silver UI accents', icon: '🩶' },
+    { tier: 'uncommon', type: 'title', name: 'The Persistent', description: 'A green title for the consistent', icon: '🌿' }
   ],
   rare: [
-    { tier: 'rare', type: 'xp_boost', name: 'Ancient XP Crystal', description: '+500 bonus XP', value: 500 },
-    { tier: 'rare', type: 'xp_boost', name: 'Master Sigil', description: 'Gain 75% of a level', levelFraction: 0.75 },
-    { tier: 'rare', type: 'power_up', name: 'Long XP Infusion', description: '+75% XP for 6 hours' },
-    { tier: 'rare', type: 'power_up', name: 'Streak Shield', description: 'Protect a streak from breaking once' },
-    { tier: 'rare', type: 'theme', name: 'Ember Theme', description: 'Unlock the warm Emberforge palette' },
-    { tier: 'rare', type: 'theme', name: 'Ocean Theme', description: 'Unlock the Abyssal Tide theme' },
-    { tier: 'rare', type: 'title', name: 'The Relentless', description: 'A blue title for the focused' }
+    { tier: 'rare', type: 'xp_boost', name: 'Ancient XP Crystal', description: '+500 bonus XP', icon: '💎', value: 500 },
+    { tier: 'rare', type: 'xp_boost', name: 'Master Sigil', description: 'Gain 75% of a level', icon: '🌟', levelFraction: 0.75 },
+    { tier: 'rare', type: 'power_up', name: 'Long XP Infusion', description: '+75% XP for 6 hours', icon: '⚗️' },
+    { tier: 'rare', type: 'power_up', name: 'Streak Shield', description: 'Protect a streak from breaking once', icon: '🛡️' },
+    { tier: 'rare', type: 'theme', name: 'Ember Theme', description: 'Unlock the warm Emberforge palette', icon: '🔥' },
+    { tier: 'rare', type: 'theme', name: 'Ocean Theme', description: 'Unlock the Abyssal Tide theme', icon: '🌊' },
+    { tier: 'rare', type: 'title', name: 'The Relentless', description: 'A blue title for the focused', icon: '⚡' }
   ],
   epic: [
-    { tier: 'epic', type: 'xp_boost', name: 'Epic XP Orb', description: '+1500 bonus XP', value: 1500 },
-    { tier: 'epic', type: 'xp_boost', name: 'Ascendant Sigil', description: 'Gain a full level', levelFraction: 1 },
-    { tier: 'epic', type: 'power_up', name: 'Long XP Overdrive', description: '+100% XP for 6 hours' },
-    { tier: 'epic', type: 'power_up', name: 'Double XP Elixir', description: '2× XP for the next 30 minutes' },
-    { tier: 'epic', type: 'theme', name: 'Void Theme', description: 'Unlock the sinister Voidweave theme' },
-    { tier: 'epic', type: 'title', name: 'Champion of Focus', description: 'A purple title for the elite' }
+    { tier: 'epic', type: 'xp_boost', name: 'Epic XP Orb', description: '+1500 bonus XP', icon: '🔮', value: 1500 },
+    { tier: 'epic', type: 'xp_boost', name: 'Ascendant Sigil', description: 'Gain a full level', icon: '✨', levelFraction: 1 },
+    { tier: 'epic', type: 'power_up', name: 'Long XP Overdrive', description: '+100% XP for 6 hours', icon: '🌀' },
+    { tier: 'epic', type: 'power_up', name: 'Double XP Elixir', description: '2× XP for the next 30 minutes', icon: '⚡' },
+    { tier: 'epic', type: 'theme', name: 'Void Theme', description: 'Unlock the sinister Voidweave theme', icon: '🌑' },
+    { tier: 'epic', type: 'title', name: 'Champion of Focus', description: 'A purple title for the elite', icon: '👑' }
   ],
   legendary: [
-    { tier: 'legendary', type: 'xp_boost', name: 'Legendary XP Tome', description: '+5000 bonus XP', value: 5000 },
-    { tier: 'legendary', type: 'cosmetic', name: 'Gold Accent', description: 'Unlock royal gold UI accents' },
-    { tier: 'legendary', type: 'theme', name: 'Golden Theme', description: 'Unlock the Sunken Throne legendary theme' },
-    { tier: 'legendary', type: 'title', name: 'Productivity God', description: 'The rarest title in the game' },
-    { tier: 'legendary', type: 'power_up', name: 'Time Warp', description: '3× XP for the next hour' }
+    { tier: 'legendary', type: 'xp_boost', name: 'Legendary XP Tome', description: '+5000 bonus XP', icon: '📖', value: 5000 },
+    { tier: 'legendary', type: 'cosmetic', name: 'Gold Accent', description: 'Unlock royal gold UI accents', icon: '🏆' },
+    { tier: 'legendary', type: 'theme', name: 'Golden Theme', description: 'Unlock the Sunken Throne legendary theme', icon: '☀️' },
+    { tier: 'legendary', type: 'title', name: 'Productivity God', description: 'The rarest title in the game', icon: '⚜️' },
+    { tier: 'legendary', type: 'power_up', name: 'Time Warp', description: '3× XP for the next hour', icon: '⏳' }
   ]
 }
 

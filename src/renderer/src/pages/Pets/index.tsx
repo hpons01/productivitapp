@@ -383,23 +383,37 @@ function PetCard({
 
 function EmptyEggs() {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 text-center bg-surface-800/40 border border-surface-600/30 rounded-sm px-8 py-12">
+    <div className="flex flex-col items-center justify-center gap-4 text-center bg-surface-800/40 border border-surface-600/30 rounded-2xl px-8 py-12">
       <div className="text-5xl opacity-80">🥚</div>
       <h3 className="text-lg font-bold text-[color:var(--app-interactive-fg-default)]">No eggs yet</h3>
       <p className="text-[color:var(--app-muted)] text-sm max-w-xs">
         Complete daily quests to earn companion eggs. Look for the <span className="text-amber-400">🥚</span> icon on quests that reward eggs.
       </p>
+      <div className="grid grid-cols-3 gap-3 mt-2 text-xs text-surface-400 max-w-xs">
+        <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface-700/50 border border-surface-600/30">
+          <span className="text-xl">🎯</span>
+          <span>Daily Quests</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface-700/50 border border-surface-600/30">
+          <span className="text-xl">👹</span>
+          <span>Boss Defeats</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-surface-700/50 border border-surface-600/30">
+          <span className="text-xl">🛒</span>
+          <span>The Shop</span>
+        </div>
+      </div>
     </div>
   )
 }
 
 function EmptyRoster() {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 text-center bg-surface-800/40 border border-surface-600/30 rounded-sm px-8 py-12">
+    <div className="flex flex-col items-center justify-center gap-4 text-center bg-surface-800/40 border border-surface-600/30 rounded-2xl px-8 py-12">
       <div className="text-5xl opacity-80">🐾</div>
       <h3 className="text-lg font-bold text-[color:var(--app-interactive-fg-default)]">No companions yet</h3>
       <p className="text-[color:var(--app-muted)] text-sm max-w-xs">
-        Hatch an egg to meet your first companion. They'll level up as you stay productive!
+        Hatch an egg from the Eggs tab to meet your first companion. They level up alongside you and grant XP bonuses — the rarer the pet, the better the bonus.
       </p>
     </div>
   )

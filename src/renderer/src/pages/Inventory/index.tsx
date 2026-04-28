@@ -23,6 +23,7 @@ interface LootItem {
 interface ParsedPayload {
   name?: string
   description?: string
+  icon?: string
   type?: string
   value?: number
   levelFraction?: number
@@ -268,12 +269,12 @@ export function InventoryPage() {
                     )}
                   >
                     <CardContent className="p-4 flex items-center gap-4">
-                      {/* Type icon */}
+                      {/* Item icon */}
                       <div className={cn(
                         'w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 border',
                         colors.border, colors.bg
                       )}>
-                        {TYPE_ICONS[item.type] || '📦'}
+                        {payload.icon || TYPE_ICONS[item.type] || '📦'}
                       </div>
 
                       {/* Info */}

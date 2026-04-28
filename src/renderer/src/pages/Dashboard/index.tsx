@@ -81,6 +81,7 @@ export function DashboardPage() {
   const [activeQuests, setActiveQuests] = useState<DashboardActiveQuest[]>([])
   const [activeQuestsLoading, setActiveQuestsLoading] = useState(true)
   const [updatingHabitId, setUpdatingHabitId] = useState<string | null>(null)
+  const [energyLoggedToday, setEnergyLoggedToday] = useState(true)
 
   const refreshDashboardStats = async () => {
     const stats = await api().analytics.dashboard() as Record<string, unknown>
@@ -88,9 +89,11 @@ export function DashboardPage() {
       pomodorosToday: stats.pomodorosToday as number,
       habitsCompletedToday: stats.habitsCompletedToday as number,
       totalHabits: stats.totalHabits as number,
-      tasksCompletedToday: stats.tasksCompletedToday as number
+      tasksCompletedToday: stats.tasksCompletedToday as number,
+      energyLogsToday: stats.energyLogsToday as number
     })
     setWeeklyBoss(stats.weeklyBoss as { name: string; max_hp: number; current_hp: number; defeated: number; loot_claimed: number } | null)
+    setEnergyLoggedToday((stats.energyLogsToday as number ?? 0) > 0)
   }
 
   const refreshActiveQuests = async () => {
@@ -625,6 +628,22 @@ export function DashboardPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Energy log prompt */}
+      {!energyLoggedToday && (
+        <motion.div variants={item}>
+          <Link to="/energy" className="block group">
+            <div className="flex items-center gap-3 p-4 rounded-2xl border border-amber-700/30 bg-gradient-to-r from-amber-900/15 to-surface-800 hover:border-amber-600/50 transition-all duration-200 cursor-pointer">
+              <div className="text-2xl">⚡</div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-amber-200">Log your energy</div>
+                <div className="text-xs text-surface-400 mt-0.5">You haven't tracked your energy today — it only takes 10 seconds.</div>
+              </div>
+              <div className="text-amber-500 text-sm group-hover:translate-x-0.5 transition-transform">→</div>
+            </div>
+          </Link>
+        </motion.div>
+      )}
 
       {/* Boss chest opening modal */}
       <AnimatePresence>

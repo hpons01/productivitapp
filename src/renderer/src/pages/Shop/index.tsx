@@ -142,9 +142,18 @@ export function ShopPage() {
 
   async function handleBuy(item: ShopItemClient) {
     const result = await purchase(item.id)
-    if (result.success && item.type === 'cosmetic') {
-      // Immediately apply theme/accent changes
+    if (!result.success) return
+
+    if (item.type === 'cosmetic') {
       await loadSettings()
+    }
+
+    if (item.id === 'potion_boss_bait') {
+      await window.api.shop.activateBossBait()
+    }
+
+    if (item.id === 'potion_habit_shield') {
+      await window.api.shop.activateHabitShield()
     }
   }
 

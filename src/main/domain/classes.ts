@@ -31,7 +31,7 @@ export const CHARACTER_CLASSES: CharacterClassDefinition[] = [
     id: 'apprentice',
     name: 'Apprentice',
     icon: '🌱',
-    description: 'Learning every discipline. No class bonus yet.',
+    description: 'Jack of all trades. Balanced growth across all disciplines.',
     boostedSource: null,
     multiplier: 1,
     evolutionPath: [
