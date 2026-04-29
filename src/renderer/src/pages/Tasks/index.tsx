@@ -318,10 +318,17 @@ export function TasksPage() {
   }, [])
 
   useEffect(() => {
-    if (!selectedProjectId && projects.length > 0) {
-      setSelectedProjectId(projects[0].id)
-    }
+    if (projects.length === 0) return
+    if (selectedProjectId) return
+    const stored = localStorage.getItem('kanban:lastProjectId')
+    const exists = stored && projects.some((p) => p.id === stored)
+    setSelectedProjectId(exists ? stored : projects[0].id)
   }, [projects, selectedProjectId])
+
+  const handleSelectProject = (id: string) => {
+    setSelectedProjectId(id)
+    localStorage.setItem('kanban:lastProjectId', id)
+  }
 
   useEffect(() => {
     const timer = setInterval(() => setNowMs(Date.now()), 30000)
@@ -376,7 +383,7 @@ export function TasksPage() {
     if (!trimmed) return
     const project = await createProject(trimmed)
     setNewProjectName('')
-    setSelectedProjectId(project.id)
+    handleSelectProject(project.id)
   }
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) || null
@@ -408,7 +415,10 @@ export function TasksPage() {
   const confirmProjectDelete = async () => {
     if (!projectPendingDelete) return
     await deleteProject(projectPendingDelete.id)
-    setSelectedProjectId((current) => (current === projectPendingDelete.id ? null : current))
+    if (selectedProjectId === projectPendingDelete.id) {
+      setSelectedProjectId(null)
+      localStorage.removeItem('kanban:lastProjectId')
+    }
     setProjectPendingDelete(null)
   }
 
@@ -844,7 +854,7 @@ export function TasksPage() {
                 <Select
                   label="Project"
                   value={selectedProjectId ?? ''}
-                  onChange={(e) => setSelectedProjectId(e.target.value || null)}
+                  onChange={(e) => { if (e.target.value) handleSelectProject(e.target.value) }}
                 >
                   <option value="" disabled>Select a project</option>
                   {projects.map((project) => (
