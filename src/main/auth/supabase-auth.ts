@@ -4,6 +4,7 @@ import { getDb } from '../db'
 import { logEvent } from '../db/queries/eventlog.queries'
 import { getUserById, markProfileCompleted, updateUserProfile, upsertUser } from '../db/queries/users.queries'
 import { clearStoredSession, loadStoredSession, saveStoredSession } from './token-store'
+import { getSetting, setSetting } from '../db/queries/settings.queries'
 
 interface RemoteProfileRecord {
   id: string
@@ -290,7 +291,13 @@ function clearLocalDataForAccountSwitch(db: ReturnType<typeof getDb>): void {
   db.pragma('foreign_keys = OFF')
   db.transaction(() => {
     for (const table of SYNCED_TABLES) {
-      db.prepare(`DELETE FROM ${table}`).run()
+      if (table === 'badges') {
+        // Badges are catalog seed data — keep the rows but reset unlock status so the
+        // new user starts locked and their unlocked badges are restored on first pull.
+        db.prepare('UPDATE badges SET unlocked_at = NULL, updated_at = NULL').run()
+      } else {
+        db.prepare(`DELETE FROM ${table}`).run()
+      }
     }
   })()
   db.pragma('foreign_keys = ON')
@@ -306,10 +313,18 @@ async function persistSession(tokenResponse: SupabaseTokenResponse): Promise<Pub
   const expiresAt = now + tokenResponse.expires_in * 1000
   const db = getDb()
 
+  // Detect user switch via a setting that persists across sign-out (unlike the
+  // encrypted session file, which is deleted on signOut before this runs).
+  const lastUserId = getSetting(db, 'last_signed_in_user_id')
+  if (lastUserId && lastUserId !== user.id) {
+    clearLocalDataForAccountSwitch(db)
+  }
+  // Also check the session file for in-session switches (belt-and-suspenders).
   const previousSession = await loadStoredSession()
   if (previousSession?.userId && previousSession.userId !== user.id) {
     clearLocalDataForAccountSwitch(db)
   }
+  setSetting(db, 'last_signed_in_user_id', user.id)
 
   upsertUser(db, {
     id: user.id,

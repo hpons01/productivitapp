@@ -17,11 +17,18 @@ async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: 
     const details = await response.text()
     throw new Error(`Token refresh failed: ${response.status} ${details}`)
   }
-  const data = await response.json() as { access_token: string; refresh_token: string; expires_in: number }
+  const data = await response.json()
+  if (
+    typeof data?.access_token !== 'string' ||
+    typeof data?.refresh_token !== 'string' ||
+    typeof data?.expires_in !== 'number'
+  ) {
+    throw new Error(`Token refresh returned unexpected payload: ${JSON.stringify(data)}`)
+  }
   return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: Date.now() + data.expires_in * 1000
+    accessToken: data.access_token as string,
+    refreshToken: data.refresh_token as string,
+    expiresAt: Date.now() + (data.expires_in as number) * 1000
   }
 }
 
@@ -173,14 +180,26 @@ function sanitizeRow(table: SyncTableName, row: Record<string, unknown>): Record
 
 function selectPushRows(db: Database.Database, table: SyncTableName, since: number): Record<string, unknown>[] {
   if (table === 'badges') {
+    // Always push ALL unlocked badges, ignoring `since`. Locked badge rows are catalog
+    // seed data that must not be pushed (hardcoded IDs collide across users in Supabase).
+    // Using `since` would leave badges unlocked before the last sync stranded — they
+    // would never reach Supabase and wouldn't appear on other devices.
     return db
-      .prepare('SELECT id, code, unlocked_at, updated_at FROM badges WHERE COALESCE(updated_at, 0) > ?')
-      .all(since) as Record<string, unknown>[]
+      .prepare('SELECT id, code, unlocked_at, updated_at FROM badges WHERE unlocked_at IS NOT NULL')
+      .all() as Record<string, unknown>[]
   }
 
   if (table === 'settings') {
     return db
       .prepare('SELECT id, key, value, updated_at FROM settings WHERE COALESCE(updated_at, 0) > ?')
+      .all(since) as Record<string, unknown>[]
+  }
+
+  // Exclude system-seeded default presets: they have hardcoded IDs that collide across
+  // users in Supabase, causing RLS USING violations on the ON CONFLICT DO UPDATE path.
+  if (table === 'pomodoro_presets') {
+    return db
+      .prepare('SELECT * FROM pomodoro_presets WHERE user_created = 1 AND COALESCE(updated_at, 0) > ?')
       .all(since) as Record<string, unknown>[]
   }
 
@@ -198,8 +217,20 @@ async function postUpsert(
   if (!rows.length) return
 
   const { url, anonKey } = getSupabaseConfig()
-  const endpoint = `${url}/rest/v1/${table}`
-  const payload = rows.map((row) => ({ ...sanitizeRow(table, row), user_id: userId }))
+  // Badges use (user_id, code) as the natural unique key — not the PK —
+  // because local IDs are hardcoded strings that may differ between devices.
+  // Using on_conflict=user_id,code ensures upsert resolves on the right constraint.
+  const conflictParam = table === 'badges' ? '?on_conflict=user_id,code' : ''
+  const endpoint = `${url}/rest/v1/${table}${conflictParam}`
+  const payload = rows.map((row) => {
+    const sanitized = { ...sanitizeRow(table, row), user_id: userId }
+    if (table === 'badges') {
+      // Badge IDs are hardcoded strings (e.g. 'badge_streak_3') that collide as PKs
+      // across users. Scope them per user so each user gets a unique row in Supabase.
+      sanitized.id = `${userId}__${String(sanitized.code ?? sanitized.id)}`
+    }
+    return sanitized
+  })
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -218,8 +249,8 @@ async function postUpsert(
   }
 }
 
-export async function pushTable(table: SyncTableName, userId: string, since: number): Promise<void> {
-  const { accessToken } = await getValidSession()
+export async function pushTable(table: SyncTableName, since: number): Promise<void> {
+  const { userId, accessToken } = await getValidSession()
 
   const db = getDb()
   const rows = selectPushRows(db, table, since)
@@ -268,9 +299,16 @@ function upsertLocal(db: Database.Database, table: SyncTableName, row: Record<st
   delete local.user_id
 
   if (table === 'badges') {
-    db.prepare(
-      'UPDATE badges SET unlocked_at = ?, updated_at = ? WHERE id = ? OR code = ?'
-    ).run(local.unlocked_at ?? null, local.updated_at ?? nowMs(), local.id, local.code)
+    // Match by code — Supabase IDs are user-scoped ('{userId}__{code}') and differ from
+    // local IDs. Fall back to INSERT if the badge row was somehow deleted.
+    const result = db.prepare(
+      'UPDATE badges SET unlocked_at = ?, updated_at = ? WHERE code = ?'
+    ).run(local.unlocked_at ?? null, local.updated_at ?? nowMs(), local.code)
+    if (result.changes === 0) {
+      db.prepare(
+        'INSERT OR IGNORE INTO badges (id, code, unlocked_at, updated_at) VALUES (?, ?, ?, ?)'
+      ).run(local.code, local.code, local.unlocked_at ?? null, local.updated_at ?? nowMs())
+    }
     return
   }
 
@@ -301,14 +339,17 @@ function upsertLocal(db: Database.Database, table: SyncTableName, row: Record<st
   `).run(asRecord(local))
 }
 
-export async function pullTable(table: SyncTableName, userId: string, since: number): Promise<void> {
-  const { accessToken } = await getValidSession()
+export async function pullTable(table: SyncTableName, since: number): Promise<void> {
+  const { userId, accessToken } = await getValidSession()
 
   const db = getDb()
   let offset = 0
+  // Badges: always pull all (ignore since) — mirrors selectPushRows logic and ensures
+  // old-format rows (with stale updated_at) are always reconciled on every sync.
+  const effectiveSince = table === 'badges' ? 0 : since
 
   while (true) {
-    const rows = await pullPage(table, userId, since, offset, accessToken)
+    const rows = await pullPage(table, userId, effectiveSince, offset, accessToken)
     if (!rows.length) break
 
     const tx = db.transaction(() => {

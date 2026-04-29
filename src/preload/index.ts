@@ -82,7 +82,8 @@ const api = {
     catalog: () => ipcRenderer.invoke('quests:catalog'),
     catalogEnroll: (definitionId: string) => ipcRenderer.invoke('quests:catalog:enroll', definitionId),
     catalogAbandon: (enrollmentId: string) => ipcRenderer.invoke('quests:catalog:abandon', enrollmentId),
-    catalogProgress: (enrollmentId: string, progress: number) => ipcRenderer.invoke('quests:catalog:progress', enrollmentId, progress)
+    catalogProgress: (enrollmentId: string, progress: number) => ipcRenderer.invoke('quests:catalog:progress', enrollmentId, progress),
+    reroll: () => ipcRenderer.invoke('quests:reroll')
   },
 
   // Settings

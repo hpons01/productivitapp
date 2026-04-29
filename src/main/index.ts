@@ -146,7 +146,8 @@ app.whenReady().then(() => {
       mainWindow.webContents.send('auth:sessionChanged', session)
     }
     if (session.authenticated) {
-      void runSync({ fullPull: isNewDevice() })
+      const newDevice = isNewDevice()
+      void runSync({ fullPull: newDevice, skipPush: newDevice })
     }
   })
 

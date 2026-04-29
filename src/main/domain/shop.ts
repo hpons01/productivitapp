@@ -10,7 +10,7 @@ export interface ShopItem {
   icon: string
   focusCost: number
   // Potion fields
-  effectType?: 'xp_boost' | 'pet_xp_boost' | 'quest_rush' | 'focus_regen' | 'habit_boost' | 'level_grant'
+  effectType?: 'xp_boost' | 'pet_xp_boost' | 'quest_rush' | 'focus_regen' | 'habit_boost' | 'level_grant' | 'quest_reroll'
   effectDuration?: number
   effectMagnitude?: number
   // Cosmetic fields
@@ -197,6 +197,14 @@ export const SHOP_CATALOG: ShopItem[] = [
     description: 'Weakens the current weekly boss by 100 HP',
     icon: '🪤', focusCost: 90,
     effectType: 'xp_boost', effectDuration: 0, effectMagnitude: 1
+  },
+  {
+    id: 'potion_quest_reroll',
+    type: 'potion', rarity: 'uncommon',
+    name: 'Fate\'s Gambit',
+    description: 'Discard your available daily quests and draw a fresh set',
+    icon: '🎲', focusCost: 60,
+    effectType: 'quest_reroll'
   },
 
   // ── Cosmetics (15 items) ──────────────────────────────────────────────────────

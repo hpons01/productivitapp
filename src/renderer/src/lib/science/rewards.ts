@@ -141,7 +141,7 @@ export function rollLootDeduped(
 ): { loot: LootItem; focusInstead: null } | { loot: null; focusInstead: number } {
   const loot = rollLoot(tier, evolutionTier)
 
-  if ((loot.type === 'theme' || loot.type === 'cosmetic') && ownedNames.has(loot.name)) {
+  if ((loot.type === 'theme' || loot.type === 'cosmetic' || loot.type === 'title') && ownedNames.has(loot.name)) {
     return { loot: null, focusInstead: DUPLICATE_FOCUS_BY_TIER[loot.tier] }
   }
 
