@@ -927,11 +927,17 @@ export function TasksPage() {
                     onDrop={handleColumnDrop(column.key)}
                     onDragOver={(event) => {
                       event.preventDefault()
+                      if (dragOverColumn !== column.key) {
+                        setDragOverTaskId(null)
+                        setDragOverPosition(null)
+                      }
                       setDragOverColumn(column.key)
-                      setDragOverTaskId(null)
-                      setDragOverPosition(null)
                     }}
-                    className={`rounded-2xl border ${columnTone} p-3 h-[70vh] min-h-[320px] flex flex-col`}
+                    className={`rounded-2xl border ${columnTone} p-3 h-[70vh] min-h-[320px] flex flex-col transition-all ${
+                      draggingTaskId && dragOverColumn === column.key
+                        ? 'ring-1 ring-sky-400/40 shadow-[0_0_24px_rgba(56,189,248,0.1)]'
+                        : ''
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -985,19 +991,34 @@ export function TasksPage() {
                                 }}
                                 onDragOver={(event) => {
                                   event.preventDefault()
+                                  event.stopPropagation()
                                   const rect = event.currentTarget.getBoundingClientRect()
-                                  const isBefore = event.clientY < rect.top + rect.height / 2
+                                  const midpoint = rect.top + rect.height / 2
+                                  const deadZone = 8
                                   setDragOverTaskId(task.id)
-                                  setDragOverPosition(isBefore ? 'before' : 'after')
                                   setDragOverColumn(column.key)
+                                  if (event.clientY < midpoint - deadZone) {
+                                    setDragOverPosition('before')
+                                  } else if (event.clientY > midpoint + deadZone) {
+                                    setDragOverPosition('after')
+                                  }
+                                  // within dead zone: keep current position (no flip)
                                 }}
                                 onDrop={(event) => {
                                   event.preventDefault()
+                                  event.stopPropagation()
                                   const droppedId = event.dataTransfer.getData('text/plain')
                                   if (!droppedId) return
                                   void applyDrop(droppedId, column.key, task.id, dragOverPosition ?? 'after')
+                                  setDragOverTaskId(null)
+                                  setDragOverPosition(null)
+                                  setDragOverColumn(null)
                                 }}
-                                className="rounded-xl border border-surface-500/40 bg-surface-800/80 p-3 space-y-2 hover:border-surface-300/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/25 transition-all cursor-grab active:cursor-grabbing"
+                                className={`rounded-xl border bg-surface-800/80 p-3 space-y-2 transition-all cursor-grab active:cursor-grabbing ${
+                                  draggingTaskId === task.id
+                                    ? 'opacity-40 scale-[0.97] border-surface-500/30 shadow-none'
+                                    : 'border-surface-500/40 hover:border-surface-300/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/25'
+                                }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
