@@ -14,6 +14,9 @@ export interface LootItem {
   icon: string
   value?: number
   levelFraction?: number
+  effectType?: string
+  effectDuration?: number
+  effectMagnitude?: number
 }
 
 /** Probability of reward trigger for a given context */
@@ -85,6 +88,7 @@ const LOOT_POOLS: Record<LootTier, LootItem[]> = {
     { tier: 'uncommon', type: 'xp_boost', name: 'Adept Sigil', description: 'Gain 50% of a level', icon: '⭐', levelFraction: 0.5 },
     { tier: 'uncommon', type: 'power_up', name: 'Long XP Elixir', description: '+50% XP for 6 hours', icon: '🧪' },
     { tier: 'uncommon', type: 'power_up', name: 'Focus Potion', description: '+25% XP on your next 3 Pomodoros', icon: '🍵' },
+    { tier: 'uncommon', type: 'power_up', name: 'Clockwork Voucher', description: 'Reroll today\'s shop stock for a new set of wares', icon: '🧷', effectType: 'shop_reroll' },
     { tier: 'uncommon', type: 'cosmetic', name: 'Silver Accent', description: 'Unlock silver UI accents', icon: '🩶' },
     { tier: 'uncommon', type: 'title', name: 'The Persistent', description: 'A green title for the consistent', icon: '🌿' }
   ],
@@ -141,7 +145,7 @@ export function rollLootDeduped(
 ): { loot: LootItem; focusInstead: null } | { loot: null; focusInstead: number } {
   const loot = rollLoot(tier, evolutionTier)
 
-  if ((loot.type === 'theme' || loot.type === 'cosmetic') && ownedNames.has(loot.name)) {
+  if ((loot.type === 'theme' || loot.type === 'cosmetic' || loot.type === 'title') && ownedNames.has(loot.name)) {
     return { loot: null, focusInstead: DUPLICATE_FOCUS_BY_TIER[loot.tier] }
   }
 

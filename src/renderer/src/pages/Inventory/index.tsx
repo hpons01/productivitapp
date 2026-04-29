@@ -157,6 +157,20 @@ export function InventoryPage() {
         }
       }
 
+      if (item.type === 'power_up' && payload.effectType === 'quest_reroll') {
+        await window.api.quests.reroll()
+        await window.api.loot.activate(item.id)
+        setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
+        return
+      }
+
+      if (item.type === 'power_up' && payload.effectType === 'shop_reroll') {
+        await window.api.shop.reroll(format(new Date(), 'yyyy-MM-dd'))
+        await window.api.loot.activate(item.id)
+        setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_at: Date.now() } : i))
+        return
+      }
+
       await activateLootItem(
         {
           type: item.type,

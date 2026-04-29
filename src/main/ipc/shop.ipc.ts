@@ -9,9 +9,32 @@ import {
 } from '../db/queries/shop.queries'
 import { generateDailyShop } from '../domain/shop'
 import { damageBoss, getOrCreateWeeklyBoss } from '../db/queries/gamification.queries'
-import { setSetting } from '../db/queries/settings.queries'
+import { getSetting, setSetting } from '../db/queries/settings.queries'
 
 const DATE_SEED_RE = /^\d{4}-\d{2}-\d{2}$/
+const SHOP_REROLL_KEY = 'shop_reroll_state'
+
+function getShopRerollIndex(db: ReturnType<typeof getDb>, dateSeed: string): number {
+  const raw = getSetting(db, SHOP_REROLL_KEY)
+  if (!raw) return 0
+  try {
+    const parsed = JSON.parse(raw) as { dateSeed?: string; index?: number }
+    if (parsed.dateSeed !== dateSeed) return 0
+    return Number.isInteger(parsed.index) ? Math.max(0, parsed.index ?? 0) : 0
+  } catch {
+    return 0
+  }
+}
+
+function setShopRerollIndex(db: ReturnType<typeof getDb>, dateSeed: string, index: number): void {
+  const safeIndex = Number.isInteger(index) ? Math.max(0, index) : 0
+  setSetting(db, SHOP_REROLL_KEY, JSON.stringify({ dateSeed, index: safeIndex }))
+}
+
+function filterPurchasedForItems(items: { id: string }[], purchasedItemIds: string[]): string[] {
+  const itemSet = new Set(items.map((item) => item.id))
+  return purchasedItemIds.filter((id) => itemSet.has(id))
+}
 
 export function registerShopIpc(): void {
   ipcMain.handle('shop:focusBalance', () => {
@@ -21,15 +44,31 @@ export function registerShopIpc(): void {
   ipcMain.handle('shop:dailyShop', (_event, dateSeed: string) => {
     if (!DATE_SEED_RE.test(dateSeed)) throw new Error('Invalid date seed format')
     const db = getDb()
-    const items = generateDailyShop(dateSeed)
+    const rerollIndex = getShopRerollIndex(db, dateSeed)
+    const items = generateDailyShop(dateSeed, rerollIndex)
     const purchases = getShopPurchasesForDate(db, dateSeed)
-    return { items, purchasedItemIds: purchases.map((p) => p.item_id) }
+    const purchasedItemIds = filterPurchasedForItems(items, purchases.map((p) => p.item_id))
+    return { items, purchasedItemIds }
   })
 
   ipcMain.handle('shop:purchase', (_event, itemId: string, dateSeed: string) => {
     if (!itemId || typeof itemId !== 'string') throw new Error('itemId required')
     if (!DATE_SEED_RE.test(dateSeed)) throw new Error('Invalid date seed format')
-    return purchaseShopItem(getDb(), itemId, dateSeed)
+    const db = getDb()
+    const rerollIndex = getShopRerollIndex(db, dateSeed)
+    return purchaseShopItem(db, itemId, dateSeed, rerollIndex)
+  })
+
+  ipcMain.handle('shop:reroll', (_event, dateSeed: string) => {
+    if (!DATE_SEED_RE.test(dateSeed)) throw new Error('Invalid date seed format')
+    const db = getDb()
+    const currentIndex = getShopRerollIndex(db, dateSeed)
+    const nextIndex = currentIndex + 1
+    setShopRerollIndex(db, dateSeed, nextIndex)
+    const items = generateDailyShop(dateSeed, nextIndex)
+    const purchases = getShopPurchasesForDate(db, dateSeed)
+    const purchasedItemIds = filterPurchasedForItems(items, purchases.map((p) => p.item_id))
+    return { items, purchasedItemIds }
   })
 
   ipcMain.handle('shop:awardFocus', (_event, source: string, sourceId: string, amount: number) => {

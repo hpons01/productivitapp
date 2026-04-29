@@ -322,7 +322,7 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       const existing = await api().loot.list() as Array<{ type: string; payload: string }>
       ownedNames = new Set(
         existing
-          .filter((i) => i.type === 'theme' || i.type === 'cosmetic')
+          .filter((i) => i.type === 'theme' || i.type === 'cosmetic' || i.type === 'title')
           .map((i) => { try { return (JSON.parse(i.payload) as { name?: string }).name ?? '' } catch { return '' } })
           .filter(Boolean)
       )

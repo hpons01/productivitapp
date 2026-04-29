@@ -82,7 +82,8 @@ const api = {
     catalog: () => ipcRenderer.invoke('quests:catalog'),
     catalogEnroll: (definitionId: string) => ipcRenderer.invoke('quests:catalog:enroll', definitionId),
     catalogAbandon: (enrollmentId: string) => ipcRenderer.invoke('quests:catalog:abandon', enrollmentId),
-    catalogProgress: (enrollmentId: string, progress: number) => ipcRenderer.invoke('quests:catalog:progress', enrollmentId, progress)
+    catalogProgress: (enrollmentId: string, progress: number) => ipcRenderer.invoke('quests:catalog:progress', enrollmentId, progress),
+    reroll: () => ipcRenderer.invoke('quests:reroll')
   },
 
   // Settings
@@ -133,6 +134,7 @@ const api = {
     focusBalance: () => ipcRenderer.invoke('shop:focusBalance'),
     dailyShop: (dateSeed: string) => ipcRenderer.invoke('shop:dailyShop', dateSeed),
     purchase: (itemId: string, dateSeed: string) => ipcRenderer.invoke('shop:purchase', itemId, dateSeed),
+    reroll: (dateSeed: string) => ipcRenderer.invoke('shop:reroll', dateSeed),
     focusLog: (limit?: number) => ipcRenderer.invoke('shop:focusLog', limit),
     awardFocus: (source: string, sourceId: string, amount: number) => ipcRenderer.invoke('shop:awardFocus', source, sourceId, amount),
     activateBossBait: () => ipcRenderer.invoke('shop:activateBossBait'),

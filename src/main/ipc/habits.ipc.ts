@@ -63,36 +63,48 @@ export function registerHabitsIpc(): void {
     const required = Math.max(1, totalHabits)
 
     const completion = completeHabit(db, data)
-
-    // Get streak for XP multiplier
     const streak = getHabitStreak(db, data.habit_id)
-    const streakBonus = Math.min(50, streak * 2)
-    const baseXP = 15 + streakBonus
-    const xpAward = awardXP(db, 'habit', data.habit_id, baseXP)
 
-    // Award Focus based on streak tier
-    const focusAmount = streak >= 30 ? 5 : streak >= 14 ? 3 : streak >= 7 ? 2 : 1
-    const focusAward = awardFocus(db, 'habit_completion', `habit_focus_${completion.id}`, focusAmount)
+    // Use a per-habit-per-day key so uncomplete→recomplete cycles don't re-award.
+    // completion.id changes on every recomplete (soft-delete + new insert), so it
+    // cannot be the idempotency key.
+    const d = new Date(data.completed_at ?? Date.now())
+    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const xpSourceId = `${data.habit_id}_${dateKey}`
 
-    logEvent(db, 'habit_completed', 'habit', data.habit_id, {
-      streak,
-      baseXP,
-      xpAwarded: xpAward.finalAmount,
-      focusAwarded: focusAward.awarded
-    })
+    const alreadyRewarded = (db.prepare(
+      "SELECT COUNT(*) as n FROM xp_log WHERE source = 'habit' AND source_id = ?"
+    ).get(xpSourceId) as { n: number }).n > 0
 
-    // Damage the weekly boss
-    damageBoss(db, 25)
+    let xpAward = { finalAmount: 0, baseAmount: 0, multiplier: 1 }
+    let focusAwarded = 0
 
-    // Update streak recovery quest progress if one exists today
+    if (!alreadyRewarded) {
+      const streakBonus = Math.min(50, streak * 2)
+      const baseXP = 15 + streakBonus
+      const result = awardXP(db, 'habit', xpSourceId, baseXP)
+      xpAward = { finalAmount: result.finalAmount, baseAmount: result.baseAmount, multiplier: result.multiplier }
+
+      const focusAmount = streak >= 30 ? 5 : streak >= 14 ? 3 : streak >= 7 ? 2 : 1
+      const focusResult = awardFocus(db, 'habit_completion', `habit_focus_${xpSourceId}`, focusAmount)
+      focusAwarded = focusResult.awarded
+
+      damageBoss(db, 25)
+
+      logEvent(db, 'habit_completed', 'habit', data.habit_id, {
+        streak,
+        baseXP,
+        xpAwarded: result.finalAmount,
+        focusAwarded
+      })
+    }
+
+    // Quest progress is idempotent (sets to current count) — always run.
     const completedToday = getTodayCompletedCount(db)
     updateStreakRecoveryQuest(db, completedToday)
-
-    // Enrolled quest progress updates (new lifecycle engine).
     emitQuestCompletions(setQuestProgressByType(db, 'streak_recovery', completedToday), 'streak_recovery')
     emitQuestCompletions(setQuestProgressByType(db, 'habits_all', completedToday >= required ? 1 : 0), 'habits_all')
 
-    // Catalog habits_all should count once per day when crossing from incomplete -> complete.
     if (completedBefore < required && completedToday >= required) {
       incrementCatalogProgressByType(db, 'habits_all', 1)
     }
@@ -103,7 +115,7 @@ export function registerHabitsIpc(): void {
       baseXP: xpAward.baseAmount,
       multiplier: xpAward.multiplier,
       streak,
-      focusAwarded: focusAward.awarded
+      focusAwarded
     }
   })
 

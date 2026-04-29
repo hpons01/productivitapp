@@ -13,6 +13,8 @@ import {
   recordCatalogQuestProgress,
   syncExpiredCatalogEnrollments
 } from '../db/queries/quests.queries'
+import { getOrCreateDailyQuests } from '../db/queries/gamification.queries'
+import { startOfDay, endOfDay } from 'date-fns'
 import { logEvent } from '../db/queries/eventlog.queries'
 import { emitQuestCompleted } from './quest-notifications'
 
@@ -87,6 +89,17 @@ export function registerQuestsIpc(): void {
     const expiredCount = syncExpiredEnrolledQuests(db)
     const catalogExpiredCount = syncExpiredCatalogEnrollments(db)
     return { expiredCount, catalogExpiredCount }
+  })
+
+  ipcMain.handle('quests:reroll', () => {
+    const db = getDb()
+    const todayStart = startOfDay(new Date()).getTime()
+    const todayEnd = endOfDay(new Date()).getTime()
+    db.prepare(
+      `DELETE FROM daily_quests WHERE date >= ? AND date <= ? AND status = 'available'`
+    ).run(todayStart, todayEnd)
+    logEvent(db, 'quest_reroll_used', 'quest', 'daily', {})
+    return getOrCreateDailyQuests(db)
   })
 
   // ── Catalog ──────────────────────────────────────────────────────────────

@@ -112,6 +112,9 @@ export function QuestsPage() {
           busyId={dailyQuests.busyId}
           onEnroll={handleDailyEnroll}
           onAbandon={handleDailyAbandon}
+          rerollCount={dailyQuests.rerollCount}
+          rerolling={dailyQuests.rerolling}
+          onReroll={dailyQuests.reroll}
         />
       ) : activeTab === 'active' ? (
         <ActiveQuestsTab

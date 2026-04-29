@@ -1,6 +1,5 @@
 import { getDb } from '../db'
 import { getSetting, setSetting } from '../db/queries/settings.queries'
-import { loadStoredSession } from '../auth/token-store'
 import { pullTable, pushTable } from './sync-engine'
 import type { SyncStatus, SyncTableName } from './types'
 
@@ -82,11 +81,8 @@ export function setSyncStatusListener(fn: (next: SyncStatus) => void): void {
   statusListener = fn
 }
 
-export async function runSync(opts: { fullPull?: boolean } = {}): Promise<void> {
+export async function runSync(opts: { fullPull?: boolean; skipPush?: boolean } = {}): Promise<void> {
   if (status.inProgress) return
-
-  const session = await loadStoredSession()
-  if (!session?.accessToken || !session.userId) return
 
   const since = opts.fullPull ? 0 : getLastSyncedAt()
   const syncStartedAt = Date.now()
@@ -99,14 +95,16 @@ export async function runSync(opts: { fullPull?: boolean } = {}): Promise<void> 
   })
 
   try {
-    for (const table of SYNC_TABLES) {
-      await pushTable(table, session.userId, since)
+    if (!opts.skipPush) {
+      for (const table of SYNC_TABLES) {
+        await pushTable(table, since)
+      }
     }
 
     db.pragma('foreign_keys = OFF')
     try {
       for (const table of SYNC_TABLES) {
-        await pullTable(table, session.userId, since)
+        await pullTable(table, since)
       }
     } finally {
       db.pragma('foreign_keys = ON')
