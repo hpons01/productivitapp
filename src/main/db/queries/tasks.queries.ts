@@ -12,6 +12,16 @@ export interface Task {
   created_at: number
   habit_id: string | null
   temptation_bundle: string | null
+  task_type: 'classic' | 'kanban'
+  progress: 'backlog' | 'not_started' | 'ongoing' | 'done'
+  project_id: string | null
+  sort_order: number | null
+}
+
+export interface TaskProject {
+  id: string
+  name: string
+  created_at: number
 }
 
 export function listTasks(db: Database.Database): Task[] {
@@ -25,8 +35,14 @@ export function listTasks(db: Database.Database): Task[] {
 export function createTask(db: Database.Database, data: Omit<Task, 'completed_at'>): Task {
   const now = Date.now()
   db.prepare(`
-    INSERT INTO tasks (id, title, notes, priority, estimated_mins, due_date, created_at, habit_id, temptation_bundle, updated_at)
-    VALUES (@id, @title, @notes, @priority, @estimated_mins, @due_date, @created_at, @habit_id, @temptation_bundle, @updated_at)
+    INSERT INTO tasks (
+      id, title, notes, priority, estimated_mins, due_date, created_at,
+      habit_id, temptation_bundle, task_type, progress, project_id, sort_order, updated_at
+    )
+    VALUES (
+      @id, @title, @notes, @priority, @estimated_mins, @due_date, @created_at,
+      @habit_id, @temptation_bundle, @task_type, @progress, @project_id, @sort_order, @updated_at
+    )
   `).run({ ...data, updated_at: now })
   return db.prepare('SELECT * FROM tasks WHERE id = ?').get(data.id) as Task
 }
@@ -45,8 +61,33 @@ export function updateTask(
 
 export function completeTask(db: Database.Database, id: string): Task {
   const now = Date.now()
-  db.prepare('UPDATE tasks SET completed_at = ?, updated_at = ? WHERE id = ?').run(now, now, id)
+  db.prepare("UPDATE tasks SET completed_at = ?, progress = 'done', updated_at = ? WHERE id = ?").run(now, now, id)
   return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task
+}
+
+export function listTaskProjects(db: Database.Database): TaskProject[] {
+  return db
+    .prepare('SELECT * FROM task_projects WHERE deleted_at IS NULL ORDER BY name ASC')
+    .all() as TaskProject[]
+}
+
+export function createTaskProject(db: Database.Database, data: TaskProject): TaskProject {
+  const now = Date.now()
+  db.prepare(`
+    INSERT INTO task_projects (id, name, created_at, updated_at)
+    VALUES (@id, @name, @created_at, @updated_at)
+  `).run({ ...data, updated_at: now })
+  return db.prepare('SELECT * FROM task_projects WHERE id = ?').get(data.id) as TaskProject
+}
+
+export function updateTaskProject(db: Database.Database, id: string, name: string): TaskProject {
+  db.prepare('UPDATE task_projects SET name = ?, updated_at = ? WHERE id = ?').run(name, Date.now(), id)
+  return db.prepare('SELECT * FROM task_projects WHERE id = ?').get(id) as TaskProject
+}
+
+export function deleteTaskProject(db: Database.Database, id: string): void {
+  const now = Date.now()
+  db.prepare('UPDATE task_projects SET deleted_at = ?, updated_at = ? WHERE id = ?').run(now, now, id)
 }
 
 export function getTaskById(db: Database.Database, id: string): Task | undefined {

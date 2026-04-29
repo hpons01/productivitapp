@@ -7,6 +7,7 @@ const LAST_SYNCED_KEY = 'sync_last_synced_at'
 
 const SYNC_TABLES: SyncTableName[] = [
   'habits',
+  'task_projects',
   'tasks',
   'journal_entries',
   'energy_logs',

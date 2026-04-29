@@ -25,7 +25,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             'w-full appearance-none rounded-xl border border-[color:var(--app-interactive-border)] bg-[color:var(--app-surface)] px-3 py-2.5 pr-8 text-sm text-[color:var(--app-interactive-fg-default)]',
             'hover:border-[color:var(--app-interactive-border-hover)]',
             'focus:outline-none focus:border-[color:var(--app-focus-ring)] focus:ring-1 focus:ring-[color:var(--app-primary-glow)]',
-            'transition-colors duration-150 cursor-pointer',
+            'transition-all duration-200 ease-out cursor-pointer',
             className
           )}
           {...props}

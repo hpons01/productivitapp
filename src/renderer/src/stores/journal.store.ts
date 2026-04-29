@@ -107,7 +107,11 @@ export const useJournalStore = create<JournalState>((set, get) => ({
           completed_at: null,
           created_at: Date.now(),
           habit_id: null,
-          temptation_bundle: null
+          temptation_bundle: null,
+          task_type: 'classic',
+          progress: 'not_started',
+          project_id: null,
+          sort_order: Date.now()
         })
       }))
     }

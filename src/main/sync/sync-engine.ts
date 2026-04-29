@@ -88,7 +88,11 @@ const ALLOWED_COLUMNS: Record<SyncTableName, readonly string[]> = {
   ],
   tasks: [
     'id', 'title', 'notes', 'priority', 'estimated_mins', 'due_date', 'completed_at',
-    'created_at', 'habit_id', 'temptation_bundle', 'updated_at', 'deleted_at'
+    'created_at', 'habit_id', 'temptation_bundle', 'task_type', 'progress', 'project_id',
+    'sort_order', 'updated_at', 'deleted_at'
+  ],
+  task_projects: [
+    'id', 'name', 'created_at', 'updated_at', 'deleted_at'
   ],
   pomodoro_sessions: [
     'id', 'task_id', 'label', 'started_at', 'ended_at', 'duration_mins', 'break_mins',

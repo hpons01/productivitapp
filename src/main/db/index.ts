@@ -35,6 +35,7 @@ export function initDatabase(): void {
   ensureUsersSchema()
   ensureShopSchema()   // must run before seedCatalogQuests so focus_reward column exists
   ensureBossLootClaimedColumn()
+  ensureTasksKanbanSchema()
   ensureSyncSchema()
   ensureDefaultSettings()
   seedBadges()
@@ -441,6 +442,32 @@ function ensureBossLootClaimedColumn(): void {
   }
 }
 
+function ensureTasksKanbanSchema(): void {
+  const taskColumns = (db.prepare('PRAGMA table_info(tasks)').all() as Array<{ name: string }>).map((c) => c.name)
+
+  if (!taskColumns.includes('task_type')) {
+    db.exec("ALTER TABLE tasks ADD COLUMN task_type TEXT NOT NULL DEFAULT 'classic'")
+  }
+  if (!taskColumns.includes('progress')) {
+    db.exec("ALTER TABLE tasks ADD COLUMN progress TEXT NOT NULL DEFAULT 'not_started'")
+  }
+  if (!taskColumns.includes('project_id')) {
+    db.exec('ALTER TABLE tasks ADD COLUMN project_id TEXT')
+  }
+  if (!taskColumns.includes('sort_order')) {
+    db.exec('ALTER TABLE tasks ADD COLUMN sort_order INTEGER')
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS task_projects (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_projects_name ON task_projects(name);
+  `)
+}
+
 function ensureSyncSchema(): void {
   const tablesNeedingUpdatedAt = [
     'habits',
@@ -448,6 +475,7 @@ function ensureSyncSchema(): void {
     'habit_micro_checkins',
     'habit_lapse_reflections',
     'tasks',
+    'task_projects',
     'pomodoro_sessions',
     'pomodoro_presets',
     'journal_entries',
@@ -473,6 +501,7 @@ function ensureSyncSchema(): void {
     'habit_micro_checkins',
     'habit_lapse_reflections',
     'tasks',
+    'task_projects',
     'pomodoro_sessions',
     'pomodoro_presets',
     'journal_entries',
@@ -746,9 +775,21 @@ CREATE TABLE IF NOT EXISTS tasks (
   completed_at       INTEGER,
   created_at         INTEGER NOT NULL,
   habit_id           TEXT,
-  temptation_bundle  TEXT
+  temptation_bundle  TEXT,
+  task_type          TEXT NOT NULL DEFAULT 'classic',
+  progress           TEXT NOT NULL DEFAULT 'not_started',
+  project_id         TEXT,
+  sort_order         INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
+
+CREATE TABLE IF NOT EXISTS task_projects (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_task_projects_name ON task_projects(name);
 
 CREATE TABLE IF NOT EXISTS journal_entries (
   id              TEXT PRIMARY KEY,

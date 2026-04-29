@@ -4,6 +4,7 @@ export type SyncTableName =
   | 'habit_micro_checkins'
   | 'habit_lapse_reflections'
   | 'tasks'
+  | 'task_projects'
   | 'pomodoro_sessions'
   | 'pomodoro_presets'
   | 'journal_entries'

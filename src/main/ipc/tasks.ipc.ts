@@ -1,6 +1,17 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db'
-import { listTasks, createTask, updateTask, completeTask, deleteTask, getTaskById } from '../db/queries/tasks.queries'
+import {
+  listTasks,
+  createTask,
+  updateTask,
+  completeTask,
+  deleteTask,
+  getTaskById,
+  listTaskProjects,
+  createTaskProject,
+  updateTaskProject,
+  deleteTaskProject
+} from '../db/queries/tasks.queries'
 import { awardXP, damageBoss } from '../db/queries/gamification.queries'
 import { cancelTaskReminder, scheduleTaskReminder, snoozeTaskReminder } from '../notifications'
 import { incrementQuestProgressByType } from '../db/queries/quests.queries'
@@ -11,6 +22,28 @@ export function registerTasksIpc(): void {
   ipcMain.handle('tasks:list', () => {
     const db = getDb()
     return listTasks(db)
+  })
+
+  ipcMain.handle('tasks:projects:list', () => {
+    const db = getDb()
+    return listTaskProjects(db)
+  })
+
+  ipcMain.handle('tasks:projects:create', (_event, data) => {
+    const db = getDb()
+    return createTaskProject(db, data)
+  })
+
+  ipcMain.handle('tasks:projects:update', (_event, data) => {
+    const db = getDb()
+    const { id, name } = data
+    return updateTaskProject(db, id, name)
+  })
+
+  ipcMain.handle('tasks:projects:delete', (_event, id: string) => {
+    const db = getDb()
+    deleteTaskProject(db, id)
+    return { success: true }
   })
 
   ipcMain.handle('tasks:create', (_event, data) => {

@@ -56,7 +56,9 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
                     </Dialog.Close>
                   </div>
                 )}
-                {children}
+                <div className="max-h-[70vh] overflow-y-auto pr-2 -mr-2">
+                  {children}
+                </div>
               </motion.div>
             </Dialog.Content>
           </Dialog.Portal>

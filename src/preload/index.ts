@@ -40,7 +40,13 @@ const api = {
     update: (data: unknown) => ipcRenderer.invoke('tasks:update', data),
     complete: (id: string) => ipcRenderer.invoke('tasks:complete', id),
     delete: (id: string) => ipcRenderer.invoke('tasks:delete', id),
-    snoozeReminder: (taskId: string, minutes = 5) => ipcRenderer.invoke('tasks:snoozeReminder', taskId, minutes)
+    snoozeReminder: (taskId: string, minutes = 5) => ipcRenderer.invoke('tasks:snoozeReminder', taskId, minutes),
+    projects: {
+      list: () => ipcRenderer.invoke('tasks:projects:list'),
+      create: (data: unknown) => ipcRenderer.invoke('tasks:projects:create', data),
+      update: (data: unknown) => ipcRenderer.invoke('tasks:projects:update', data),
+      delete: (id: string) => ipcRenderer.invoke('tasks:projects:delete', id)
+    }
   },
 
   // Journal
