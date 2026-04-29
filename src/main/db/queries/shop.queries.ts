@@ -132,12 +132,13 @@ export function getFocusLog(db: Database.Database, limit = 50): FocusLogRow[] {
 export function purchaseShopItem(
   db: Database.Database,
   itemId: string,
-  dateSeed: string
+  dateSeed: string,
+  rerollIndex = 0
 ): ShopPurchaseResult {
   const item = SHOP_CATALOG_BY_ID[itemId]
   if (!item) return { success: false, error: 'Item not found in catalog.' }
 
-  const todaysShop = generateDailyShop(dateSeed)
+  const todaysShop = generateDailyShop(dateSeed, rerollIndex)
   if (!todaysShop.find((i) => i.id === itemId)) {
     return { success: false, error: "Item is not in today's shop." }
   }

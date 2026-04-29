@@ -10,7 +10,7 @@ export interface ShopItem {
   icon: string
   focusCost: number
   // Potion fields
-  effectType?: 'xp_boost' | 'pet_xp_boost' | 'quest_rush' | 'focus_regen' | 'habit_boost' | 'level_grant' | 'quest_reroll'
+  effectType?: 'xp_boost' | 'pet_xp_boost' | 'quest_rush' | 'focus_regen' | 'habit_boost' | 'level_grant' | 'quest_reroll' | 'shop_reroll'
   effectDuration?: number
   effectMagnitude?: number
   // Cosmetic fields
@@ -206,6 +206,14 @@ export const SHOP_CATALOG: ShopItem[] = [
     icon: '🎲', focusCost: 60,
     effectType: 'quest_reroll'
   },
+  {
+    id: 'potion_shop_reroll',
+    type: 'potion', rarity: 'uncommon',
+    name: 'Clockwork Voucher',
+    description: 'Reroll today\'s shop stock for a new set of wares',
+    icon: '🧷', focusCost: 70,
+    effectType: 'shop_reroll'
+  },
 
   // ── Cosmetics (15 items) ──────────────────────────────────────────────────────
   {
@@ -378,9 +386,10 @@ function seededShuffle<T>(arr: T[], rng: () => number): T[] {
  * Returns the 6-item daily shop for a given date seed (YYYY-MM-DD).
  * Picks 2 potions + 2 cosmetics + 2 eggs.
  */
-export function generateDailyShop(dateSeed: string): ShopItem[] {
+export function generateDailyShop(dateSeed: string, rerollIndex = 0): ShopItem[] {
   const numericSeed = parseInt(dateSeed.replace(/-/g, ''), 10)
-  const rng = mulberry32(numericSeed)
+  const safeIndex = Number.isInteger(rerollIndex) ? Math.max(0, rerollIndex) : 0
+  const rng = mulberry32(numericSeed + safeIndex * 100000)
 
   const potions = SHOP_CATALOG.filter((i) => i.type === 'potion')
   const cosmetics = SHOP_CATALOG.filter((i) => i.type === 'cosmetic')

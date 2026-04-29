@@ -26,9 +26,11 @@ interface ShopState {
   dateSeed: string
   loading: boolean
   purchasing: string | null
+  rerolling: boolean
 
   load: () => Promise<void>
   purchase: (itemId: string) => Promise<{ success: boolean; error?: string; item?: ShopItemClient }>
+  reroll: () => Promise<{ success: boolean; error?: string }>
   refreshBalance: () => Promise<void>
 }
 
@@ -39,6 +41,7 @@ export const useShopStore = create<ShopState>((set, get) => ({
   dateSeed: format(new Date(), 'yyyy-MM-dd'),
   loading: false,
   purchasing: null,
+  rerolling: false,
 
   load: async () => {
     set({ loading: true })
@@ -84,6 +87,26 @@ export const useShopStore = create<ShopState>((set, get) => ({
       return { success: false, error: 'Purchase failed' }
     } finally {
       set({ purchasing: null })
+    }
+  },
+
+  reroll: async () => {
+    set({ rerolling: true })
+    try {
+      const result = (await api().shop.reroll(get().dateSeed)) as {
+        items: ShopItemClient[]
+        purchasedItemIds: string[]
+      }
+      set({
+        dailyItems: result.items,
+        purchasedItemIds: new Set(result.purchasedItemIds)
+      })
+      return { success: true }
+    } catch (e) {
+      console.error('Failed to reroll shop', e)
+      return { success: false, error: 'Reroll failed' }
+    } finally {
+      set({ rerolling: false })
     }
   },
 

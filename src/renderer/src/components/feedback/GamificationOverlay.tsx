@@ -266,7 +266,10 @@ function LootBoxScreen({ reward, onDismiss }: { reward: PendingReward; onDismiss
           description: loot.description,
           icon: loot.icon,
           value: loot.value,
-          levelFraction: loot.levelFraction
+          levelFraction: loot.levelFraction,
+          effectType: loot.effectType,
+          effectDuration: loot.effectDuration,
+          effectMagnitude: loot.effectMagnitude
         })
       }) as { success?: boolean; error?: string }
 

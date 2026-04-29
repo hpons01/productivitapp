@@ -134,6 +134,7 @@ const api = {
     focusBalance: () => ipcRenderer.invoke('shop:focusBalance'),
     dailyShop: (dateSeed: string) => ipcRenderer.invoke('shop:dailyShop', dateSeed),
     purchase: (itemId: string, dateSeed: string) => ipcRenderer.invoke('shop:purchase', itemId, dateSeed),
+    reroll: (dateSeed: string) => ipcRenderer.invoke('shop:reroll', dateSeed),
     focusLog: (limit?: number) => ipcRenderer.invoke('shop:focusLog', limit),
     awardFocus: (source: string, sourceId: string, amount: number) => ipcRenderer.invoke('shop:awardFocus', source, sourceId, amount),
     activateBossBait: () => ipcRenderer.invoke('shop:activateBossBait'),

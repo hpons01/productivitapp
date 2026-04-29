@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
+import { cn } from '../../lib/utils'
 import { DailyQuestItem } from './questTypes'
 import { QuestCard } from './QuestCard'
 
@@ -37,9 +38,12 @@ interface DailyQuestsTabProps {
   busyId: string | null
   onEnroll: (id: string) => void
   onAbandon: (id: string) => void
+  rerollCount: number
+  rerolling: boolean
+  onReroll: () => void
 }
 
-export function DailyQuestsTab({ quests, loading, activeCount, busyId, onEnroll, onAbandon }: DailyQuestsTabProps) {
+export function DailyQuestsTab({ quests, loading, activeCount, busyId, onEnroll, onAbandon, rerollCount, rerolling, onReroll }: DailyQuestsTabProps) {
   const countdown = useCountdownToMidnight()
 
   return (
@@ -51,6 +55,20 @@ export function DailyQuestsTab({ quests, loading, activeCount, busyId, onEnroll,
           <span className="text-xs font-mono text-amber-400">{countdown}</span>
         </div>
         <div className="flex items-center gap-2">
+          {rerollCount > 0 && (
+            <button
+              onClick={onReroll}
+              disabled={rerolling}
+              className={cn(
+                'text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors',
+                rerolling
+                  ? 'bg-surface-700 text-surface-500 border-surface-600'
+                  : 'bg-amber-500/15 text-amber-300 border-amber-500/40 ui-bg-hover'
+              )}
+            >
+              Reroll ({rerollCount})
+            </button>
+          )}
           <span className="text-xs text-surface-400">Active:</span>
           <span className="text-sm font-bold text-[color:var(--app-interactive-fg-default)]">{activeCount}/3</span>
         </div>

@@ -131,18 +131,46 @@ function ShopItemCard({ item, focusBalance, isPurchased, isPurchasing, onBuy }: 
 }
 
 export function ShopPage() {
-  const { focusBalance, dailyItems, purchasedItemIds, purchasing, loading, load, purchase } = useShopStore()
+  const { focusBalance, dailyItems, purchasedItemIds, purchasing, loading, load, purchase, rerolling, reroll } = useShopStore()
   const { loadSettings } = useSettingsStore()
   const countdown = useCountdown()
   const greeting = getGreeting()
+  const [rerollCount, setRerollCount] = useState(0)
 
   useEffect(() => {
     void load()
   }, [])
 
+  useEffect(() => {
+    void loadRerollCount()
+  }, [])
+
+  async function loadRerollCount() {
+    try {
+      const items = await window.api.loot.list() as Array<{ type: string; payload: string; used_at: number | null }>
+      const available = items.filter((item) => {
+        if (item.used_at) return false
+        if (item.type !== 'power_up') return false
+        try {
+          const payload = JSON.parse(item.payload) as { effectType?: string }
+          return payload.effectType === 'shop_reroll'
+        } catch {
+          return false
+        }
+      })
+      setRerollCount(available.length)
+    } catch {
+      setRerollCount(0)
+    }
+  }
+
   async function handleBuy(item: ShopItemClient) {
     const result = await purchase(item.id)
     if (!result.success) return
+
+    if (item.effectType === 'shop_reroll') {
+      await loadRerollCount()
+    }
 
     if (item.type === 'cosmetic') {
       await loadSettings()
@@ -154,6 +182,32 @@ export function ShopPage() {
 
     if (item.id === 'potion_habit_shield') {
       await window.api.shop.activateHabitShield()
+    }
+  }
+
+  async function handleShopReroll() {
+    if (rerolling) return
+    try {
+      const items = await window.api.loot.list() as Array<{ id: string; type: string; payload: string; used_at: number | null }>
+      const nextItem = items.find((item) => {
+        if (item.used_at) return false
+        if (item.type !== 'power_up') return false
+        try {
+          const payload = JSON.parse(item.payload) as { effectType?: string }
+          return payload.effectType === 'shop_reroll'
+        } catch {
+          return false
+        }
+      })
+      if (!nextItem) return
+
+      const result = await reroll()
+      if (!result.success) return
+
+      await window.api.loot.activate(nextItem.id)
+      await loadRerollCount()
+    } catch (error) {
+      console.error('Failed to reroll shop', error)
     }
   }
 
@@ -193,6 +247,16 @@ export function ShopPage() {
               <span className="text-[10px] uppercase tracking-wide font-medium">Refreshes in</span>
               <span className="font-mono text-[color:var(--app-interactive-fg-default)] font-bold text-xs">{countdown}</span>
             </div>
+            {rerollCount > 0 && (
+              <Button
+                size="sm"
+                variant="amber"
+                onClick={handleShopReroll}
+                loading={rerolling}
+              >
+                Reroll Shop ({rerollCount})
+              </Button>
+            )}
           </div>
         </div>
       </div>
